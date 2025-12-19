@@ -30,43 +30,30 @@ export class FileHistoryProvider extends BaseTreeProvider<
   private updateCurrentFile() {
     const editor = vscode.window.activeTextEditor;
 
-    if (!editor) {
-      // If no editor is open, or focus moved away from editors (e.g. to terminal)
-      // We check visible editors to see if we should really clear it.
-      if (vscode.window.visibleTextEditors.length === 0) {
-        if (this.currentFilePath !== undefined) {
-          this.currentFilePath = undefined;
-          this.refresh();
-        }
+    // Condition 1: No editor or no visible editors -> Clear
+    if (!editor || vscode.window.visibleTextEditors.length === 0) {
+      if (this.currentFilePath !== undefined) {
+        this.currentFilePath = undefined;
+        this.refresh();
       }
       return;
     }
 
-    const uri = editor.document.uri;
-    let filePath: string | undefined;
-
-    if (uri.scheme === "file") {
-      filePath = uri.fsPath;
-    } else if (uri.scheme === "gitorbit-git") {
-      // In GitContentProvider, uri.path is the file path
-      filePath = uri.path;
-    } else if (uri.scheme === "gitorbit-diff") {
-      // In DiffContentProvider, path is encoded in query
-      try {
-        const query = JSON.parse(uri.query);
-        filePath = query.filePath;
-      } catch {
-        filePath = uri.path;
-      }
-    }
-
-    if (filePath) {
-      // Normalize path (Git likes / even on Windows)
-      const normalizedPath = filePath.replace(/\\/g, "/");
-      if (normalizedPath !== this.currentFilePath) {
-        this.currentFilePath = normalizedPath;
+    // Condition 2: Active editor is NOT a 'file' scheme -> Clear
+    // This allows preview (italic) files to pass, but blocks Diff/Settings/Output panels
+    if (editor.document.uri.scheme !== "file") {
+      if (this.currentFilePath !== undefined) {
+        this.currentFilePath = undefined;
         this.refresh();
       }
+      return;
+    }
+
+    // Condition 3: Valid file -> Update
+    const newPath = editor.document.uri.fsPath.replace(/\\/g, "/");
+    if (newPath !== this.currentFilePath) {
+      this.currentFilePath = newPath;
+      this.refresh();
     }
   }
 

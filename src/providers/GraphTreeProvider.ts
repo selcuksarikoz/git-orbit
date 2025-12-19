@@ -83,7 +83,7 @@ export class GraphTreeProvider extends BaseTreeProvider<
           vscode.TreeItemCollapsibleState.None
         );
         loadMoreItem.command = {
-          command: "gitorbit.loadMoreCommits", // Reuse existing command
+          command: "gitorbit.graph.loadMore",
           title: "Load More",
         };
         loadMoreItem.iconPath = new vscode.ThemeIcon("add");
