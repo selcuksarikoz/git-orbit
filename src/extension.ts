@@ -15,6 +15,7 @@ import { GitContentProvider } from "./providers/GitContentProvider";
 import { DiffContentProvider } from "./providers/DiffContentProvider";
 import { GraphTreeProvider } from "./providers/GraphTreeProvider";
 import { StatusDecorationProvider } from "./providers/StatusDecorationProvider";
+import { ConfigService } from "./services/ConfigService";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("GitOrbit is now active!");
@@ -284,6 +285,111 @@ export function activate(context: vscode.ExtensionContext) {
       WelcomeView.show(context, true);
     })
   );
+
+  // Sync Commands
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitorbit.pushBranch",
+      async (item: any) => {
+        const branchName = item.branchName || item.label;
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: `Pushing ${branchName}...`,
+            cancellable: false,
+          },
+          async () => {
+            await gitService.push("origin", branchName);
+            refreshAll();
+          }
+        );
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitorbit.pullBranch",
+      async (item: any) => {
+        const branchName = item.branchName || item.label;
+        const remote = item.isRemote ? branchName.split("/")[0] : "origin";
+        const actualBranch = item.isRemote
+          ? branchName.split("/").slice(1).join("/")
+          : branchName;
+
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: `Pulling ${actualBranch}...`,
+            cancellable: false,
+          },
+          async () => {
+            await gitService.pull(remote, actualBranch);
+            refreshAll();
+          }
+        );
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitorbit.syncBranch",
+      async (item: any) => {
+        const branchName = item.branchName || item.label;
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: `Syncing ${branchName}...`,
+            cancellable: false,
+          },
+          async () => {
+            await gitService.pull("origin", branchName);
+            await gitService.push("origin", branchName);
+            refreshAll();
+          }
+        );
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitorbit.checkoutBranch",
+      async (item: any) => {
+        const branchName = item.branchName || item.label;
+        const actualBranch = item.isRemote
+          ? branchName.split("/").slice(1).join("/")
+          : branchName;
+        await gitService.checkout(actualBranch);
+        refreshAll();
+      }
+    )
+  );
+
+  // Auto Sync Logic
+  let syncInterval: NodeJS.Timeout | undefined;
+  const setupAutoSync = () => {
+    if (syncInterval) clearInterval(syncInterval);
+    const intervalMins = ConfigService.getInstance().autoSyncInterval;
+    if (intervalMins > 0) {
+      syncInterval = setInterval(async () => {
+        try {
+          await gitService.fetch();
+          refreshAll();
+        } catch (e) {
+          console.error("Auto-sync failed", e);
+        }
+      }, intervalMins * 60 * 1000);
+    }
+  };
+
+  setupAutoSync();
+  vscode.workspace.onDidChangeConfiguration((e) => {
+    if (e.affectsConfiguration("gitorbit.sync.autoSyncInterval")) {
+      setupAutoSync();
+    }
+  });
 
   context.subscriptions.push(
     vscode.commands.registerCommand("gitorbit.openSettings", () => {

@@ -162,6 +162,48 @@ export class GitService {
     return await this.executor.exec(args);
   }
 
+  public async pull(remote: string = "origin", branch?: string) {
+    if (!this.executor) return;
+    const args = ["pull", remote];
+    if (branch) {
+      args.push(branch);
+    }
+    return await this.executor.exec(args);
+  }
+
+  public async fetch(remote: string = "origin") {
+    if (!this.executor) return;
+    return await this.executor.exec(["fetch", remote]);
+  }
+
+  public async getBranchStatus(
+    branchName: string
+  ): Promise<{ ahead: number; behind: number }> {
+    if (!this.executor) return { ahead: 0, behind: 0 };
+    try {
+      // Get the upstream branch
+      const upstreamResult = await this.executor.exec([
+        "rev-parse",
+        "--abbrev-ref",
+        `${branchName}@{u}`,
+      ]);
+      const upstream = upstreamResult.stdout.trim();
+
+      if (!upstream) return { ahead: 0, behind: 0 };
+
+      const result = await this.executor.exec([
+        "rev-list",
+        "--left-right",
+        "--count",
+        `${branchName}...${upstream}`,
+      ]);
+      const counts = result.stdout.trim().split(/\s+/).map(Number);
+      return { ahead: counts[0] || 0, behind: counts[1] || 0 };
+    } catch {
+      return { ahead: 0, behind: 0 };
+    }
+  }
+
   public async showFileContent(
     hash: string,
     filePath: string

@@ -31,4 +31,8 @@ export class ConfigService {
   public get isInlineBlameEnabled(): boolean {
     return this.get<boolean>("blame.inline.enabled") || true;
   }
+
+  public get autoSyncInterval(): number {
+    return this.get<number>("sync.autoSyncInterval") || 10;
+  }
 }

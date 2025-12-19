@@ -30,9 +30,10 @@
           "icon": "$(git-branch)"
         },
         {
-          "id": "gitorbit.views.remoteBranches",
-          "name": "Remote Branches",
-          "icon": "$(git-branch)"
+          "id": "gitorbit.views.graph",
+          "name": "Graph",
+          "icon": "$(graph)",
+          "visibility": "visible"
         },
         {
           "id": "gitorbit.views.commits",
@@ -45,10 +46,9 @@
           "icon": "$(history)"
         },
         {
-          "id": "gitorbit.views.graph",
-          "name": "Graph",
-          "icon": "$(graph)",
-          "visibility": "visible"
+          "id": "gitorbit.views.remoteBranches",
+          "name": "Remote Branches",
+          "icon": "$(git-branch)"
         },
         {
           "id": "gitorbit.views.stashes",
@@ -126,6 +126,30 @@
         "title": "Open Settings",
         "category": "GitOrbit",
         "icon": "$(settings-gear)"
+      },
+      {
+        "command": "gitorbit.pushBranch",
+        "title": "Push",
+        "category": "GitOrbit",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "gitorbit.pullBranch",
+        "title": "Pull",
+        "category": "GitOrbit",
+        "icon": "$(arrow-down)"
+      },
+      {
+        "command": "gitorbit.syncBranch",
+        "title": "Sync",
+        "category": "GitOrbit",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "gitorbit.checkoutBranch",
+        "title": "Checkout",
+        "category": "GitOrbit",
+        "icon": "$(check)"
       }
     ],
     "menus": {
@@ -133,17 +157,17 @@
         {
           "command": "gitorbit.refreshViews",
           "when": "viewContainer == gitorbit-explorer",
-          "group": "navigation@2"
+          "group": "navigation@1"
         },
         {
           "command": "gitorbit.openSettings",
           "when": "viewContainer == gitorbit-explorer",
-          "group": "navigation@3"
+          "group": "navigation@2"
         },
         {
           "command": "gitorbit.gitflow.menu",
-          "when": "view == gitorbit.views.localBranches || view == gitorbit.views.remoteBranches",
-          "group": "navigation@1"
+          "when": "view == gitorbit.views.localBranches || view == gitorbit.views.remoteBranches || view == gitorbit.views.graph",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
@@ -166,6 +190,26 @@
           "command": "gitorbit.cherryPick",
           "when": "(view == gitorbit.views.commits || view == gitorbit.views.fileHistory) && viewItem == commit",
           "group": "inline"
+        },
+        {
+          "command": "gitorbit.pushBranch",
+          "when": "view == gitorbit.views.localBranches && viewItem == localBranch",
+          "group": "inline@1"
+        },
+        {
+          "command": "gitorbit.pullBranch",
+          "when": "(view == gitorbit.views.localBranches && viewItem == localBranch) || (view == gitorbit.views.remoteBranches && viewItem == remoteBranch)",
+          "group": "inline@2"
+        },
+        {
+          "command": "gitorbit.syncBranch",
+          "when": "view == gitorbit.views.localBranches && viewItem == localBranch",
+          "group": "inline@3"
+        },
+        {
+          "command": "gitorbit.checkoutBranch",
+          "when": "view == gitorbit.views.remoteBranches && viewItem == remoteBranch",
+          "group": "inline@1"
         }
       ]
     },
@@ -191,6 +235,11 @@
           "type": "number",
           "default": 20,
           "description": "Number of commits to load initially."
+        },
+        "gitorbit.sync.autoSyncInterval": {
+          "type": "number",
+          "default": 10,
+          "description": "Auto sync interval in minutes (0 to disable)."
         }
       }
     }

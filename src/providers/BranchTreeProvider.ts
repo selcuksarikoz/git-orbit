@@ -11,7 +11,8 @@ export class BranchItem extends vscode.TreeItem {
     public readonly branchName?: string,
     public readonly isRemote: boolean = false,
     public readonly subItems?: any,
-    public readonly isCurrent: boolean = false
+    public readonly isCurrent: boolean = false,
+    public readonly status?: { ahead: number; behind: number }
   ) {
     super(label, collapsibleState);
     this.contextValue =
@@ -26,8 +27,19 @@ export class BranchItem extends vscode.TreeItem {
         "git-branch",
         isCurrent ? new vscode.ThemeColor("charts.green") : undefined
       );
-      if (isCurrent) {
-        this.description = "(current)";
+
+      const parts = [];
+      if (isCurrent) parts.push("(current)");
+
+      if (status) {
+        if (status.ahead > 0) parts.push(`↑${status.ahead}`);
+        if (status.behind > 0) parts.push(`↓${status.behind}`);
+      }
+
+      this.description = parts.join(" ");
+
+      if (status) {
+        this.tooltip = `Ahead: ${status.ahead}, Behind: ${status.behind}`;
       }
     }
   }
@@ -51,7 +63,7 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
     if (element) {
       if (element.type === "folder" && element.subItems) {
         const branches = await this.gitService.getBranches();
-        return this.mapToBranchItems(
+        return await this.mapToBranchItems(
           element.subItems,
           element.isRemote,
           branches.current
@@ -69,7 +81,7 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
         : branches.all.filter((b) => !b.startsWith("remotes/"));
 
       const tree = this.buildTree(branchNames);
-      return this.mapToBranchItems(tree, this.isRemote, branches.current);
+      return await this.mapToBranchItems(tree, this.isRemote, branches.current);
     } catch {
       return [];
     }
@@ -92,33 +104,41 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
     return root;
   }
 
-  private mapToBranchItems(
+  private async mapToBranchItems(
     tree: any,
     isRemote: boolean,
     currentBranch?: string
-  ): BranchItem[] {
-    return Object.keys(tree).map((key) => {
-      const node = tree[key];
-      if (node._isBranch) {
-        return new BranchItem(
-          key,
-          vscode.TreeItemCollapsibleState.None,
-          "branch",
-          node._name,
-          isRemote,
-          undefined,
-          node._name === currentBranch
-        );
-      } else {
-        return new BranchItem(
-          key,
-          vscode.TreeItemCollapsibleState.Collapsed,
-          "folder",
-          undefined,
-          isRemote,
-          node
-        );
-      }
-    });
+  ): Promise<BranchItem[]> {
+    const items = await Promise.all(
+      Object.keys(tree).map(async (key) => {
+        const node = tree[key];
+        if (node._isBranch) {
+          let status;
+          if (!isRemote) {
+            status = await this.gitService.getBranchStatus(node._name);
+          }
+          return new BranchItem(
+            key,
+            vscode.TreeItemCollapsibleState.None,
+            "branch",
+            node._name,
+            isRemote,
+            undefined,
+            node._name === currentBranch,
+            status
+          );
+        } else {
+          return new BranchItem(
+            key,
+            vscode.TreeItemCollapsibleState.Collapsed,
+            "folder",
+            undefined,
+            isRemote,
+            node
+          );
+        }
+      })
+    );
+    return items;
   }
 }
