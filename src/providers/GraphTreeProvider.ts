@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { BaseTreeProvider } from "./BaseTreeProvider";
 import { GitService } from "../services/GitService";
+import { ConfigService } from "../services/ConfigService";
 import { StatusDecorationProvider } from "./StatusDecorationProvider";
 
 export class GraphTreeProvider extends BaseTreeProvider<GraphItem> {
@@ -10,6 +11,14 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem> {
   constructor() {
     super();
     this.gitService = GitService.getInstance();
+    this.limit = ConfigService.getInstance().commitLimit;
+
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("gitorbit.views.commitLimit")) {
+        this.limit = ConfigService.getInstance().commitLimit;
+        this.refresh();
+      }
+    });
   }
 
   getTreeItem(element: GraphItem): vscode.TreeItem {
@@ -222,12 +231,17 @@ export class GraphItem extends vscode.TreeItem {
 
     const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
       name
-    )}&background=38bdf8&color=fff&rounded=true&size=32`;
+    )}&background=38bdf8&color=fff&rounded=true&size=40`;
 
-    // Simplified Markdown for speed: image followed by bold name
-    tooltip.appendMarkdown(`![avatar](${avatarUrl}) **${name}**\n\n`);
+    // Centered Header with Avatar and Name
+    tooltip.appendMarkdown(
+      `<div align="center">\n\n` +
+        `<img src="${avatarUrl}" width="40" height="40" />  \n` +
+        `**${name}**\n\n` +
+        `</div>\n\n`
+    );
     tooltip.appendMarkdown(`> ${this.label}\n\n`);
-    tooltip.appendMarkdown(`---\n\n`);
+    tooltip.appendMarkdown(`<hr/>\n\n`);
     tooltip.appendMarkdown(`📅 ${date}  \n`);
     tooltip.appendMarkdown(`🆔 \`${this.hash.substring(0, 7)}\`  \n`);
     if (email) {

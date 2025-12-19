@@ -87,6 +87,13 @@ export class CommitTreeProvider extends BaseTreeProvider<
     this.gitService = GitService.getInstance();
     this.configService = ConfigService.getInstance();
     this.limit = this.configService.commitLimit;
+
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("gitorbit.views.commitLimit")) {
+        this.limit = this.configService.commitLimit;
+        this.refresh();
+      }
+    });
   }
 
   getTreeItem(element: CommitItem | vscode.TreeItem): vscode.TreeItem {

@@ -21,6 +21,15 @@ export class InlineBlameDecorator {
     vscode.window.onDidChangeTextEditorSelection((e) =>
       this.update(e.textEditor)
     );
+
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("gitorbit.blame.inline.enabled")) {
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+          this.update(editor);
+        }
+      }
+    });
   }
 
   private async update(editor: vscode.TextEditor) {

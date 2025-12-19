@@ -285,6 +285,15 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.openSettings", () => {
+      vscode.commands.executeCommand(
+        "workbench.action.openSettings",
+        "@ext:selcuksarikoz.gitorbit"
+      );
+    })
+  );
+
   // Webview - Show on Update/Install
   WelcomeView.show(context);
 

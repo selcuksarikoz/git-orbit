@@ -120,6 +120,12 @@
         "command": "gitorbit.showWelcome",
         "title": "Show Welcome Page",
         "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.openSettings",
+        "title": "Open Settings",
+        "category": "GitOrbit",
+        "icon": "$(settings-gear)"
       }
     ],
     "menus": {
@@ -127,7 +133,12 @@
         {
           "command": "gitorbit.refreshViews",
           "when": "viewContainer == gitorbit-explorer",
-          "group": "navigation"
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitorbit.openSettings",
+          "when": "viewContainer == gitorbit-explorer",
+          "group": "navigation@3"
         },
         {
           "command": "gitorbit.gitflow.menu",
