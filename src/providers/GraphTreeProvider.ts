@@ -15,6 +15,16 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem> {
     return element;
   }
 
+  resolveTreeItem(
+    item: vscode.TreeItem,
+    element: GraphItem
+  ): vscode.ProviderResult<vscode.TreeItem> {
+    if (element instanceof GraphItem) {
+      element.resolveTooltip();
+    }
+    return element;
+  }
+
   async getChildren(element?: GraphItem): Promise<GraphItem[]> {
     if (!element) {
       // Root: All commits
@@ -130,13 +140,12 @@ export class GraphItem extends vscode.TreeItem {
     if (type === "commit") {
       this.iconPath = this.getCommitIcon(label, isLatest);
       this.description = refs ? `${refs} • ${dateString}` : dateString;
-      this.tooltip = this.getCommitTooltip(authorName, dateString, authorEmail);
     } else if (type === "file") {
       this.iconPath = vscode.ThemeIcon.File;
       if (this.filePath) {
         this.resourceUri = vscode.Uri.file(this.filePath);
       }
-      this.description = status || "";
+      this.description = status ? `[${status}]` : "";
       this.command = {
         command: "gitorbit.openCommitDiff",
         title: "Open Diff",
@@ -145,6 +154,42 @@ export class GraphItem extends vscode.TreeItem {
     } else {
       this.iconPath = vscode.ThemeIcon.Folder;
     }
+  }
+
+  public resolveTooltip() {
+    if (this.type === "commit" && !this.tooltip) {
+      this.tooltip = this.getCommitTooltip(
+        this.authorName,
+        this.dateString,
+        this.authorEmail
+      );
+    } else if (this.type === "file" && !this.tooltip) {
+      this.tooltip = this.getFileTooltip(
+        this.label,
+        this.status,
+        this.filePath
+      );
+    }
+  }
+
+  private getFileTooltip(
+    label: string,
+    status?: string,
+    path?: string
+  ): vscode.MarkdownString {
+    const tooltip = new vscode.MarkdownString();
+    let statusText = "Modified";
+    if (status === "A") statusText = "Added";
+    if (status === "D") statusText = "Deleted";
+
+    tooltip.appendMarkdown(`**${label}**\n\n`);
+    tooltip.appendMarkdown(
+      `**Status:** ${statusText} (${status || "Unknown"})\n\n`
+    );
+    if (path) {
+      tooltip.appendMarkdown(`**Path:** \`${path}\``);
+    }
+    return tooltip;
   }
 
   private getCommitIcon(message: string, isLatest: boolean): vscode.ThemeIcon {
@@ -169,15 +214,13 @@ export class GraphItem extends vscode.TreeItem {
     tooltip.isTrusted = true;
     tooltip.supportHtml = true;
 
-    // Use UI Avatars for a premium rounded initials look
     const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
       name
     )}&background=38bdf8&color=fff&rounded=true&size=32`;
 
-    tooltip.appendMarkdown(
-      `<table><tr><td><img src="${avatarUrl}" width="32" height="32" /></td><td>&nbsp;&nbsp;<b>${name}</b></td></tr></table>\n\n`
-    );
-    tooltip.appendMarkdown(`> **${this.label}**\n\n`);
+    // Simplified Markdown for speed: image followed by bold name
+    tooltip.appendMarkdown(`![avatar](${avatarUrl}) **${name}**\n\n`);
+    tooltip.appendMarkdown(`> ${this.label}\n\n`);
     tooltip.appendMarkdown(`---\n\n`);
     tooltip.appendMarkdown(`📅 ${date}  \n`);
     tooltip.appendMarkdown(`🆔 \`${this.hash.substring(0, 7)}\`  \n`);

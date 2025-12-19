@@ -3,7 +3,7 @@
   "displayName": "GitOrbit",
   "description": "A comprehensive, open-source Git extension that rivals paid tools.",
   "version": "0.1.0",
-  "publisher": "Selcuk Sarikoz",
+  "publisher": "selcuksarikoz",
   "repository": {
     "type": "git",
     "url": "https://github.com/selcuk-sarikoz/git-orbit"

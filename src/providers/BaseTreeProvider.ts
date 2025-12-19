@@ -15,4 +15,10 @@ export abstract class BaseTreeProvider<T>
 
   abstract getTreeItem(element: T): vscode.TreeItem | Thenable<vscode.TreeItem>;
   abstract getChildren(element?: T): vscode.ProviderResult<T[]>;
+
+  resolveTreeItem?(
+    item: vscode.TreeItem,
+    element: T,
+    token: vscode.CancellationToken
+  ): vscode.ProviderResult<vscode.TreeItem>;
 }
