@@ -219,7 +219,7 @@
       "view/item/context": [
         {
           "command": "gitorbit.deleteBranchMenu",
-          "when": "view == gitorbit.views.localBranches && (viewItem == localBranchCurrent || viewItem == localBranchNotCurrent)",
+          "when": "view == gitorbit.views.localBranches && viewItem == localBranchNotCurrent",
           "group": "inline@5"
         },
         {

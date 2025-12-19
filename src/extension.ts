@@ -3,7 +3,7 @@ import { GitService } from "./services/GitService";
 import { GitflowService } from "./services/GitflowService";
 import { IconService } from "./services/IconService";
 import { WelcomeView } from "./webviews/WelcomeView";
-import { CommitDetailView } from "./webviews/CommitDetailView";
+
 import { BranchTreeProvider } from "./providers/BranchTreeProvider";
 import { CommitTreeProvider } from "./providers/CommitTreeProvider";
 import { FileHistoryProvider } from "./providers/FileHistoryProvider";
@@ -16,6 +16,7 @@ import { StashCommands } from "./commands/StashCommands";
 import { AuthorshipCodeLensProvider } from "./providers/AuthorshipCodeLensProvider";
 import { GitContentProvider } from "./providers/GitContentProvider";
 import { DiffContentProvider } from "./providers/DiffContentProvider";
+
 import { GraphTreeProvider } from "./providers/GraphTreeProvider";
 import { StatusDecorationProvider } from "./providers/StatusDecorationProvider";
 import { ConfigService } from "./services/ConfigService";
@@ -151,29 +152,61 @@ export function activate(context: vscode.ExtensionContext) {
       "gitorbit.openCommitDiffs",
       async (item: any) => {
         if (!item.hash) return;
+
+        // Multi-diff editor was introduced in 1.86
+        const versionParts = vscode.version.split(".");
+        const major = parseInt(versionParts[0]);
+        const minor = parseInt(versionParts[1]);
+        if (major < 1 || (major === 1 && minor < 86)) {
+          vscode.window.showErrorMessage(
+            `Multi-file diff editor requires VS Code 1.86+. You are on ${vscode.version}.`
+          );
+          return;
+        }
+
         try {
-          const changedFiles =
+          const files =
             await GitService.getInstance().getChangedFilesWithStatus(item.hash);
 
-          if (changedFiles.length === 0) {
+          if (files.length === 0) {
             vscode.window.showInformationMessage(
-              "No files changed in this commit."
+              "No changed files in this commit."
             );
             return;
           }
 
-          // Open Single Preview with List
-          const textLabel =
-            typeof item.label === "string" ? item.label : item.label.label;
-          CommitDetailView.show(
-            context,
-            item.hash,
-            textLabel || "Commit Details",
-            changedFiles
+          const multiDiffResources = files.map((file) => {
+            const originalUri =
+              file.status === "A"
+                ? undefined
+                : GitContentProvider.getUri(`${item.hash}^`, file.path);
+
+            const modifiedUri =
+              file.status === "D"
+                ? undefined
+                : GitContentProvider.getUri(item.hash, file.path);
+
+            return {
+              originalUri: originalUri,
+              modifiedUri: modifiedUri,
+              name: file.path, // Optional: might give better label in the diff
+              title: file.path, // Optional
+            };
+          });
+
+          const title =
+            typeof item.label === "string" ? item.label : "Commit Changes";
+
+          await vscode.commands.executeCommand(
+            "_workbench.openMultiDiffEditor",
+            {
+              title: `${title} (${item.hash.substring(0, 7)})`,
+              resources: multiDiffResources,
+            }
           );
         } catch (error: any) {
           vscode.window.showErrorMessage(
-            `Failed to open diffs: ${error.message}`
+            `Failed to open changes: ${error.message}. VS Code Version: ${vscode.version}`
           );
         }
       }

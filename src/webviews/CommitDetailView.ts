@@ -46,14 +46,16 @@ export class CommitDetailView {
         switch (message.command) {
           case "getDiff":
             try {
+              // Get Diff between Parent and Commit (Hash^..Hash)
               const diff = await GitService.getInstance().getDiff(
                 commitHash,
                 message.path,
-                true
+                true // compareWithParent
               );
               panel.webview.postMessage({
                 command: "setDiff",
                 path: message.path,
+                pathId: message.pathId,
                 diff: diff,
               });
             } catch (error: any) {
@@ -62,6 +64,7 @@ export class CommitDetailView {
               );
             }
             break;
+
           case "openFile":
             const uri = vscode.Uri.file(
               vscode.workspace.workspaceFolders![0].uri.fsPath +
@@ -96,149 +99,184 @@ export class CommitDetailView {
         :root {
             --background: var(--vscode-editor-background);
             --foreground: var(--vscode-editor-foreground);
+            --border: var(--vscode-sideBarSectionHeader-border);
             --hover: var(--vscode-list-hoverBackground);
-            --border: var(--vscode-panel-border);
-            --highlight: var(--vscode-list-activeSelectionBackground);
-            --text-highlight: var(--vscode-list-activeSelectionForeground);
-            --added: var(--vscode-gitDecoration-addedResourceForeground);
-            --modified: var(--vscode-gitDecoration-modifiedResourceForeground);
-            --deleted: var(--vscode-gitDecoration-deletedResourceForeground);
-            --font-family: var(--vscode-font-family);
+            --header-bg: var(--vscode-editor-group-header-tabsBackground);
+            --added-bg: rgba(63, 185, 80, 0.2);
+            --deleted-bg: rgba(248, 81, 73, 0.2);
+            --line-num-fg: var(--vscode-editorLineNumber-foreground);
         }
         body {
             background-color: var(--background);
             color: var(--foreground);
-            font-family: var(--font-family);
+            font-family: var(--vscode-editor-font-family);
+            font-size: var(--vscode-editor-font-size);
             padding: 0;
             margin: 0;
         }
         .header {
-            padding: 10px 20px;
+            padding: 12px 20px;
+            background: var(--header-bg);
             border-bottom: 1px solid var(--border);
-            background: var(--vscode-editor-group-header-tabsBackground);
-        }
-        .header h2 {
-            margin: 0;
-            font-size: 1.1em;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .commit-hash {
-            font-family: monospace;
-            background: var(--hover);
-            padding: 2px 6px;
+            font-family: 'SF Mono', Monaco, Menlo, Courier, monospace;
+            background: var(--vscode-badge-background);
+            color: var(--vscode-badge-foreground);
+            padding: 2px 8px;
             border-radius: 4px;
             font-size: 0.9em;
         }
+        .commit-msg {
+            font-weight: 500;
+            font-size: 1.1em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         .file-list {
-            display: flex;
-            flex-direction: column;
+            padding: 10px;
         }
         .file-item {
-            border-bottom: 1px solid var(--border);
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--vscode-sideBar-background);
+            overflow: hidden;
         }
         .file-header {
             display: flex;
             align-items: center;
-            padding: 8px 16px;
+            padding: 8px 12px;
             cursor: pointer;
-            user-select: none;
-            transition: background 0.1s;
+            background: var(--vscode-sideBarSectionHeader-background);
+            border-bottom: 1px solid transparent;
+            transition: all 0.2s;
+        }
+        .file-item.expanded .file-header {
+            border-bottom-color: var(--border);
         }
         .file-header:hover {
-            background-color: var(--hover);
+            background: var(--hover);
         }
-        .file-icon {
-            width: 16px;
-            display: inline-block;
-            text-align: center;
+        .chevron {
             margin-right: 8px;
-            font-weight: bold;
             transition: transform 0.2s;
+            opacity: 0.7;
         }
-        .file-item.expanded .file-icon {
+        .file-item.expanded .chevron {
             transform: rotate(90deg);
         }
         .file-info {
             flex: 1;
             display: flex;
-            align-items: baseline;
+            align-items: center;
+            gap: 8px;
             overflow: hidden;
-            white-space: nowrap;
+        }
+        .file-path {
+            opacity: 0.8;
+            font-size: 0.9em;
         }
         .file-name {
             font-weight: 600;
-            margin-right: 8px;
         }
-        .file-path {
-            color: var(--vscode-descriptionForeground);
-            font-size: 0.9em;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .file-status {
-            margin-left: auto;
-            font-size: 0.8em;
-            font-weight: bold;
+        .status-badge {
+            font-size: 0.75em;
             padding: 2px 6px;
             border-radius: 4px;
+            font-weight: 600;
+            text-transform: uppercase;
         }
-        .status-M { color: var(--modified); }
-        .status-A { color: var(--added); }
-        .status-D { color: var(--deleted); }
+        .status-M { color: #e2c08d; border: 1px solid #e2c08d; }
+        .status-A { color: #73c991; border: 1px solid #73c991; }
+        .status-D { color: #f14c4c; border: 1px solid #f14c4c; }
         
-        .diff-container {
-            display: none;
-            background: var(--vscode-textBlockQuote-background);
-            padding: 10px;
-            overflow-x: auto;
-            border-top: 1px solid var(--border);
-        }
-        .file-item.expanded .diff-container {
-            display: block;
-        }
-        pre {
-            margin: 0;
-            font-family: var(--vscode-editor-font-family);
-            font-size: var(--vscode-editor-font-size);
-            white-space: pre-wrap;
-        }
-        .diff-line {
-            display: block;
-        }
-        .diff-add { color: var(--added); background: rgba(0,255,0,0.05); }
-        .diff-del { color: var(--deleted); background: rgba(255,0,0,0.05); }
-        .diff-header { color: var(--vscode-textPreformat-foreground); opacity: 0.7; }
-
-        .actions {
-            margin-left: 10px;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        .file-header:hover .actions {
-            opacity: 1;
-        }
         .btn-icon {
-            background: transparent;
+            background: none;
             border: none;
             color: var(--foreground);
             cursor: pointer;
             padding: 4px;
             border-radius: 4px;
+            margin-left: 10px;
+            display: none;
+        }
+        .file-header:hover .btn-icon {
+            display: inline-block;
         }
         .btn-icon:hover {
-            background: var(--hover);
+            background: var(--vscode-toolbar-hoverBackground);
         }
+
+        /* Diff Table Styles */
+        .diff-container {
+            display: none;
+            overflow-x: auto;
+            background: var(--background);
+            border-top: 1px solid var(--border);
+        }
+        .file-item.expanded .diff-container {
+            display: block;
+        }
+        .diff-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'SF Mono', Monaco, Menlo, Courier, monospace;
+            font-size: 0.9em;
+            table-layout: fixed;
+        }
+        .diff-table td {
+            padding: 0 4px;
+            vertical-align: top;
+            white-space: pre-wrap;
+            word-break: break-all;
+            height: 1.5em; /* Ensure empty lines have height */
+        }
+        .line-num {
+            width: 40px;
+            text-align: right;
+            padding-right: 8px;
+            color: var(--line-num-fg);
+            user-select: none;
+            border-right: 1px solid var(--border);
+            opacity: 0.6;
+        }
+        .diff-content {
+            padding-left: 8px;
+            width: 100%;
+        }
+        .line-add { background-color: var(--added-bg); }
+        .line-del { background-color: var(--deleted-bg); }
+        .empty-diff {
+            padding: 20px;
+            text-align: center;
+            opacity: 0.7;
+        }
+        
+        /* Syntax Colors (Basic) */
+        .kwd { color: #569cd6; } 
+        .str { color: #ce9178; } 
+        .com { color: #6a9955; } 
+        .num { color: #b5cea8; } 
     </style>
 </head>
 <body>
     <div class="header">
-        <h2>
-            <span class="commit-hash">${commitHash.substring(0, 7)}</span>
-            <span>${message}</span>
-        </h2>
+        <span class="commit-hash">${commitHash.substring(0, 7)}</span>
+        <span class="commit-msg" title="${message}">${message}</span>
+        <span style="margin-left: auto; opacity: 0.7;">${
+          files.length
+        } files changed</span>
     </div>
+    
     <div class="file-list" id="fileList">
         ${files.map((f) => renderFileItem(f)).join("")}
     </div>
@@ -246,37 +284,119 @@ export class CommitDetailView {
     <script>
         const vscode = acquireVsCodeApi();
         const fileList = document.getElementById('fileList');
-        
-        // Handle messages from extension
+
         window.addEventListener('message', event => {
-            const message = event.data;
-            switch(message.command) {
+            const msg = event.data;
+            switch(msg.command) {
                 case 'setDiff':
-                    const container = document.getElementById('diff-' + message.path.replace(/[^a-zA-Z0-9]/g, '_'));
+                    const container = document.getElementById('diff-' + msg.pathId);
                     if(container) {
-                        container.innerHTML = formatDiff(message.diff);
+                        try {
+                            container.innerHTML = renderDiffTable(msg.diff);
+                        } catch(e) {
+                            container.innerHTML = '<div class="empty-diff">Error rendering diff</div>';
+                        }
                     }
-                    break;
-                case 'update':
-                    // Refresh logic if needed, for now we just reload
                     break;
             }
         });
 
-        function formatDiff(diffText) {
-            if (!diffText) return '<pre>No changes or binary file.</pre>';
-            
-            const lines = diffText.split('\\n');
-            let html = '<pre>';
-            lines.forEach(line => {
-                let cls = 'diff-line ';
-                if (line.startsWith('+') && !line.startsWith('+++')) cls += 'diff-add';
-                else if (line.startsWith('-') && !line.startsWith('---')) cls += 'diff-del';
-                else if (line.startsWith('diff') || line.startsWith('index')) cls += 'diff-header';
+        fileList.addEventListener('click', (e) => {
+            // Open File Button
+            const openBtn = e.target.closest('.btn-icon');
+            if (openBtn) {
+                const path = openBtn.dataset.path;
+                vscode.postMessage({ command: 'openFile', path });
+                e.stopPropagation();
+                return;
+            }
+
+            // Expand/Collapse header
+            const header = e.target.closest('.file-header');
+            if (header) {
+                const item = header.parentElement;
+                const path = item.dataset.path;
+                const pathId = item.dataset.pathId;
                 
-                html += \`<span class="\${cls}">\${escapeHtml(line)}</span>\\n\`;
-            });
-            html += '</pre>';
+                item.classList.toggle('expanded');
+                
+                if (item.classList.contains('expanded')) {
+                    const container = item.querySelector('.diff-container');
+                    if (container.innerHTML.trim() === 'Loading...') {
+                        vscode.postMessage({ command: 'getDiff', path, pathId });
+                    }
+                }
+            }
+        });
+
+        // Simple Diff Parser & Renderer
+        function renderDiffTable(diffText) {
+            if (!diffText || diffText.trim().length === 0) {
+                return '<div class="empty-diff">Binary file or no text changes found.</div>';
+            }
+
+            const lines = diffText.split('\\n');
+            let html = '<table class="diff-table">';
+            
+            let oldLine = 0; 
+            let newLine = 0;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                
+                // Skip git headers
+                if (line.startsWith('diff --git') || line.startsWith('index ') || line.startsWith('+++') || line.startsWith('---')) {
+                    continue;
+                }
+
+                // Hunk header
+                if (line.startsWith('@@')) {
+                    const match = line.match(/@@ -(\\d+),?\\d* \\+(\\d+),?\\d* @@/);
+                    if (match) {
+                        oldLine = parseInt(match[1]) - 1;
+                        newLine = parseInt(match[2]) - 1;
+                    }
+                    html += \`<tr><td class="line-num">...</td><td class="line-num">...</td><td class="diff-content" style="opacity:0.5; background:var(--vscode-peekViewEditor-background)">\${escapeHtml(line)}</td></tr>\`;
+                    continue;
+                }
+
+                let type = ' ';
+                if (line.startsWith('+')) type = '+';
+                else if (line.startsWith('-')) type = '-';
+                
+                let contentClass = '';
+                let oNum = '';
+                let nNum = '';
+                
+                if (type === '+') {
+                    newLine++;
+                    nNum = newLine;
+                    contentClass = 'line-add';
+                } else if (type === '-') {
+                    oldLine++;
+                    oNum = oldLine;
+                    contentClass = 'line-del';
+                } else {
+                    oldLine++;
+                    newLine++;
+                    oNum = oldLine;
+                    nNum = newLine;
+                }
+
+                // Basic syntax highlighting
+                const content = escapeHtml(line.substring(1))
+                    .replace(/(\\b(import|export|const|let|var|function|class|return|if|else|for|while|switch)\\b)/g, '<span class="kwd">$1</span>')
+                    .replace(/('.*?'|".*?")/g, '<span class="str">$1</span>')
+                    .replace(/(\\b\\d+\\b)/g, '<span class="num">$1</span>')
+                    .replace(/(\\/\\/.*$)/g, '<span class="com">$1</span>');
+
+                html += \`<tr class="\${contentClass}">
+                    <td class="line-num">\${oNum}</td>
+                    <td class="line-num">\${nNum}</td>
+                    <td class="diff-content">\${content || ' '}</td>
+                </tr>\`;
+            }
+            html += '</table>';
             return html;
         }
 
@@ -288,30 +408,6 @@ export class CommitDetailView {
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
         }
-
-        // Delegate click events
-        fileList.addEventListener('click', (e) => {
-            const header = e.target.closest('.file-header');
-            if (header && !e.target.closest('.actions')) {
-                const item = header.parentElement;
-                const path = item.dataset.path;
-                item.classList.toggle('expanded');
-                
-                if (item.classList.contains('expanded')) {
-                    // Check if diff is already loaded
-                    const container = item.querySelector('.diff-container');
-                    if (container.innerHTML.trim() === 'Loading...') {
-                        vscode.postMessage({ command: 'getDiff', path: path });
-                    }
-                }
-            }
-            
-            if (e.target.closest('.open-file-btn')) {
-                const path = e.target.closest('.file-item').dataset.path;
-                 vscode.postMessage({ command: 'openFile', path: path });
-                 e.stopPropagation();
-            }
-        });
     </script>
 </body>
 </html>`;
@@ -325,20 +421,19 @@ function renderFileItem(file: { path: string; status: string }) {
   const safeId = file.path.replace(/[^a-zA-Z0-9]/g, "_");
 
   return `
-    <div class="file-item" data-path="${file.path}">
+    <div class="file-item" data-path="${file.path}" data-path-id="${safeId}">
         <div class="file-header">
-            <span class="file-icon">▶</span>
+            <span class="chevron">▶</span>
             <div class="file-info">
                 <span class="file-name">${fileName}</span>
                 <span class="file-path">${dirPath}</span>
             </div>
-            <div class="actions">
-                <button class="btn-icon open-file-btn" title="Open File">➚</button>
-            </div>
-            <span class="file-status status-${file.status}">${file.status}</span>
+            <span class="status-badge status-${file.status}">${file.status}</span>
+            <button class="btn-icon" data-path="${file.path}" title="Open File">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 1H6l.7.7h6.8l.5.5v11.6l-.5.5H1.5l-.5-.5V1.5l.5-.5zM2 2v11h11V3H7.5l-.7-.7H2z"/></svg>
+            </button>
         </div>
         <div class="diff-container" id="diff-${safeId}">Loading...</div>
     </div>
-    
     `;
 }
