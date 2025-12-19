@@ -13,7 +13,7 @@ export class InlineBlameDecorator {
     this.decorationType = vscode.window.createTextEditorDecorationType({
       after: {
         margin: "0 0 0 3em",
-        color: new vscode.ThemeColor("editorCodeLens.foreground"),
+        color: new vscode.ThemeColor("editorGhostText.foreground"),
         fontStyle: "italic",
       },
     });
@@ -41,8 +41,20 @@ export class InlineBlameDecorator {
     const line = editor.selection.active.line;
     const filePath = editor.document.uri.fsPath;
 
+    // Don't show blame on empty lines
+    if (editor.document.lineAt(line).isEmptyOrWhitespace) {
+      editor.setDecorations(this.decorationType, []);
+      return;
+    }
+
     try {
       const blameOutput = await this.gitService.getBlame(filePath);
+
+      // If the user has moved to a different line, discard this update
+      if (editor.selection.active.line !== line) {
+        return;
+      }
+
       const lineBlame = this.parseBlameForLine(blameOutput, line + 1);
 
       if (
