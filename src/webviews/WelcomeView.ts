@@ -9,7 +9,8 @@ export class WelcomeView {
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
 
-    const version = context.extension.packageJSON.version;
+    const extension = vscode.extensions.getExtension("selcuksarikoz.gitorbit");
+    const version = extension ? extension.packageJSON.version : "1.0.0";
     const lastVersionShown = context.globalState.get<string>("welcomeVersion");
 
     if (!force && lastVersionShown === version) {
@@ -35,6 +36,18 @@ export class WelcomeView {
     panel.webview.html = WelcomeView.getHtmlContent(
       panel.webview,
       context.extensionUri
+    );
+
+    panel.webview.onDidReceiveMessage(
+      (message) => {
+        switch (message.command) {
+          case "openSettings":
+            vscode.commands.executeCommand("gitorbit.openSettings");
+            return;
+        }
+      },
+      null,
+      context.subscriptions
     );
 
     panel.onDidDispose(
@@ -88,55 +101,102 @@ export class WelcomeView {
             padding: 24px;
             margin-bottom: 20px;
             border: 1px solid #334155;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
         .card h2 {
             margin-top: 0;
             color: #38bdf8;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+            color: #cbd5e1;
         }
         .btn {
             display: inline-block;
             background: #38bdf8;
             color: #0f172a;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 6px;
             text-decoration: none;
             font-weight: 600;
             cursor: pointer;
             border: none;
-            transition: opacity 0.2s;
+            transition: all 0.2s;
         }
         .btn:hover {
             opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        .badge {
+            background: #818cf8;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            vertical-align: middle;
+            margin-left: 8px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>GitOrbit</h1>
-        <p class="subtitle">A Professional, Modular, and High-Performance Git Extension.</p>
+        <h1>GitOrbit <span class="badge">v1.0</span></h1>
+        <p class="subtitle">Your professional, high-performance Git companion for VS Code.</p>
         
         <div class="card">
-            <h2>🚀 Feature Rich</h2>
-            <ul>
-                <li><strong>Tree Views:</strong> Manage branches, commits, and stashes with ease.</li>
-                <li><strong>Graph & Exploration:</strong> Interactive commit graph with file-level drilling.</li>
-                <li><strong>Editor Integration:</strong> Inline blame and CodeLens information.</li>
-                <li><strong>Gitflow:</strong> Kickstart features and hotfixes directly from the sidebar.</li>
-                <li><strong>Performance:</strong> Lightweight and powered by direct Git execution.</li>
-            </ul>
+            <h2>🎉 New in Version 1.0</h2>
+            <div class="features-grid">
+                <div>
+                    <h3>📂 Changes Panel</h3>
+                    <p>Stage, unstage, discard, and commit changes instantly. A streamlined interface for your daily workflow.</p>
+                </div>
+                <div>
+                    <h3>📜 Intelligent File History</h3>
+                    <p>Your history view now automatically tracks the active file, even in preview mode or when switching tabs.</p>
+                </div>
+                <div>
+                    <h3>🚀 Gitflow Integration</h3>
+                    <p>Start features and hotfixes effortlessly with configurable prefixes directly from the sidebar.</p>
+                </div>
+            </div>
         </div>
 
-        <div class="card">
-            <h2>⚙️ Get Started</h2>
-            <p>Configure GitOrbit to match your workflow. You can toggle inline blame, set your Gitflow prefixes, and more.</p>
-            <button class="btn" onclick="openSettings()">Configure Settings</button>
+        <div class="features-grid">
+            <div class="card">
+                <h2>⚡️ Core Features</h2>
+                <ul>
+                    <li><strong>Commit Graph:</strong> Interactive, filterable history visualization.</li>
+                    <li><strong>Branch Manager:</strong> Organize and interact with local/remote branches.</li>
+                    <li><strong>Stash Explorer:</strong> View and apply stashes with diff previews.</li>
+                    <li><strong>Inline Blame:</strong> Unobtrusive ghost text for authorship.</li>
+                    <li><strong>CodeLens:</strong> Quick insights at the top of functions.</li>
+                </ul>
+            </div>
+            
+            <div class="card">
+                <h2>⚙️ Get Started</h2>
+                <p>Tailor GitOrbit to your needs. Toggle inline blame, set commit limits, or configure auto-sync intervals.</p>
+                <br>
+                <button class="btn" onclick="openSettings()">Open Settings</button>
+            </div>
         </div>
     </div>
 
     <script>
         const vscode = acquireVsCodeApi();
         function openSettings() {
-            vscode.postMessage({ command: 'openSettings' });
+            vscode.postMessage({ command: 'openSettings' }); // Handled in WelcomeView.ts or extension.ts
         }
     </script>
 </body>
