@@ -3,11 +3,19 @@ import { GitExecutor } from "../utils/GitExecutor";
 
 import { clearMemoizedCache, memoize } from "../utils/Memoize";
 
+/**
+ * Singleton service class that handles all low-level Git operations.
+ * Uses GitExecutor to run commands and Memoize to cache expensive calls.
+ */
 export class GitService {
   private static instance: GitService;
   private rootDir: string = "";
   private executor: GitExecutor | undefined;
 
+  /**
+   * Clears the memoized cache for this instance.
+   * Useful after operations that modify the git state (push, pull, commit, etc.).
+   */
   public clearCache() {
     clearMemoizedCache(this);
   }
@@ -16,6 +24,9 @@ export class GitService {
     this.initialize();
   }
 
+  /**
+   * Returns the singleton instance of GitService.
+   */
   public static getInstance(): GitService {
     if (!GitService.instance) {
       GitService.instance = new GitService();
@@ -40,6 +51,11 @@ export class GitService {
     return !!this.executor;
   }
 
+  /**
+   * Retrieves all local and remote branches.
+   * Also identifies the current branch and its upstream status.
+   * @returns Object containing all branches list, current branch name, and current upstream name.
+   */
   @memoize
   public async getBranches() {
     if (!this.executor) return { all: [], current: "", currentUpstream: "" };
@@ -100,6 +116,11 @@ export class GitService {
     return branches.all.length > 0 ? branches.all[0] : "";
   }
 
+  /**
+   * Retrieves the commit log.
+   * @param limit - Number of commits to retrieve.
+   * @param filePath - Optional file path to filter log by file.
+   */
   @memoize
   public async getLog(limit: number = 20, filePath?: string) {
     if (!this.executor) return { all: [] };
@@ -131,6 +152,9 @@ export class GitService {
     return { all: commits };
   }
 
+  /**
+   * Retrieves the list of stash entries.
+   */
   @memoize
   public async getStashes() {
     if (!this.executor) return { all: [] };
@@ -143,18 +167,28 @@ export class GitService {
     return { all: stashes };
   }
 
+  /**
+   * Retrieves the list of files changed in a specific stash.
+   * @param index - The stash index (e.g., 0 for stash@{0}).
+   */
   public async getStashFiles(index: number): Promise<string[]> {
     if (!this.executor) return [];
-    // git stash show --name-only stash@{n}
+    // git stash show --name-only -u stash@{n}
     const result = await this.executor.exec([
       "stash",
       "show",
       "--name-only",
+      "-u",
       `stash@{${index}}`,
     ]);
     return result.stdout.trim().split("\n").filter(Boolean);
   }
 
+  /**
+   * Saves current changes to stash.
+   * @param message - Optional message for the stash.
+   * @param includeUntracked - Whether to include untracked files.
+   */
   public async stashSave(message?: string, includeUntracked: boolean = false) {
     if (!this.executor) return;
     const args = ["stash", "push"];
@@ -201,7 +235,9 @@ export class GitService {
 
   public async checkout(branchName: string) {
     if (!this.executor) return;
-    return await this.executor.exec(["checkout", branchName]);
+    const result = await this.executor.exec(["checkout", branchName]);
+    this.clearCache();
+    return result;
   }
 
   public async createBranch(branchName: string, startPoint?: string) {
@@ -210,13 +246,17 @@ export class GitService {
     if (startPoint) {
       args.push(startPoint);
     }
-    return await this.executor.exec(args);
+    const result = await this.executor.exec(args);
+    this.clearCache();
+    return result;
   }
 
   public async cherryPick(commitHash: string) {
     if (!this.executor) return;
     try {
-      return await this.executor.exec(["cherry-pick", commitHash]);
+      const result = await this.executor.exec(["cherry-pick", commitHash]);
+      this.clearCache();
+      return result;
     } catch (error: any) {
       throw new Error(`Cherry-pick failed: ${error.message}`);
     }
@@ -238,6 +278,12 @@ export class GitService {
     return result.stdout;
   }
 
+  /**
+   * Pushes changes to the remote repository.
+   * Clears cache after operation.
+   * @param remote - Remote name (default: origin).
+   * @param branch - Optional branch name.
+   */
   public async push(remote: string = "origin", branch?: string) {
     if (!this.executor) return;
     const args = ["push", remote];
@@ -249,6 +295,12 @@ export class GitService {
     return result;
   }
 
+  /**
+   * Pulls changes from the remote repository.
+   * Clears cache after operation.
+   * @param remote - Remote name (default: origin).
+   * @param branch - Optional branch name.
+   */
   public async pull(remote: string = "origin", branch?: string) {
     if (!this.executor) return;
     const args = ["pull", remote];
@@ -260,6 +312,13 @@ export class GitService {
     return result;
   }
 
+  /**
+   * Updates a local branch from its remote counterpart without checking it out.
+   * Uses valid fast-forward fetch logic.
+   * Throws error if update is not safe (non-fast-forward).
+   * @param branch - The branch name to update.
+   * @param remote - The remote name.
+   */
   public async updateLocalBranchFromRemote(
     branch: string,
     remote: string = "origin"
@@ -279,6 +338,10 @@ export class GitService {
     this.clearCache();
   }
 
+  /**
+   * Fetches latest changes from remote and prunes deleted branches.
+   * @param remote - Remote name.
+   */
   public async fetch(remote: string = "origin") {
     if (!this.executor) return;
     const result = await this.executor.exec(["fetch", "--prune", remote]);
@@ -286,6 +349,10 @@ export class GitService {
     return result;
   }
 
+  /**
+   * Calculates how many commits ahead and behind a branch is relative to its upstream.
+   * @param branchName - The local branch name.
+   */
   @memoize
   public async getBranchStatus(
     branchName: string
@@ -427,10 +494,17 @@ export class GitService {
     return result.stdout;
   }
 
+  /**
+   * Deletes a local branch.
+   * @param branchName - Name of the branch to delete.
+   * @param force - If true, uses -D (force delete), otherwise -d.
+   */
   public async deleteBranch(branchName: string, force: boolean = false) {
     if (!this.executor) return;
     const args = ["branch", force ? "-D" : "-d", branchName];
-    return await this.executor.exec(args);
+    const result = await this.executor.exec(args);
+    this.clearCache();
+    return result;
   }
 
   public async deleteRemoteBranch(
@@ -441,6 +515,8 @@ export class GitService {
     if (!this.executor) return;
     // git push <remote> --delete <branch>
     const args = ["push", remote, "--delete", branchName];
-    return await this.executor.exec(args);
+    const result = await this.executor.exec(args);
+    this.clearCache();
+    return result;
   }
 }

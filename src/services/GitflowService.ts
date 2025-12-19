@@ -2,6 +2,10 @@ import * as vscode from "vscode";
 import { GitService } from "./GitService";
 import { ConfigService } from "./ConfigService";
 
+/**
+ * Service class handling Gitflow operations and branch creation workflows.
+ * Implements Singleton pattern.
+ */
 export class GitflowService {
   private static instance: GitflowService;
   private gitService: GitService;
@@ -12,6 +16,9 @@ export class GitflowService {
     this.configService = ConfigService.getInstance();
   }
 
+  /**
+   * Prompts user for a source branch and new branch name, then creates and pushes it.
+   */
   public async startRemoteBranch() {
     const branches = await this.gitService.getBranches();
     const source = await vscode.window.showQuickPick(branches.all, {
@@ -30,6 +37,11 @@ export class GitflowService {
     }
   }
 
+  /**
+   * Internal helper to create a branch and push it to origin immediately.
+   * @param branchName - The new branch name.
+   * @param source - The source branch name.
+   */
   private async createAndPush(branchName: string, source?: string) {
     try {
       await this.gitService.createBranch(branchName, source);
@@ -45,6 +57,9 @@ export class GitflowService {
     }
   }
 
+  /**
+   * Prompts user for source and name, then creates a local branch.
+   */
   public async startBranch() {
     const branches = await this.gitService.getBranches();
     const source = await vscode.window.showQuickPick(branches.all, {
@@ -63,6 +78,9 @@ export class GitflowService {
     }
   }
 
+  /**
+   * Returns the singleton instance.
+   */
   public static getInstance(): GitflowService {
     if (!GitflowService.instance) {
       GitflowService.instance = new GitflowService();
@@ -70,6 +88,9 @@ export class GitflowService {
     return GitflowService.instance;
   }
 
+  /**
+   * Shows a QuickPick menu with available branch creation options.
+   */
   public async showMenu() {
     const items: vscode.QuickPickItem[] = [
       {
@@ -107,6 +128,9 @@ export class GitflowService {
     }
   }
 
+  /**
+   * Starts a new feature branch using the configured feature prefix.
+   */
   public async startFeature() {
     const branches = await this.gitService.getBranches();
     const source = await vscode.window.showQuickPick(branches.all, {
@@ -127,6 +151,9 @@ export class GitflowService {
     }
   }
 
+  /**
+   * Starts a new hotfix branch using the configured hotfix prefix.
+   */
   public async startHotfix() {
     const branches = await this.gitService.getBranches();
     const source = await vscode.window.showQuickPick(branches.all, {
@@ -147,6 +174,11 @@ export class GitflowService {
     }
   }
 
+  /**
+   * Internal helper to create and checkout a branch.
+   * @param branchName - Name of branch to create.
+   * @param source - Source branch.
+   */
   private async createAndCheckout(branchName: string, source?: string) {
     try {
       await this.gitService.createBranch(branchName, source);

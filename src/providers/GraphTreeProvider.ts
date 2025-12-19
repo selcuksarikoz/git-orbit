@@ -3,6 +3,7 @@ import { BaseTreeProvider } from "./BaseTreeProvider";
 import { GitService } from "../services/GitService";
 import { ConfigService } from "../services/ConfigService";
 import { StatusDecorationProvider } from "./StatusDecorationProvider";
+import { TooltipGenerator } from "../utils/TooltipGenerator";
 
 export class GraphTreeProvider extends BaseTreeProvider<GraphItem> {
   private gitService: GitService;
@@ -173,10 +174,13 @@ export class GraphItem extends vscode.TreeItem {
 
   public resolveTooltip() {
     if (this.type === "commit" && !this.tooltip) {
-      this.tooltip = this.getCommitTooltip(
+      this.tooltip = TooltipGenerator.generateCommitTooltip(
         this.authorName,
+        this.authorEmail,
+        this.label, // message
         this.dateString,
-        this.authorEmail
+        this.hash,
+        this.refs
       );
     } else if (this.type === "file" && !this.tooltip) {
       this.tooltip = this.getFileTooltip(
@@ -218,40 +222,5 @@ export class GraphItem extends vscode.TreeItem {
       isLatest ? "record" : "primitive-dot",
       new vscode.ThemeColor(colorId)
     );
-  }
-
-  private getCommitTooltip(
-    name: string,
-    date: string,
-    email: string
-  ): vscode.MarkdownString {
-    const tooltip = new vscode.MarkdownString();
-    tooltip.isTrusted = true;
-    tooltip.supportHtml = true;
-
-    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      name
-    )}&background=38bdf8&color=fff&rounded=true&size=40`;
-
-    // Centered Header with Avatar and Name
-    tooltip.appendMarkdown(
-      `<div align="center">\n\n` +
-        `<img src="${avatarUrl}" width="40" height="40" />  \n` +
-        `**${name}**\n\n` +
-        `</div>\n\n`
-    );
-    tooltip.appendMarkdown(`> ${this.label}\n\n`);
-    tooltip.appendMarkdown(`<hr/>\n\n`);
-    tooltip.appendMarkdown(`📅 ${date}  \n`);
-    tooltip.appendMarkdown(`🆔 \`${this.hash.substring(0, 7)}\`  \n`);
-    if (email) {
-      tooltip.appendMarkdown(`📧 \`${email}\`  \n`);
-    }
-    if (this.refs) {
-      tooltip.appendMarkdown(`🌿 \`${this.refs}\`  \n`);
-    }
-    tooltip.appendMarkdown(`\n*Click to explore changed files*`);
-
-    return tooltip;
   }
 }

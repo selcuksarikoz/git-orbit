@@ -1,6 +1,10 @@
 import * as vscode from "vscode";
 import { GitService } from "../services/GitService";
 
+/**
+ * Handles all branch-related Git operations such as push, pull, sync, checkout, and deletion.
+ * Implements the Singleton pattern.
+ */
 export class BranchCommands {
   private static instance: BranchCommands;
   private gitService: GitService;
@@ -11,6 +15,11 @@ export class BranchCommands {
     this.refreshCallback = refreshCallback;
   }
 
+  /**
+   * Returns the singleton instance of BranchCommands.
+   * @param refreshCallback - Callback function to refresh the UI after operations.
+   * @returns The singleton instance.
+   */
   public static getInstance(refreshCallback?: () => void): BranchCommands {
     if (!BranchCommands.instance) {
       if (!refreshCallback) {
@@ -21,6 +30,10 @@ export class BranchCommands {
     return BranchCommands.instance;
   }
 
+  /**
+   * Registers branch-related commands to the extension context.
+   * @param context - The extension context.
+   */
   public register(context: vscode.ExtensionContext) {
     context.subscriptions.push(
       vscode.commands.registerCommand(
@@ -54,8 +67,13 @@ export class BranchCommands {
     );
   }
 
+  /**
+   * Pushes the specified branch to the origin remote.
+   * @param item - The tree item representing the branch.
+   */
   private async pushBranch(item: any) {
     const branchName = item.branchName || item.label;
+    // Show progress indicator while pushing
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
@@ -69,8 +87,14 @@ export class BranchCommands {
     );
   }
 
+  /**
+   * Pulls changes for the specified branch from the origin remote.
+   * Handles safe updates for background branches to avoid merge conflicts on current branch.
+   * @param item - The tree item representing the branch.
+   */
   private async pullBranch(item: any) {
     const branchName = item.branchName || item.label;
+    // Extract actual branch name if it's a remote branch item
     const actualBranch = item.isRemote
       ? branchName.split("/").slice(1).join("/")
       : branchName;
@@ -99,6 +123,11 @@ export class BranchCommands {
     );
   }
 
+  /**
+   * Syncs the branch by pulling changes and then pushing local changes.
+   * Ensures safe operations depending on whether the branch is currently checked out.
+   * @param item - The tree item representing the branch.
+   */
   private async syncBranch(item: any) {
     const branchName = item.branchName || item.label;
     const branches = await this.gitService.getBranches();
@@ -128,8 +157,13 @@ export class BranchCommands {
     );
   }
 
+  /**
+   * Checks out to the specified branch.
+   * @param item - The tree item representing the branch.
+   */
   private async checkoutBranch(item: any) {
     const branchName = item.branchName || item.label;
+    // Handle remote branch names (e.g., origin/main -> main)
     const actualBranch = item.isRemote
       ? branchName.split("/").slice(1).join("/")
       : branchName;
@@ -147,14 +181,27 @@ export class BranchCommands {
     );
   }
 
+  /**
+   * Deletes a local branch with safety checks.
+   * @param item - The tree item representing the branch.
+   */
   private async deleteBranch(item: any) {
     this.handleDeleteBranch(item, false);
   }
 
+  /**
+   * Force deletes a local branch.
+   * @param item - The tree item representing the branch.
+   */
   private async forceDeleteBranch(item: any) {
     this.handleDeleteBranch(item, true);
   }
 
+  /**
+   * Internal helper to handle branch deletion logic.
+   * @param item - The tree item.
+   * @param force - Whether to force delete.
+   */
   private async handleDeleteBranch(item: any, force: boolean) {
     const name = item.branchName || item.label;
     const branches = await this.gitService.getBranches();
@@ -182,6 +229,10 @@ export class BranchCommands {
     this.refreshCallback();
   }
 
+  /**
+   * Deletes a remote branch.
+   * @param item - The tree item representing the remote branch.
+   */
   private async deleteRemoteBranch(item: any) {
     const fullName = item.branchName || item.label; // e.g. origin/feature/x
     const parts = fullName.split("/");

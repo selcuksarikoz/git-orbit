@@ -19,6 +19,12 @@ import { GraphTreeProvider } from "./providers/GraphTreeProvider";
 import { StatusDecorationProvider } from "./providers/StatusDecorationProvider";
 import { ConfigService } from "./services/ConfigService";
 
+/**
+ * Main entry point for the GitOrbit extension.
+ * This function is called when the extension is activated.
+ * It registers all services, providers, decorators, and commands.
+ * @param context - The extension context provided by VS Code.
+ */
 export function activate(context: vscode.ExtensionContext) {
   console.log("GitOrbit is now active!");
 
@@ -141,6 +147,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Commands
   const cherryPickCmd = new CherryPickCommand();
+  // Centralized Refresh Function
   const refreshAll = () => {
     localBranchProvider.refresh();
     remoteBranchProvider.refresh();
@@ -150,7 +157,7 @@ export function activate(context: vscode.ExtensionContext) {
     stashProvider.refresh();
   };
 
-  // Register Command Classes
+  // Register Centralized Command Classes (Branch & Stash)
   BranchCommands.getInstance(refreshAll).register(context);
   StashCommands.getInstance(refreshAll).register(context);
 
@@ -231,7 +238,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Sync Commands
 
-  // Auto Sync Logic
+  // Auto Sync Logic handles periodic fetching
   let syncInterval: NodeJS.Timeout | undefined;
   const setupAutoSync = () => {
     if (syncInterval) clearInterval(syncInterval);
@@ -267,7 +274,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Webview - Show on Update/Install
   WelcomeView.show(context);
 
-  // Real-time Update: Watch .git folder
+  // Real-time Update: Watch .git/HEAD to detect external changes
   const gitPath =
     vscode.workspace.workspaceFolders?.[0].uri.fsPath + "/.git/HEAD";
   const watcher = vscode.workspace.createFileSystemWatcher("**/.git/HEAD");

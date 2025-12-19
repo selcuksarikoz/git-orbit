@@ -3,6 +3,8 @@ import { BaseTreeProvider } from "./BaseTreeProvider";
 import { GitService } from "../services/GitService";
 import { ConfigService } from "../services/ConfigService";
 
+import { TooltipGenerator } from "../utils/TooltipGenerator";
+
 export class CommitItem extends vscode.TreeItem {
   constructor(
     public readonly label: string,
@@ -15,7 +17,15 @@ export class CommitItem extends vscode.TreeItem {
     public readonly authorEmail: string = ""
   ) {
     super(label, collapsibleState);
-    this.tooltip = this.getTooltip(label, hash, description, authorEmail);
+    const [name, date] = description.split(" • ");
+    this.tooltip = TooltipGenerator.generateCommitTooltip(
+      name,
+      authorEmail,
+      label, // message
+      date,
+      hash
+    );
+
     this.contextValue = "commit";
 
     this.iconPath = this.getDotIcon(label, isLatest);
@@ -25,37 +35,6 @@ export class CommitItem extends vscode.TreeItem {
       title: "Open Commit Diff",
       arguments: [this],
     };
-  }
-
-  private getTooltip(
-    label: string,
-    hash: string,
-    authorInfo: string,
-    email: string
-  ): vscode.MarkdownString {
-    const tooltip = new vscode.MarkdownString();
-    tooltip.isTrusted = true;
-    tooltip.supportHtml = true;
-
-    // authorInfo is "Name • Date"
-    const [name, date] = authorInfo.split(" • ");
-    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      name || "Unknown"
-    )}&background=38bdf8&color=fff&rounded=true&size=32`;
-
-    tooltip.appendMarkdown(
-      `<table><tr><td><img src="${avatarUrl}" width="32" height="32" /></td><td>&nbsp;&nbsp;<b>${name}</b></td></tr></table>\n\n`
-    );
-    tooltip.appendMarkdown(`> **${label}**\n\n`);
-    tooltip.appendMarkdown(`---\n\n`);
-    tooltip.appendMarkdown(`📅 ${date || ""}  \n`);
-    tooltip.appendMarkdown(`🆔 \`${hash.substring(0, 7)}\`  \n`);
-    if (email) {
-      tooltip.appendMarkdown(`📧 \`${email}\`  \n`);
-    }
-    tooltip.appendMarkdown(`\n*Click to view changes*`);
-
-    return tooltip;
   }
 
   private getDotIcon(

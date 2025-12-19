@@ -3,6 +3,9 @@ import { BaseTreeProvider } from "./BaseTreeProvider";
 import { GitService } from "../services/GitService";
 import { IconService } from "../services/IconService";
 
+/**
+ * Represents a branch or a folder in the tree view.
+ */
 export class BranchItem extends vscode.TreeItem {
   constructor(
     public readonly label: string,
@@ -47,6 +50,10 @@ export class BranchItem extends vscode.TreeItem {
   }
 }
 
+/**
+ * Tree provider for both local and remote branches.
+ * Supports hierarchical view (folders) for "feature/", "hotfix/", etc.
+ */
 export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
   private gitService: GitService;
 
@@ -59,6 +66,11 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
     return element;
   }
 
+  /**
+   * Retrieves children for the given element.
+   * If element is undefined, returns root items (branches/folders).
+   * @param element - The parent element.
+   */
   async getChildren(element?: BranchItem): Promise<BranchItem[]> {
     if (!this.gitService.isInitialized()) return [];
 
@@ -95,6 +107,12 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
     }
   }
 
+  /**
+   * Builds a nested tree structure from flat list of branch names.
+   * Splits names by '/' to create folders.
+   * @param branchNames - List of branch names.
+   * @returns Nested object representing the tree.
+   */
   private buildTree(branchNames: string[]): any {
     const root: any = {};
     branchNames.forEach((name) => {
@@ -112,6 +130,14 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
     return root;
   }
 
+  /**
+   * Converts the tree object into BranchItem instances.
+   * Handles status calculation for local branches and identifies current/upstream branches.
+   * @param tree - The tree object from buildTree.
+   * @param isRemote - Whether these are remote branches.
+   * @param currentBranch - The currently active local branch name.
+   * @param currentUpstream - The upstream of the current branch.
+   */
   private async mapToBranchItems(
     tree: any,
     isRemote: boolean,
