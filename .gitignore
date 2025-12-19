@@ -2,6 +2,7 @@
 out/
 dist/
 .vscode/
+.env
 
 # Dependencies
 node_modules/
