@@ -64,24 +64,27 @@ export class GitService {
     }
   }
 
-  public getRelativePath(inputPath: string): string {
+  public getRelativePath(inputPath: string | undefined): string {
+    if (!inputPath) return "";
+
     const root =
       this.rootDir || (vscode.workspace.workspaceFolders?.[0].uri.fsPath ?? "");
-    if (!root) return inputPath.replace(/^[\\\/]+/, "");
-
-    const normalizedInput = inputPath.replace(/\\/g, "/");
+    let normalizedInput = inputPath.replace(/\\/g, "/");
     const normalizedRoot = root.replace(/\\/g, "/");
 
     if (
+      normalizedRoot &&
       normalizedInput.toLowerCase().startsWith(normalizedRoot.toLowerCase())
     ) {
-      return normalizedInput
-        .substring(normalizedRoot.length)
-        .replace(/^[\\\/]+/, "");
+      normalizedInput = normalizedInput.substring(normalizedRoot.length);
     }
 
-    // If it's already a relative path but has a leading slash from a URI
-    return normalizedInput.replace(/^[\\\/]+/, "");
+    // Aggressively strip any leading slashes
+    while (normalizedInput.startsWith("/")) {
+      normalizedInput = normalizedInput.substring(1);
+    }
+
+    return normalizedInput;
   }
 
   public isInitialized(): boolean {
@@ -162,7 +165,7 @@ export class GitService {
       "--pretty=format:%H%n%an%n%ae%n%ad%n%s%n--END--",
     ];
     if (filePath) {
-      args.push("--", filePath);
+      args.push("--", this.getRelativePath(filePath));
     }
 
     const result = await this.executor.exec(args);
@@ -368,14 +371,18 @@ export class GitService {
   public async stage(path: string) {
     await this._ensureInitialized();
     if (!this.executor) return;
-    await this.executor.exec(["add", path]);
+    await this.executor.exec(["add", this.getRelativePath(path)]);
     this.clearCache();
   }
 
   public async unstage(path: string) {
     await this._ensureInitialized();
     if (!this.executor) return;
-    await this.executor.exec(["restore", "--staged", path]);
+    await this.executor.exec([
+      "restore",
+      "--staged",
+      this.getRelativePath(path),
+    ]);
     this.clearCache();
   }
 
@@ -429,7 +436,7 @@ export class GitService {
     const result = await this.executor.exec([
       "blame",
       "--line-porcelain",
-      filePath,
+      this.getRelativePath(filePath),
     ]);
     return result.stdout;
   }

@@ -29,10 +29,42 @@ export class FileHistoryProvider extends BaseTreeProvider<
 
   private updateCurrentFile() {
     const editor = vscode.window.activeTextEditor;
-    if (editor && editor.document.uri.scheme === "file") {
-      const newPath = editor.document.uri.fsPath;
-      if (newPath !== this.currentFilePath) {
-        this.currentFilePath = newPath;
+
+    if (!editor) {
+      // If no editor is open, or focus moved away from editors (e.g. to terminal)
+      // We check visible editors to see if we should really clear it.
+      if (vscode.window.visibleTextEditors.length === 0) {
+        if (this.currentFilePath !== undefined) {
+          this.currentFilePath = undefined;
+          this.refresh();
+        }
+      }
+      return;
+    }
+
+    const uri = editor.document.uri;
+    let filePath: string | undefined;
+
+    if (uri.scheme === "file") {
+      filePath = uri.fsPath;
+    } else if (uri.scheme === "gitorbit-git") {
+      // In GitContentProvider, uri.path is the file path
+      filePath = uri.path;
+    } else if (uri.scheme === "gitorbit-diff") {
+      // In DiffContentProvider, path is encoded in query
+      try {
+        const query = JSON.parse(uri.query);
+        filePath = query.filePath;
+      } catch {
+        filePath = uri.path;
+      }
+    }
+
+    if (filePath) {
+      // Normalize path (Git likes / even on Windows)
+      const normalizedPath = filePath.replace(/\\/g, "/");
+      if (normalizedPath !== this.currentFilePath) {
+        this.currentFilePath = normalizedPath;
         this.refresh();
       }
     }
