@@ -310,10 +310,21 @@ export function activate(context: vscode.ExtensionContext) {
   WelcomeView.show(context);
 
   // Real-time Update: Watch .git/HEAD to detect external changes
-  const gitPath =
-    vscode.workspace.workspaceFolders?.[0].uri.fsPath + "/.git/HEAD";
-  const watcher = vscode.workspace.createFileSystemWatcher("**/.git/HEAD");
-  watcher.onDidChange(() => refreshAll());
+  // Real-time Update: Watch .git internals to detect external changes
+  const watcher = vscode.workspace.createFileSystemWatcher(
+    "**/.git/{HEAD,index,refs/heads/**,refs/remotes/**}"
+  );
+
+  let refreshTimeout: NodeJS.Timeout | undefined;
+  const triggerRefresh = () => {
+    if (refreshTimeout) clearTimeout(refreshTimeout);
+    refreshTimeout = setTimeout(() => refreshAll(), 1500);
+  };
+
+  watcher.onDidChange(triggerRefresh);
+  watcher.onDidCreate(triggerRefresh);
+  watcher.onDidDelete(triggerRefresh);
+
   context.subscriptions.push(watcher);
 }
 
