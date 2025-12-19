@@ -174,6 +174,12 @@
         "title": "Delete Stash",
         "category": "GitOrbit",
         "icon": "$(trash)"
+      },
+      {
+        "command": "gitorbit.deleteBranchMenu",
+        "title": "Delete...",
+        "category": "GitOrbit",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -206,14 +212,9 @@
       ],
       "view/item/context": [
         {
-          "command": "gitorbit.deleteBranch",
+          "command": "gitorbit.deleteBranchMenu",
           "when": "view == gitorbit.views.localBranches && (viewItem == localBranchCurrent || viewItem == localBranchNotCurrent)",
-          "group": "branchActions@1"
-        },
-        {
-          "command": "gitorbit.forceDeleteBranch",
-          "when": "view == gitorbit.views.localBranches && (viewItem == localBranchCurrent || viewItem == localBranchNotCurrent)",
-          "group": "branchActions@2"
+          "group": "inline@5"
         },
         {
           "command": "gitorbit.deleteRemoteBranch",

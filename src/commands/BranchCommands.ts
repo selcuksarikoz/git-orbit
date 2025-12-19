@@ -63,6 +63,10 @@ export class BranchCommands {
       vscode.commands.registerCommand(
         "gitorbit.deleteRemoteBranch",
         this.deleteRemoteBranch.bind(this)
+      ),
+      vscode.commands.registerCommand(
+        "gitorbit.deleteBranchMenu",
+        this.deleteBranchMenu.bind(this)
       )
     );
   }
@@ -201,8 +205,33 @@ export class BranchCommands {
    * Internal helper to handle branch deletion logic.
    * @param item - The tree item.
    * @param force - Whether to force delete.
+   * @param isRemote - Whether to delete remote branch.
    */
-  private async handleDeleteBranch(item: any, force: boolean) {
+  private async handleDeleteBranch(
+    item: any,
+    force: boolean,
+    isRemote: boolean = false
+  ) {
+    if (isRemote) {
+      const branchName = item.branchName || item.label;
+      const remote = "origin"; // Defaulting to origin for now
+      const confirm = await vscode.window.showWarningMessage(
+        `Are you sure you want to ${
+          force ? "FORCE " : ""
+        }delete remote branch '${remote}/${branchName}'?`,
+        "Delete Remote",
+        "Cancel"
+      );
+      if (confirm === "Delete Remote") {
+        // For remote, force flag might be relevant if user wants to bypass checks, but usually --delete is enough.
+        // We'll pass force if API supports it, or just normal delete.
+        // GitService deleteRemoteBranch takes (remote, branchName, force)
+        await this.gitService.deleteRemoteBranch(remote, branchName, force);
+        this.refreshCallback();
+      }
+      return;
+    }
+
     const name = item.branchName || item.label;
     const branches = await this.gitService.getBranches();
 
@@ -246,6 +275,78 @@ export class BranchCommands {
     if (confirm === "Delete Remote") {
       await this.gitService.deleteRemoteBranch(remote, branchName, false);
       this.refreshCallback();
+    }
+  }
+
+  /**
+   * Shows a menu with delete options for a branch.
+   * @param item - The tree item representing the branch.
+   */
+  private async deleteBranchMenu(item: any) {
+    const branchName = item.branchName || item.label;
+
+    const items: vscode.QuickPickItem[] = [
+      {
+        label: "Delete Local Branch",
+        description: `git branch -d ${branchName}`,
+        detail: "Safe delete",
+      },
+      {
+        label: "Force Delete Local Branch",
+        description: `git branch -D ${branchName}`,
+        detail: "Force delete (even if unmerged)",
+      },
+      {
+        label: "Delete Remote Branch",
+        description: `git push origin --delete ${branchName}`,
+        detail: "Delete from remote",
+      },
+      {
+        label: "Force Delete Remote Branch",
+        description: `git push origin --delete ${branchName}`,
+        detail: "Force delete from remote (using reference)",
+      },
+    ];
+
+    const selection = await vscode.window.showQuickPick(items, {
+      placeHolder: `Select delete action for '${branchName}'`,
+    });
+
+    if (!selection) return;
+
+    if (selection.label === "Delete Local Branch") {
+      await this.handleDeleteBranch(item, false);
+    } else if (selection.label === "Force Delete Local Branch") {
+      await this.handleDeleteBranch(item, true);
+    } else if (selection.label === "Delete Remote Branch") {
+      // We reuse handleDeleteBranch with isRemote=true
+      // But the item in 'Local Branches' view usually has a simple name e.g. "main"
+      // handleDeleteBranch for remote handles "origin/main".
+      // Let's call GitService directly or adapt.
+
+      // Actually, deleteRemoteBranch expects (remote, branchName).
+      // We can just reuse logic.
+      const confirm = await vscode.window.showWarningMessage(
+        `Delete remote branch 'origin/${branchName}'?`,
+        "Delete Remote",
+        "Cancel"
+      );
+      if (confirm === "Delete Remote") {
+        await this.gitService.deleteRemoteBranch("origin", branchName, false);
+        this.refreshCallback();
+      }
+    } else if (selection.label === "Force Delete Remote Branch") {
+      const confirm = await vscode.window.showWarningMessage(
+        `FORCE Delete remote branch 'origin/${branchName}'?`,
+        "Force Delete Remote",
+        "Cancel"
+      );
+      if (confirm === "Force Delete Remote") {
+        // Technically git push origin --delete is the same, but maybe user treats it mentally different.
+        // We serve the same command.
+        await this.gitService.deleteRemoteBranch("origin", branchName, true);
+        this.refreshCallback();
+      }
     }
   }
 }
