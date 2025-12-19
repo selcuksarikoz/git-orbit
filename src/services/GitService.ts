@@ -718,6 +718,49 @@ export class GitService {
     this.clearCache();
   }
 
+  public async reset(mode: "soft" | "mixed" | "hard", target: string) {
+    await this._ensureInitialized();
+    if (!this.executor) return;
+    const result = await this.executor.exec(["reset", `--${mode}`, target]);
+    this.clearCache();
+    return result;
+  }
+
+  public async revert(commitHash: string) {
+    await this._ensureInitialized();
+    if (!this.executor) return;
+    const result = await this.executor.exec([
+      "revert",
+      "--no-edit",
+      commitHash,
+    ]);
+    this.clearCache();
+    return result;
+  }
+
+  public async createTag(tagName: string, target?: string) {
+    await this._ensureInitialized();
+    if (!this.executor) return;
+    const args = ["tag", tagName];
+    if (target) args.push(target);
+    const result = await this.executor.exec(args);
+    this.clearCache();
+    return result;
+  }
+
+  public async stashFile(filePath: string) {
+    await this._ensureInitialized();
+    if (!this.executor) return;
+    const result = await this.executor.exec([
+      "stash",
+      "push",
+      "-m",
+      `Stashed ${path.basename(filePath)}`,
+      this.getRelativePath(filePath),
+    ]);
+    this.clearCache();
+    return result;
+  }
   public async deleteRemoteBranch(
     remote: string,
     branchName: string,

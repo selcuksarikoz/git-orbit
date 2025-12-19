@@ -48,21 +48,21 @@ export class StatusDecorationProvider implements vscode.FileDecorationProvider {
     switch (status) {
       case "A":
         color = new vscode.ThemeColor("gitDecoration.addedResourceForeground");
-        badge = "A";
+        // badge = "A"; // Native Git already handles this
         tooltip = "Added";
         break;
       case "M":
         color = new vscode.ThemeColor(
           "gitDecoration.modifiedResourceForeground"
         );
-        badge = "M";
+        // badge = "M"; // Native Git already handles this
         tooltip = "Modified";
         break;
       case "D":
         color = new vscode.ThemeColor(
           "gitDecoration.deletedResourceForeground"
         );
-        badge = "D";
+        // badge = "D"; // Native Git already handles this
         tooltip = "Deleted";
         break;
       case "?":
@@ -70,7 +70,7 @@ export class StatusDecorationProvider implements vscode.FileDecorationProvider {
         color = new vscode.ThemeColor(
           "gitDecoration.untrackedResourceForeground"
         );
-        badge = "U";
+        // badge = "U"; // Native Git already handles this
         tooltip = "Untracked";
         break;
     }

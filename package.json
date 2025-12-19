@@ -329,6 +329,33 @@
         "title": "Open All Staged Changes",
         "category": "GitOrbit",
         "icon": "$(open-preview)"
+      },
+      {
+        "command": "gitorbit.graph.reset",
+        "title": "Reset Current Branch to Here...",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.graph.revert",
+        "title": "Revert Commit...",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.graph.tag",
+        "title": "Create Tag...",
+        "category": "GitOrbit",
+        "icon": "$(tag)"
+      },
+      {
+        "command": "gitorbit.changes.stashFile",
+        "title": "Stash File",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.changes.smartCommit",
+        "title": "Smart Commit...",
+        "category": "GitOrbit",
+        "icon": "$(sparkle)"
       }
     ],
     "menus": {
@@ -544,6 +571,26 @@
           "command": "gitorbit.openCommitDiffs",
           "when": "view == gitorbit.views.graph && viewItem == commit",
           "group": "inline"
+        },
+        {
+          "command": "gitorbit.graph.reset",
+          "when": "view == gitorbit.views.graph && viewItem == commit",
+          "group": "2_actions"
+        },
+        {
+          "command": "gitorbit.graph.revert",
+          "when": "view == gitorbit.views.graph && viewItem == commit",
+          "group": "2_actions"
+        },
+        {
+          "command": "gitorbit.graph.tag",
+          "when": "view == gitorbit.views.graph && viewItem == commit",
+          "group": "2_actions"
+        },
+        {
+          "command": "gitorbit.changes.stashFile",
+          "when": "view == gitorbit.views.changes && (viewItem == change || viewItem == stagedChange)",
+          "group": "2_actions"
         }
       ]
     },
