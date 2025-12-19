@@ -97,7 +97,8 @@
       {
         "command": "gitorbit.cherryPick",
         "title": "Cherry Pick",
-        "category": "GitOrbit"
+        "category": "GitOrbit",
+        "icon": "assets/icons/cherry.svg"
       },
       {
         "command": "gitorbit.startBranch",

@@ -251,10 +251,14 @@ export class GitService {
     return result;
   }
 
-  public async cherryPick(commitHash: string) {
+  public async cherryPick(commitHash: string, options: string[] = []) {
     if (!this.executor) return;
     try {
-      const result = await this.executor.exec(["cherry-pick", commitHash]);
+      const result = await this.executor.exec([
+        "cherry-pick",
+        ...options,
+        commitHash,
+      ]);
       this.clearCache();
       return result;
     } catch (error: any) {
