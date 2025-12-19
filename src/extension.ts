@@ -248,6 +248,33 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitorbit.checkoutCommit",
+      async (item: any) => {
+        const hash = item ? item.hash : undefined;
+        if (!hash) return;
+
+        const confirm = await vscode.window.showInformationMessage(
+          `Checkout commit ${hash.substring(0, 7)}? (Detached HEAD)`,
+          "Yes",
+          "No"
+        );
+        if (confirm !== "Yes") return;
+
+        try {
+          await gitService.checkout(hash);
+          vscode.window.showInformationMessage(
+            `Checked out commit ${hash.substring(0, 7)}`
+          );
+          refreshAll();
+        } catch (error: any) {
+          vscode.window.showErrorMessage(`Checkout failed: ${error.message}`);
+        }
+      }
+    )
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("gitorbit.startBranch", () => {
       GitflowService.getInstance().startBranch();
     })

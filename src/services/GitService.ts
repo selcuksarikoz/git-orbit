@@ -251,6 +251,20 @@ export class GitService {
     return result;
   }
 
+  public async commit(options: string[] = []) {
+    if (!this.executor) return;
+    const result = await this.executor.exec(["commit", ...options]);
+    this.clearCache();
+    return result;
+  }
+
+  public async skipCherryPick() {
+    if (!this.executor) return;
+    const result = await this.executor.exec(["cherry-pick", "--skip"]);
+    this.clearCache();
+    return result;
+  }
+
   public async cherryPick(commitHash: string, options: string[] = []) {
     if (!this.executor) return;
     try {

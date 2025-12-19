@@ -98,7 +98,13 @@
         "command": "gitorbit.cherryPick",
         "title": "Cherry Pick",
         "category": "GitOrbit",
-        "icon": "assets/icons/cherry.svg"
+        "icon": "$(arrow-right)"
+      },
+      {
+        "command": "gitorbit.checkoutCommit",
+        "title": "Checkout Commit",
+        "category": "GitOrbit",
+        "icon": "$(check)"
       },
       {
         "command": "gitorbit.startBranch",
@@ -230,9 +236,14 @@
           "group": "branchActions@1"
         },
         {
+          "command": "gitorbit.checkoutCommit",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.fileHistory) && viewItem == commit",
+          "group": "inline@1"
+        },
+        {
           "command": "gitorbit.cherryPick",
           "when": "(view == gitorbit.views.commits || view == gitorbit.views.fileHistory) && viewItem == commit",
-          "group": "inline"
+          "group": "inline@2"
         },
         {
           "command": "gitorbit.checkoutBranch",

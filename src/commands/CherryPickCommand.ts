@@ -53,23 +53,32 @@ export class CherryPickCommand {
       const msg = error.message;
       if (msg.includes("cherry-pick is now empty")) {
         const action = await vscode.window.showErrorMessage(
-          "Cherry-pick resulted in an empty commit. Do you want to continue by allowing empty commit?",
-          "Continue with --allow-empty",
+          "Cherry-pick resulted in an empty commit. Do you want to commit it anyway?",
+          "Commit --allow-empty",
+          "Skip commit",
           "Cancel"
         );
-        if (action === "Continue with --allow-empty") {
+        if (action === "Commit --allow-empty") {
           try {
-            await this.gitService.cherryPick(commitHash, [
-              ...options.value,
-              "--allow-empty",
-            ]);
+            await this.gitService.commit(["--allow-empty", "--no-edit"]);
             vscode.window.showInformationMessage(
-              `Successfully cherry-picked ${commitHash.substring(0, 7)} (empty)`
+              `Successfully cherry-picked ${commitHash.substring(
+                0,
+                7
+              )} (as empty commit)`
             );
-            return;
           } catch (retryError: any) {
             vscode.window.showErrorMessage(
-              `Follow-up cherry-pick failed: ${retryError.message}`
+              `Failed to commit empty cherry-pick: ${retryError.message}`
+            );
+          }
+        } else if (action === "Skip commit") {
+          try {
+            await this.gitService.skipCherryPick();
+            vscode.window.showInformationMessage("Skipped empty cherry-pick.");
+          } catch (skipError: any) {
+            vscode.window.showErrorMessage(
+              `Failed to skip cherry-pick: ${skipError.message}`
             );
           }
         }
