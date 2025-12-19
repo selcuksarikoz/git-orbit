@@ -44,6 +44,14 @@ export class StatusDecorationProvider implements vscode.FileDecorationProvider {
         badge = "D";
         tooltip = "Deleted";
         break;
+      case "?":
+      case "U":
+        color = new vscode.ThemeColor(
+          "gitDecoration.untrackedResourceForeground"
+        );
+        badge = "U";
+        tooltip = "Untracked";
+        break;
     }
 
     return {

@@ -16,11 +16,11 @@ import { StashCommands } from "./commands/StashCommands";
 import { AuthorshipCodeLensProvider } from "./providers/AuthorshipCodeLensProvider";
 import { GitContentProvider } from "./providers/GitContentProvider";
 import { DiffContentProvider } from "./providers/DiffContentProvider";
+import { ChangesTreeProvider } from "./providers/ChangesTreeProvider"; // Imported here
 
 import { GraphTreeProvider } from "./providers/GraphTreeProvider";
 import { StatusDecorationProvider } from "./providers/StatusDecorationProvider";
 import { ConfigService } from "./services/ConfigService";
-import { ChangesViewProvider } from "./providers/ChangesViewProvider";
 
 /**
  * Main entry point for the GitOrbit extension.
@@ -101,19 +101,118 @@ export function activate(context: vscode.ExtensionContext) {
     stashProvider
   );
 
-  const changesProvider = new ChangesViewProvider(context.extensionUri);
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      ChangesViewProvider.viewType,
-      changesProvider
-    )
+  const changesProvider = new ChangesTreeProvider(context.extensionUri);
+  vscode.window.registerTreeDataProvider(
+    "gitorbit.views.changes",
+    changesProvider
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("gitorbit.refreshChanges", () => {
-      GitService.getInstance().clearCache();
       changesProvider.refresh();
     })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.openDiff", (item) =>
+      changesProvider.openDiff(item)
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.stage", (item) =>
+      changesProvider.stage(item)
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.unstage", (item) =>
+      changesProvider.unstage(item)
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.openAllChanges", () =>
+      changesProvider.openAllChanges()
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.openAllStaged", () =>
+      changesProvider.openAllStaged()
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.commit", () =>
+      changesProvider.commit()
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.commitStaged", () =>
+      changesProvider.commitStaged()
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.commitAmend", () =>
+      changesProvider.commit(true)
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.stageAll", () =>
+      changesProvider.stageAll()
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.unstageAll", () =>
+      changesProvider.unstageAll()
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.discardAll", () =>
+      changesProvider.discardAll()
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.pull", () =>
+      changesProvider.pull()
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.push", () =>
+      changesProvider.push()
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.sync", () =>
+      changesProvider.sync()
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.undoCommit", () =>
+      changesProvider.undoCommit()
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.abortRebase", () =>
+      changesProvider.abortRebase()
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.abortMerge", () =>
+      changesProvider.abortMerge()
+    )
   );
 
   // Decorators
@@ -495,7 +594,22 @@ export function activate(context: vscode.ExtensionContext) {
   watcher.onDidCreate(triggerRefresh);
   watcher.onDidDelete(triggerRefresh);
 
-  context.subscriptions.push(watcher);
+  // First Run Experience: Focus main views to ensure they are expanded
+  const hasRun = context.globalState.get<boolean>("gitorbit.hasRun");
+  if (!hasRun) {
+    context.globalState.update("gitorbit.hasRun", true);
+    setTimeout(async () => {
+      try {
+        await vscode.commands.executeCommand("gitorbit.views.changes.focus");
+        await vscode.commands.executeCommand(
+          "gitorbit.views.localBranches.focus"
+        );
+        await vscode.commands.executeCommand("gitorbit.views.graph.focus");
+      } catch (e) {
+        console.error("Failed to focus views on first run", e);
+      }
+    }, 1000);
+  }
 }
 
 export function deactivate() {}
