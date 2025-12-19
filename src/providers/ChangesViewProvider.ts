@@ -33,20 +33,27 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
       }, 300);
     };
 
-    const watcher = vscode.workspace.createFileSystemWatcher("**/.git/index");
-    watcher.onDidChange(debouncedRefresh);
-    watcher.onDidCreate(debouncedRefresh);
-    watcher.onDidDelete(debouncedRefresh);
+    // Watch for git index changes (staged changes)
+    const gitWatcher =
+      vscode.workspace.createFileSystemWatcher("**/.git/index");
+    gitWatcher.onDidChange(debouncedRefresh);
+    gitWatcher.onDidCreate(debouncedRefresh);
+    gitWatcher.onDidDelete(debouncedRefresh);
 
-    const fileWatcher =
-      vscode.workspace.onDidSaveTextDocument(debouncedRefresh);
+    // Watch for ANY workspace file changes (unstaged changes)
+    // We ignore common folders like node_modules for performance
+    const workspaceWatcher = vscode.workspace.createFileSystemWatcher("**/*");
+    workspaceWatcher.onDidChange(debouncedRefresh);
+    workspaceWatcher.onDidCreate(debouncedRefresh);
+    workspaceWatcher.onDidDelete(debouncedRefresh);
+
     const configWatcher =
       vscode.workspace.onDidChangeConfiguration(debouncedRefresh);
 
     webviewView.onDidDispose(() => {
       if (refreshTimer) clearTimeout(refreshTimer);
-      watcher.dispose();
-      fileWatcher.dispose();
+      gitWatcher.dispose();
+      workspaceWatcher.dispose();
       configWatcher.dispose();
     });
 
@@ -63,6 +70,9 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
         case "commit":
           await this._handleCommit(data.message, data.amend);
           break;
+        case "commitStaged":
+          await this._handleCommitStaged(data.message);
+          break;
         case "push":
           await vscode.window.withProgress(
             {
@@ -71,6 +81,23 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
             },
             async () => {
               await this._handlePush();
+            }
+          );
+          break;
+        case "pull":
+          await vscode.window.withProgress(
+            {
+              location: vscode.ProgressLocation.Notification,
+              title: "Pulling...",
+            },
+            async () => {
+              try {
+                await gitService.pull();
+                vscode.window.showInformationMessage("Pull successful!");
+                this.refresh();
+              } catch (e: any) {
+                vscode.window.showErrorMessage(`Pull failed: ${e.message}`);
+              }
             }
           );
           break;
@@ -84,6 +111,59 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
               await this._handleSync();
             }
           );
+          break;
+        case "undoCommit":
+          try {
+            await gitService.undoCommit();
+            vscode.window.showInformationMessage(
+              "Last commit undone (soft reset)."
+            );
+            this.refresh();
+          } catch (e: any) {
+            vscode.window.showErrorMessage(
+              `Failed to undo commit: ${e.message}`
+            );
+          }
+          break;
+        case "abortRebase":
+          try {
+            await gitService.abortRebase();
+            vscode.window.showInformationMessage("Rebase aborted.");
+            this.refresh();
+          } catch (e: any) {
+            vscode.window.showErrorMessage(
+              `Failed to abort rebase: ${e.message}`
+            );
+          }
+          break;
+        case "abortMerge":
+          try {
+            await gitService.abortMerge();
+            vscode.window.showInformationMessage("Merge aborted.");
+            this.refresh();
+          } catch (e: any) {
+            vscode.window.showErrorMessage(
+              `Failed to abort merge: ${e.message}`
+            );
+          }
+          break;
+        case "discardAll":
+          const confirm = await vscode.window.showWarningMessage(
+            "Are you sure you want to discard ALL changes? This cannot be undone.",
+            { modal: true },
+            "Discard All"
+          );
+          if (confirm === "Discard All") {
+            try {
+              await gitService.discardAllChanges();
+              vscode.window.showInformationMessage("All changes discarded.");
+              this.refresh();
+            } catch (e: any) {
+              vscode.window.showErrorMessage(
+                `Failed to discard changes: ${e.message}`
+              );
+            }
+          }
           break;
         case "stage":
           await gitService.stage(data.path);
@@ -179,11 +259,10 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
       );
       if (unstaged.length > 0) {
         await gitService.stageAll();
-        // After staging everything, we proceed to commit and push
         try {
           const options = message ? ["-m", message] : [];
           await gitService.commit(options);
-          await gitService.push(); // Direct push as requested
+          await gitService.push();
           vscode.window.showInformationMessage(
             "Auto-staged, committed and pushed!"
           );
@@ -210,6 +289,22 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
 
       await gitService.commit(options);
       vscode.window.showInformationMessage("Commit successful!");
+      this.refresh();
+      vscode.commands.executeCommand("gitorbit.refreshViews");
+    } catch (error: any) {
+      vscode.window.showErrorMessage(error.message);
+    }
+  }
+
+  private async _handleCommitStaged(message: string) {
+    if (!message) {
+      vscode.window.showErrorMessage("Please enter a commit message.");
+      return;
+    }
+    const gitService = GitService.getInstance();
+    try {
+      await gitService.commit(["-m", message]);
+      vscode.window.showInformationMessage("Staged changes committed!");
       this.refresh();
       vscode.commands.executeCommand("gitorbit.refreshViews");
     } catch (error: any) {
@@ -256,6 +351,9 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
             --staged-color: #73c991;
             --modified-color: #e2c08d;
             --deleted-color: #f14c4c;
+            --menu-bg: #252526;
+            --menu-hover: #094771;
+            --menu-border: #454545;
         }
         body {
             padding: 12px;
@@ -279,6 +377,29 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
             color: var(--blue-accent);
             font-weight: 600;
             font-size: 13px;
+        }
+        .toolbar-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .more-menu-container {
+            position: relative;
+        }
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--vscode-foreground);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            opacity: 0.7;
+        }
+        .icon-btn:hover {
+            opacity: 1;
+            background: rgba(255,255,255,0.1);
         }
         textarea {
             width: 100%;
@@ -435,27 +556,44 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
             gap: 6px;
             margin-right: 4px;
         }
-        .dropdown-content {
+        .dropdown-content, .more-menu-content {
             display: none;
             position: absolute;
             right: 0;
-            top: 34px;
-            background: #252526;
-            min-width: 170px;
+            background: var(--menu-bg);
+            min-width: 180px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.4);
             z-index: 1000;
             border-radius: 4px;
-            border: 1px solid #454545;
+            border: 1px solid var(--menu-border);
             padding: 4px 0;
         }
-        .dropdown-content div {
-            padding: 10px 16px;
+        .dropdown-content { top: 34px; }
+        .more-menu-content { top: 28px; }
+
+        .menu-item {
+            padding: 8px 16px;
             cursor: pointer;
             font-size: 12.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        .dropdown-content div:hover {
-            background: #094771;
+        .menu-item:hover {
+            background: var(--menu-hover);
             color: white;
+        }
+        .menu-divider {
+            height: 1px;
+            background: var(--menu-border);
+            margin: 4px 0;
+        }
+        .menu-header {
+            padding: 8px 16px 4px 16px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            opacity: 0.4;
         }
         .show { display: block; }
         .empty-state {
@@ -472,6 +610,42 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
         <div class="branch-badge">
             <span id="branch-text">loading...</span>
         </div>
+        <div class="toolbar-actions">
+            <!-- Sync Action -->
+            <button class="icon-btn" title="Sync Changes" onclick="sync()">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M1 9.5a5.5 5.5 0 0 1 10.354-2.525.5.5 0 0 0 .866-.5A6.5 6.5 0 0 0 0 9.5a.5.5 0 1 0 1 0zM15 6.5a5.5 5.5 0 0 1-10.354 2.525.5.5 0 0 0-.866.5A6.5 6.5 0 0 0 16 6.5a.5.5 0 1 0-1 0zM7.146 11.854a.5.5 0 0 0 .708 0l2-2a.5.5 0 0 0-.708-.708L8 10.293V4.5a.5.5 0 0 0-1 0v5.793L5.854 9.146a.5.5 0 1 0-.708.708l2 2z"/></svg>
+            </button>
+            
+            <!-- Three Dot Menu -->
+            <div class="more-menu-container">
+                <button class="icon-btn" id="more-btn" title="More Actions...">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>
+                </button>
+                <div class="more-menu-content" id="more-menu">
+                    <div class="menu-header">Commit</div>
+                    <div class="menu-item" onclick="commit()">Commit All</div>
+                    <div class="menu-item" onclick="commitStaged()">Commit Staged</div>
+                    <div class="menu-item" onclick="commit(true)">Commit Amend</div>
+                    
+                    <div class="menu-divider"></div>
+                    <div class="menu-header">Changes</div>
+                    <div class="menu-item" onclick="stageAll()">Stage All</div>
+                    <div class="menu-item" onclick="unstageAll()">Unstage All</div>
+                    <div class="menu-item" onclick="discardAll()" style="color: var(--deleted-color)">Discard All Changes</div>
+                    
+                    <div class="menu-divider"></div>
+                    <div class="menu-header">Remote</div>
+                    <div class="menu-item" onclick="pull()">Pull</div>
+                    <div class="menu-item" onclick="push()">Push</div>
+                    
+                    <div class="menu-divider"></div>
+                    <div class="menu-header">Maintenance</div>
+                    <div class="menu-item" onclick="undoCommit()">Undo Last Commit</div>
+                    <div class="menu-item" onclick="abortRebase()">Abort Rebase</div>
+                    <div class="menu-item" onclick="abortMerge()">Abort Merge</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <textarea id="commit-message" placeholder="Message (Cmd+Enter to commit)"></textarea>
@@ -485,11 +659,11 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M7.646 11.854a.5.5 0 0 0 .708 0l6-6a.5.5 0 0 0-.708-.708L8 10.793 2.354 5.146a.5.5 0 1 0-.708.708l6 6z"/></svg>
         </button>
         <div class="dropdown-content" id="dropdown-menu">
-            <div onclick="commit()">Commit</div>
-            <div onclick="commit(true)">Commit (Amend)</div>
-            <hr style="border: 0; border-top: 1px solid #454545; margin: 4px 0;">
-            <div onclick="push()">Commit & Push</div>
-            <div onclick="sync()">Commit & Sync</div>
+            <div class="menu-item" onclick="commit()">Commit</div>
+            <div class="menu-item" onclick="commit(true)">Commit (Amend)</div>
+            <div class="menu-divider"></div>
+            <div class="menu-item" onclick="push()">Commit & Push</div>
+            <div class="menu-item" onclick="sync()">Commit & Sync</div>
         </div>
     </div>
 
@@ -520,6 +694,8 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
         const messageInput = document.getElementById('commit-message');
         const dropdownBtn = document.getElementById('dropdown-btn');
         const dropdownMenu = document.getElementById('dropdown-menu');
+        const moreBtn = document.getElementById('more-btn');
+        const moreMenu = document.getElementById('more-menu');
         const commitBtn = document.getElementById('commit-btn');
 
         // Signal ready to receive cached data
@@ -527,10 +703,20 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
 
         dropdownBtn.onclick = (e) => {
             e.stopPropagation();
+            moreMenu.classList.remove('show');
             dropdownMenu.classList.toggle('show');
         };
 
-        window.onclick = () => dropdownMenu.classList.remove('show');
+        moreBtn.onclick = (e) => {
+            e.stopPropagation();
+            dropdownMenu.classList.remove('show');
+            moreMenu.classList.toggle('show');
+        };
+
+        window.onclick = () => {
+            dropdownMenu.classList.remove('show');
+            moreMenu.classList.remove('show');
+        };
 
         messageInput.addEventListener('keydown', (e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -542,10 +728,19 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
             vscode.postMessage({ type: 'commit', message: messageInput.value, amend });
             if (!amend) messageInput.value = '';
         }
+        function commitStaged() {
+            vscode.postMessage({ type: 'commitStaged', message: messageInput.value });
+            messageInput.value = '';
+        }
         function push() { vscode.postMessage({ type: 'push' }); }
+        function pull() { vscode.postMessage({ type: 'pull' }); }
         function sync() { vscode.postMessage({ type: 'sync' }); }
         function stageAll() { vscode.postMessage({ type: 'stageAll' }); }
         function unstageAll() { vscode.postMessage({ type: 'unstageAll' }); }
+        function undoCommit() { vscode.postMessage({ type: 'undoCommit' }); }
+        function abortRebase() { vscode.postMessage({ type: 'abortRebase' }); }
+        function abortMerge() { vscode.postMessage({ type: 'abortMerge' }); }
+        function discardAll() { vscode.postMessage({ type: 'discardAll' }); }
 
         function createFileItem(file, isStaged) {
             const div = document.createElement('div');
@@ -558,7 +753,7 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
             const filePath = file.path.includes('/') ? file.path.substring(0, file.path.lastIndexOf('/')) : '~';
             
             div.innerHTML = \`
-                <span class="file-status status-\${isStaged ? 'S' : statusChar}">\${statusChar}</span>
+                <span class="file-status status-\${isStaged ? 'S' : (statusChar === '?' ? 'U' : statusChar)}">\${statusChar === '?' ? 'U' : statusChar}</span>
                 <div class="file-info">
                     <span class="file-name">\${fileName}</span>
                     <span class="file-path">\${filePath}</span>

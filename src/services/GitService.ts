@@ -659,6 +659,41 @@ export class GitService {
     return result;
   }
 
+  public async undoCommit() {
+    await this._ensureInitialized();
+    if (!this.executor) return;
+    const result = await this.executor.exec(["reset", "--soft", "HEAD~1"]);
+    this.clearCache();
+    return result;
+  }
+
+  public async abortRebase() {
+    await this._ensureInitialized();
+    if (!this.executor) return;
+    const result = await this.executor.exec(["rebase", "--abort"]);
+    this.clearCache();
+    return result;
+  }
+
+  public async abortMerge() {
+    await this._ensureInitialized();
+    if (!this.executor) return;
+    const result = await this.executor.exec(["merge", "--abort"]);
+    this.clearCache();
+    return result;
+  }
+
+  public async discardAllChanges() {
+    await this._ensureInitialized();
+    if (!this.executor) return;
+    // Discard unstaged
+    await this.executor.exec(["checkout", "--", "."]);
+    // Discard staged (unstage them first)
+    await this.executor.exec(["restore", "--staged", "."]);
+    await this.executor.exec(["checkout", "--", "."]);
+    this.clearCache();
+  }
+
   public async deleteRemoteBranch(
     remote: string,
     branchName: string,
