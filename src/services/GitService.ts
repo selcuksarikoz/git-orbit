@@ -1,4 +1,6 @@
+import * as cp from "child_process";
 import * as vscode from "vscode";
+import * as path from "path";
 import { GitExecutor } from "../utils/GitExecutor";
 import { clearMemoizedCache, memoize } from "../utils/Memoize";
 
@@ -62,9 +64,24 @@ export class GitService {
     }
   }
 
-  public getRelativePath(absolutePath: string): string {
-    if (!this.rootDir) return absolutePath;
-    return absolutePath.replace(this.rootDir, "").replace(/^[\\\/]+/, "");
+  public getRelativePath(inputPath: string): string {
+    const root =
+      this.rootDir || (vscode.workspace.workspaceFolders?.[0].uri.fsPath ?? "");
+    if (!root) return inputPath.replace(/^[\\\/]+/, "");
+
+    const normalizedInput = inputPath.replace(/\\/g, "/");
+    const normalizedRoot = root.replace(/\\/g, "/");
+
+    if (
+      normalizedInput.toLowerCase().startsWith(normalizedRoot.toLowerCase())
+    ) {
+      return normalizedInput
+        .substring(normalizedRoot.length)
+        .replace(/^[\\\/]+/, "");
+    }
+
+    // If it's already a relative path but has a leading slash from a URI
+    return normalizedInput.replace(/^[\\\/]+/, "");
   }
 
   public isInitialized(): boolean {

@@ -9,17 +9,15 @@ export class FileHistoryProvider extends BaseTreeProvider<
 > {
   private gitService: GitService;
   private limit: number = 20;
+  private currentFilePath: string | undefined;
 
   constructor() {
     super();
     this.gitService = GitService.getInstance();
     this.limit = ConfigService.getInstance().commitLimit;
 
-    vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (editor && editor.document.uri.scheme === "file") {
-        this.refresh();
-      }
-    });
+    this.updateCurrentFile();
+    vscode.window.onDidChangeActiveTextEditor(() => this.updateCurrentFile());
 
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("gitorbit.views.commitLimit")) {
@@ -27,6 +25,17 @@ export class FileHistoryProvider extends BaseTreeProvider<
         this.refresh();
       }
     });
+  }
+
+  private updateCurrentFile() {
+    const editor = vscode.window.activeTextEditor;
+    if (editor && editor.document.uri.scheme === "file") {
+      const newPath = editor.document.uri.fsPath;
+      if (newPath !== this.currentFilePath) {
+        this.currentFilePath = newPath;
+        this.refresh();
+      }
+    }
   }
 
   getTreeItem(element: CommitItem | vscode.TreeItem): vscode.TreeItem {
@@ -39,11 +48,12 @@ export class FileHistoryProvider extends BaseTreeProvider<
     if (!this.gitService.isInitialized()) return [];
     if (element) return [];
 
-    const activeEditor = vscode.window.activeTextEditor;
-    if (!activeEditor) return [];
+    if (!this.currentFilePath) return [];
 
-    const filePath = activeEditor.document.uri.fsPath;
-    const log = await this.gitService.getFileHistory(filePath, this.limit);
+    const log = await this.gitService.getFileHistory(
+      this.currentFilePath,
+      this.limit
+    );
 
     let commits = log.all;
     if (this.filterText) {
@@ -63,7 +73,7 @@ export class FileHistoryProvider extends BaseTreeProvider<
           `${commit.author_name} • ${commit.date}`,
           commit.hash,
           vscode.TreeItemCollapsibleState.None,
-          filePath,
+          this.currentFilePath,
           index === 0,
           commit.author_email
         )
@@ -75,7 +85,7 @@ export class FileHistoryProvider extends BaseTreeProvider<
         vscode.TreeItemCollapsibleState.None
       );
       loadMoreItem.command = {
-        command: "gitorbit.loadMoreCommits", // Reuse existing command
+        command: "gitorbit.fileHistory.loadMore",
         title: "Load More",
       };
       loadMoreItem.iconPath = new vscode.ThemeIcon("add");

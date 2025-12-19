@@ -417,6 +417,12 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.fileHistory.loadMore", () => {
+      fileHistoryProvider.incrementLimit();
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("gitorbit.showWelcome", () => {
       WelcomeView.show(context, true);
     })

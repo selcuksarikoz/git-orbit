@@ -6,12 +6,15 @@ export class GitContentProvider implements vscode.TextDocumentContentProvider {
 
   provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
     const authority = decodeURIComponent(uri.authority);
-    const hash = authority === "INDEX" ? "" : authority;
-    const path = uri.path.startsWith("/") ? uri.path.substring(1) : uri.path;
-    // For index content, we use :0:path to specify the stage clearly
-    const ref = authority === "INDEX" ? `:0:${path}` : `${hash}:${path}`;
+    const gitService = GitService.getInstance();
+    const relativePath = gitService.getRelativePath(uri.path);
 
-    return GitService.getInstance().showFileContentRaw(ref);
+    if (authority.toUpperCase() === "INDEX") {
+      // For index content, we use :0:path to specify the stage clearly
+      return gitService.showFileContentRaw(`:0:${relativePath}`);
+    }
+
+    return gitService.showFileContentRaw(`${authority}:${relativePath}`);
   }
 
   static getUri(hash: string, path: string): vscode.Uri {
