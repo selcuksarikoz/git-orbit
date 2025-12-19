@@ -7,7 +7,7 @@
   "icon": "assets/icons/logo.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/selcuk-sarikoz/git-orbit"
+    "url": "https://github.com/selcuksarikoz/git-orbit"
   },
   "license": "SEE LICENSE IN LICENSE",
   "engines": {

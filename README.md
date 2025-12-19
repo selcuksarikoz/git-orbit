@@ -39,7 +39,7 @@ Customize your experience in VS Code Settings:
 
 ## Feedback & Support
 
-Found a bug or have a suggestion? Please open an issue on our [GitHub Repository](https://github.com/selcuk-sarikoz/git-orbit).
+Found a bug or have a suggestion? Please open an issue on our [GitHub Repository](https://github.com/selcuksarikoz/git-orbit).
 
 ---
 
