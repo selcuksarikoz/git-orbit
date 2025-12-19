@@ -184,6 +184,7 @@ export function activate(context: vscode.ExtensionContext) {
   const cherryPickCmd = new CherryPickCommand();
   // Centralized Refresh Function
   const refreshAll = () => {
+    GitService.getInstance().clearCache(); // Ensure we fetch fresh data
     localBranchProvider.refresh();
     remoteBranchProvider.refresh();
     commitProvider.refresh();
