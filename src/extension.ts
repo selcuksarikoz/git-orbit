@@ -14,9 +14,15 @@ import { AuthorshipCodeLensProvider } from "./providers/AuthorshipCodeLensProvid
 import { GitContentProvider } from "./providers/GitContentProvider";
 import { DiffContentProvider } from "./providers/DiffContentProvider";
 import { GraphTreeProvider } from "./providers/GraphTreeProvider";
+import { StatusDecorationProvider } from "./providers/StatusDecorationProvider";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("GitOrbit is now active!");
+
+  // Register Decoration Provider
+  context.subscriptions.push(
+    vscode.window.registerFileDecorationProvider(new StatusDecorationProvider())
+  );
 
   // Initialize Services
   const gitService = GitService.getInstance();
