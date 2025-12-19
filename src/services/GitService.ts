@@ -44,7 +44,7 @@ export class GitService {
 
   public getRelativePath(absolutePath: string): string {
     if (!this.rootDir) return absolutePath;
-    return absolutePath.replace(this.rootDir, "").replace(/^[\\\/]/, "");
+    return absolutePath.replace(this.rootDir, "").replace(/^[\\\/]+/, "");
   }
 
   public isInitialized(): boolean {
