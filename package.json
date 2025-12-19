@@ -29,38 +29,44 @@
           "type": "webview",
           "id": "gitorbit.views.changes",
           "name": "Changes",
-          "icon": "$(git-commit)"
+          "icon": "$(git-commit)",
+          "when": "config.gitorbit.views.showChanges"
         },
         {
           "id": "gitorbit.views.localBranches",
           "name": "Local Branches",
-          "icon": "$(git-branch)"
+          "icon": "$(git-branch)",
+          "when": "config.gitorbit.views.showLocalBranches"
         },
         {
           "id": "gitorbit.views.graph",
           "name": "Graph",
           "icon": "$(graph)",
-          "visibility": "visible"
+          "when": "config.gitorbit.views.showGraph"
         },
         {
           "id": "gitorbit.views.commits",
           "name": "Commits history",
-          "icon": "$(git-commit)"
+          "icon": "$(git-commit)",
+          "when": "config.gitorbit.views.showCommits"
         },
         {
           "id": "gitorbit.views.fileHistory",
           "name": "File history",
-          "icon": "$(history)"
+          "icon": "$(history)",
+          "when": "config.gitorbit.views.showFileHistory"
         },
         {
           "id": "gitorbit.views.remoteBranches",
           "name": "Remote Branches",
-          "icon": "$(git-branch)"
+          "icon": "$(git-branch)",
+          "when": "config.gitorbit.views.showRemoteBranches"
         },
         {
           "id": "gitorbit.views.stashes",
           "name": "Stashes",
-          "icon": "$(archive)"
+          "icon": "$(archive)",
+          "when": "config.gitorbit.views.showStashes"
         }
       ]
     },
@@ -392,6 +398,41 @@
           "type": "boolean",
           "default": true,
           "description": "Enable inline blame ghost text."
+        },
+        "gitorbit.views.showChanges": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show/Hide the Changes view."
+        },
+        "gitorbit.views.showLocalBranches": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show/Hide Local Branches."
+        },
+        "gitorbit.views.showRemoteBranches": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show/Hide Remote Branches."
+        },
+        "gitorbit.views.showGraph": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show/Hide the Graph view."
+        },
+        "gitorbit.views.showCommits": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show/Hide Commit History."
+        },
+        "gitorbit.views.showFileHistory": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show/Hide File History."
+        },
+        "gitorbit.views.showStashes": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show/Hide Stashes."
         },
         "gitorbit.gitflow.featurePrefix": {
           "type": "string",
