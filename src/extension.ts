@@ -3,6 +3,7 @@ import { GitService } from "./services/GitService";
 import { GitflowService } from "./services/GitflowService";
 import { IconService } from "./services/IconService";
 import { WelcomeView } from "./webviews/WelcomeView";
+import { CommitDetailView } from "./webviews/CommitDetailView";
 import { BranchTreeProvider } from "./providers/BranchTreeProvider";
 import { CommitTreeProvider } from "./providers/CommitTreeProvider";
 import { FileHistoryProvider } from "./providers/FileHistoryProvider";
@@ -151,14 +152,25 @@ export function activate(context: vscode.ExtensionContext) {
       async (item: any) => {
         if (!item.hash) return;
         try {
-          const content = await GitService.getInstance().getCommitFullDiff(
-            item.hash
+          const changedFiles =
+            await GitService.getInstance().getChangedFilesWithStatus(item.hash);
+
+          if (changedFiles.length === 0) {
+            vscode.window.showInformationMessage(
+              "No files changed in this commit."
+            );
+            return;
+          }
+
+          // Open Single Preview with List
+          const textLabel =
+            typeof item.label === "string" ? item.label : item.label.label;
+          CommitDetailView.show(
+            context,
+            item.hash,
+            textLabel || "Commit Details",
+            changedFiles
           );
-          const doc = await vscode.workspace.openTextDocument({
-            content: content,
-            language: "diff",
-          });
-          await vscode.window.showTextDocument(doc);
         } catch (error: any) {
           vscode.window.showErrorMessage(
             `Failed to open diffs: ${error.message}`
