@@ -1,14 +1,10 @@
 # GitOrbit
 
-**GitOrbit** is a professional, modular, and high-performance Git extension for VS Code.
+**GitOrbit** is built by developers for developers who want a high-performance, modular, and intuitive Git experience directly within VS Code. It focuses on maintaining your development flow by providing essential Git tools without the unnecessary bloat.
 
-## 📜 Usage & License
+## 🚀 Streamlined Productivity
 
-GitOrbit is provided for **free** for all personal and professional use. However, it is **not open-source**.
-
-- **Usage:** Free to download and use.
-- **Restrictions:** Redistribution, copying/modifying the source code, or creating derivative works is strictly prohibited.
-- See the [LICENSE](./LICENSE) file for full terms.
+GitOrbit is designed to handle everything from complex branch hierarchies to granular line-by-line blame, all while feeling like a native part of your editor. Whether you are managing stashes or exploring deep commit histories, GitOrbit stays out of your way and lets you focus on your code.
 
 ## Features
 
@@ -17,10 +13,10 @@ GitOrbit is provided for **free** for all personal and professional use. However
   - **Graph:** All commits across all branches with hierarchical file exploration.
   - **Commits:** Paginated commit history for the current branch.
   - **File History:** History of the active file in the editor.
-  - **Stashes:** List and manage your stashes.
+  - **Stashes:** List and manage your stashes. Now includes **file diff previews** on click and **Multi-file Diff** support for viewing entire stash changes.
 - **Gitflow Integration:** Easily start features and hotfixes with configurable prefixes.
 - **Editor Enhancements:**
-  - **Inline Blame:** Ghost text showing authorship info on the current line.
+  - **Inline Blame:** Subtle ghost text (`editorGhostText`) showing authorship info on the current line. Automatically filtered for empty lines and optimized for rapid navigation.
   - **CodeLens:** Authorship summary at the top of functions.
   - **Gutter Blame:** Visual heatmap of file changes.
 - **Welcome Page:** Beautiful onboarding experience for new users.

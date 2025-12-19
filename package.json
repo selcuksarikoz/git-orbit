@@ -1,9 +1,10 @@
 {
   "name": "gitorbit",
   "displayName": "GitOrbit",
-  "description": "A comprehensive, open-source Git extension that rivals paid tools.",
+  "description": "A professional and high-performance Git extension for VS Code.",
   "version": "0.1.0",
   "publisher": "selcuksarikoz",
+  "icon": "assets/icons/logo.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/selcuk-sarikoz/git-orbit"
@@ -62,7 +63,7 @@
         {
           "id": "gitorbit-explorer",
           "title": "GitOrbit",
-          "icon": "assets/icons/logo.svg"
+          "icon": "assets/icons/toolbar-icon.svg"
         }
       ]
     },
