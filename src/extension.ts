@@ -145,6 +145,29 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitorbit.openCommitDiffs",
+      async (item: any) => {
+        if (!item.hash) return;
+        try {
+          const content = await GitService.getInstance().getCommitFullDiff(
+            item.hash
+          );
+          const doc = await vscode.workspace.openTextDocument({
+            content: content,
+            language: "diff",
+          });
+          await vscode.window.showTextDocument(doc);
+        } catch (error: any) {
+          vscode.window.showErrorMessage(
+            `Failed to open diffs: ${error.message}`
+          );
+        }
+      }
+    )
+  );
+
   // Commands
   const cherryPickCmd = new CherryPickCommand();
   // Centralized Refresh Function

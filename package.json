@@ -170,6 +170,12 @@
         "icon": "$(arrow-up)"
       },
       {
+        "command": "gitorbit.openCommitDiffs",
+        "title": "Open Changes",
+        "category": "GitOrbit",
+        "icon": "$(open-preview)"
+      },
+      {
         "command": "gitorbit.stashDrop",
         "title": "Delete Stash",
         "category": "GitOrbit",
@@ -265,6 +271,11 @@
           "command": "gitorbit.stashDrop",
           "when": "view == gitorbit.views.stashes && viewItem == stash",
           "group": "inline@3"
+        },
+        {
+          "command": "gitorbit.openCommitDiffs",
+          "when": "view == gitorbit.views.graph && viewItem == commit",
+          "group": "inline"
         }
       ]
     },
@@ -307,7 +318,7 @@
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js",
     "build": "npm run compile",
-    "package": "vsce package",
+    "package": "rm -rf ./out && vsce package",
     "publish": "vsce publish"
   },
   "devDependencies": {

@@ -45,7 +45,11 @@ export class InlineBlameDecorator {
       const blameOutput = await this.gitService.getBlame(filePath);
       const lineBlame = this.parseBlameForLine(blameOutput, line + 1);
 
-      if (lineBlame) {
+      if (
+        lineBlame &&
+        lineBlame.author !== "Not Committed Yet" &&
+        lineBlame.subject !== "Not Committed Yet"
+      ) {
         const decoration: vscode.DecorationOptions = {
           range: new vscode.Range(line, 1024, line, 1024),
           renderOptions: {

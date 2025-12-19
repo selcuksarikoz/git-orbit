@@ -478,6 +478,15 @@ export class GitService {
     return result.stdout.trim().split("\n").filter(Boolean);
   }
 
+  /**
+   * Retrieves complete diff for a commit (git show <hash>).
+   */
+  public async getCommitFullDiff(hash: string): Promise<string> {
+    if (!this.executor) return "";
+    const result = await this.executor.exec(["show", hash]);
+    return result.stdout;
+  }
+
   @memoize
   public async getDiff(
     hash: string,
