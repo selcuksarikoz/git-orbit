@@ -109,6 +109,13 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.refreshChanges", () => {
+      GitService.getInstance().clearCache();
+      changesProvider.refresh();
+    })
+  );
+
   // Decorators
   new InlineBlameDecorator();
   new GutterBlameDecorator();

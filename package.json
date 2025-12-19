@@ -131,6 +131,12 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "gitorbit.refreshChanges",
+        "title": "Refresh",
+        "category": "GitOrbit",
+        "icon": "$(refresh)"
+      },
+      {
         "command": "gitorbit.showWelcome",
         "title": "Show Welcome Page",
         "category": "GitOrbit"
@@ -240,6 +246,16 @@
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "gitorbit.refreshChanges",
+          "when": "view == gitorbit.views.changes",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitorbit.openSettings",
+          "when": "view == gitorbit.views.changes",
+          "group": "navigation@2"
+        },
         {
           "command": "gitorbit.refreshViews",
           "when": "viewContainer == gitorbit-explorer",
