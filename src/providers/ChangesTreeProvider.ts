@@ -16,11 +16,11 @@ class ChangeItem extends vscode.TreeItem {
     this.resourceUri = vscode.Uri.file(
       vscode.Uri.joinPath(vscode.Uri.file(rootPath), path).fsPath
     );
-    // Add status query for DecorationProvider
-    this.resourceUri = StatusDecorationProvider.getUri(
-      this.resourceUri.fsPath,
-      status
+    // ChangeItem constructor:
+    this.resourceUri = vscode.Uri.file(
+      vscode.Uri.joinPath(vscode.Uri.file(rootPath), path).fsPath
     );
+    // No more StatusDecorationProvider.getUri calls
 
     this.tooltip = `${path} • ${
       status === "A" ? "A" : status === "M" ? "M" : status === "D" ? "D" : "U"
@@ -72,19 +72,67 @@ export class ChangesTreeProvider
       if (this._refreshTimer) clearTimeout(this._refreshTimer);
       this._refreshTimer = setTimeout(() => {
         this.refresh();
-      }, 300);
+      }, 500); // Increased debounce to 500ms
     };
 
-    const gitWatcher =
-      vscode.workspace.createFileSystemWatcher("**/.git/index");
-    gitWatcher.onDidChange(debouncedRefresh);
-    gitWatcher.onDidCreate(debouncedRefresh);
-    gitWatcher.onDidDelete(debouncedRefresh);
+    // Note: .git/index changes are handled by the global watcher in extension.ts calling refresh()
 
+    // Watch for workspace file changes (Unstaged changes)
     const workspaceWatcher = vscode.workspace.createFileSystemWatcher("**/*");
-    workspaceWatcher.onDidChange(debouncedRefresh);
-    workspaceWatcher.onDidCreate(debouncedRefresh);
-    workspaceWatcher.onDidDelete(debouncedRefresh);
+
+    const shouldRefresh = (uri: vscode.Uri) => {
+      const path = uri.fsPath;
+
+      // Hardcoded exclusions (always critical)
+      if (path.includes("/.git/") || path.includes("\\.git\\")) return false;
+      if (path.includes("/node_modules/") || path.includes("\\node_modules\\"))
+        return false;
+
+      // Check vscode settings for exclusions
+      const config = vscode.workspace.getConfiguration();
+      const filesExclude =
+        config.get<{ [key: string]: boolean }>("files.exclude") || {};
+      const searchExclude =
+        config.get<{ [key: string]: boolean }>("search.exclude") || {};
+      const allExcludes = { ...filesExclude, ...searchExclude };
+
+      for (const [pattern, enabled] of Object.entries(allExcludes)) {
+        if (enabled) {
+          // Simple Glob Matching:
+          // 1. Remove leading/trailing syntax for simple checks
+          const cleanPattern = pattern
+            .replace(/^\*\*\//, "")
+            .replace(/\/$/, "");
+
+          // Directory match inside path
+          if (pattern.endsWith("/") || pattern.includes("/")) {
+            if (path.includes(cleanPattern)) return false;
+          }
+          // Extension match
+          else if (pattern.startsWith("*.")) {
+            if (path.endsWith(pattern.substring(1))) return false;
+          }
+          // Exact name match (file or folder)
+          else {
+            if (
+              path.includes(`/${cleanPattern}`) ||
+              path.includes(`\\${cleanPattern}`)
+            )
+              return false;
+          }
+        }
+      }
+
+      return true;
+    };
+
+    const handleEvent = (uri: vscode.Uri) => {
+      if (shouldRefresh(uri)) debouncedRefresh();
+    };
+
+    workspaceWatcher.onDidChange(handleEvent);
+    workspaceWatcher.onDidCreate(handleEvent);
+    workspaceWatcher.onDidDelete(handleEvent);
 
     // Initial refresh
     this.refresh();
@@ -111,6 +159,24 @@ export class ChangesTreeProvider
       this._unstaged = status.filter(
         (s) => s.workingTreeStatus !== " " || s.stagedStatus === "?"
       );
+
+      // Update Decorations
+      const allStatus = [
+        ...this._staged.map((s) => ({
+          path: s.path,
+          status: s.stagedStatus,
+          rootDir: gitService.rootDir,
+        })),
+        ...this._unstaged.map((s) => ({
+          path: s.path,
+          status: s.workingTreeStatus === " " ? "?" : s.workingTreeStatus,
+          rootDir: gitService.rootDir,
+        })),
+      ];
+      StatusDecorationProvider.updateStatus(allStatus);
+      // We need to trigger decoration update, but it's cleaner if the provider exposes a fire method or we just rely on tree refresh if items are recreated.
+      // Actually tree refresh doesn't trigger decoration refresh automatically if URIs are same, so we must fire.
+      new StatusDecorationProvider().fireUpdate();
 
       const items: GroupItem[] = [];
       if (this._staged.length > 0) {
@@ -169,13 +235,8 @@ export class ChangesTreeProvider
         return;
       }
 
-      const confirm = await vscode.window.showInformationMessage(
-        "There are no staged changes. Would you like to stage all changes and commit?",
-        "Yes",
-        "No"
-      );
-      if (confirm !== "Yes") return;
-
+      // Auto-stage: If nothing is staged, stage everything automatically without asking
+      // This matches the user request "direk staged icine alsin"
       await gitService.stageAll();
     }
 

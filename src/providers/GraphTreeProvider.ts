@@ -190,12 +190,7 @@ export class GraphItem extends vscode.TreeItem {
       this.description = refs ? `${refs} • ${dateString}` : dateString;
     } else if (type === "file") {
       this.iconPath = vscode.ThemeIcon.File;
-      if (this.filePath && this.status) {
-        this.resourceUri = StatusDecorationProvider.getUri(
-          this.filePath,
-          this.status
-        );
-      } else if (this.filePath) {
+      if (this.filePath) {
         this.resourceUri = vscode.Uri.file(this.filePath);
       }
       this.description = ""; // Removed status from here, now displayed as decoration

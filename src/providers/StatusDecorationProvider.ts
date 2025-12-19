@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 export class StatusDecorationProvider implements vscode.FileDecorationProvider {
-  static scheme = "gitorbit-status";
+  private static statusMap: Map<string, string> = new Map();
 
   private _onDidChangeFileDecorations: vscode.EventEmitter<
     vscode.Uri | vscode.Uri[] | undefined
@@ -10,15 +10,36 @@ export class StatusDecorationProvider implements vscode.FileDecorationProvider {
     vscode.Uri | vscode.Uri[] | undefined
   > = this._onDidChangeFileDecorations.event;
 
+  public static updateStatus(
+    statuses: { path: string; status: string; rootDir: string }[]
+  ) {
+    this.statusMap.clear();
+    for (const s of statuses) {
+      // Construct absolute path for the key
+      const absPath = vscode.Uri.joinPath(
+        vscode.Uri.file(s.rootDir),
+        s.path
+      ).fsPath;
+      this.statusMap.set(absPath, s.status);
+    }
+  }
+
+  // Trigger an update notification to VS Code
+  public fireUpdate() {
+    // Fire for all keys in map
+    const uris = Array.from(StatusDecorationProvider.statusMap.keys()).map(
+      (p) => vscode.Uri.file(p)
+    );
+    this._onDidChangeFileDecorations.fire(uris);
+  }
+
   provideFileDecoration(
     uri: vscode.Uri,
     token: vscode.CancellationToken
   ): vscode.ProviderResult<vscode.FileDecoration> {
-    if (uri.scheme !== StatusDecorationProvider.scheme) {
-      return undefined;
-    }
-
-    const status = uri.query; // We'll pass the status in the query string
+    // Check if we have a status for this file
+    const status = StatusDecorationProvider.statusMap.get(uri.fsPath);
+    if (!status) return undefined;
 
     let color: vscode.ThemeColor | undefined;
     let badge: string | undefined;
@@ -60,14 +81,5 @@ export class StatusDecorationProvider implements vscode.FileDecorationProvider {
       tooltip,
       propagate: false,
     };
-  }
-
-  static getUri(filePath: string, status: string): vscode.Uri {
-    return vscode.Uri.parse(
-      `${StatusDecorationProvider.scheme}:/${filePath.replace(
-        /\\/g,
-        "/"
-      )}?${status}`
-    );
   }
 }

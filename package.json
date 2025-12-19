@@ -369,12 +369,12 @@
           "group": "inline@3"
         },
         {
-          "command": "gitorbit.refreshChanges",
+          "command": "gitorbit.openSettings",
           "when": "view == gitorbit.views.changes",
-          "group": "navigation@9"
+          "group": "navigation@8"
         },
         {
-          "command": "gitorbit.openSettings",
+          "command": "gitorbit.refreshChanges",
           "when": "view == gitorbit.views.changes",
           "group": "navigation@9"
         },
@@ -429,6 +429,11 @@
           "group": "navigation@2"
         },
         {
+          "command": "gitorbit.changes.undoCommit",
+          "when": "view == gitorbit.views.changes",
+          "group": "more"
+        },
+        {
           "command": "gitorbit.refreshViews",
           "when": "view == gitorbit.views.localBranches || view == gitorbit.views.remoteBranches || view == gitorbit.views.stashes",
           "group": "title"
@@ -436,39 +441,39 @@
       ],
       "view/item/context": [
         {
-          "command": "gitorbit.changes.stageAll",
-          "when": "view == gitorbit.views.changes && viewItem == changesGroup",
-          "group": "inline"
-        },
-        {
           "command": "gitorbit.changes.openAllChanges",
           "when": "view == gitorbit.views.changes && viewItem == changesGroup",
-          "group": "inline"
+          "group": "inline@1"
         },
         {
-          "command": "gitorbit.changes.unstageAll",
-          "when": "view == gitorbit.views.changes && viewItem == stagedGroup",
-          "group": "inline"
+          "command": "gitorbit.changes.stageAll",
+          "when": "view == gitorbit.views.changes && viewItem == changesGroup",
+          "group": "inline@2"
         },
         {
           "command": "gitorbit.changes.openAllStaged",
           "when": "view == gitorbit.views.changes && viewItem == stagedGroup",
-          "group": "inline"
+          "group": "inline@1"
         },
         {
-          "command": "gitorbit.changes.stage",
-          "when": "view == gitorbit.views.changes && viewItem == change",
-          "group": "inline"
-        },
-        {
-          "command": "gitorbit.changes.unstage",
-          "when": "view == gitorbit.views.changes && viewItem == stagedChange",
-          "group": "inline"
+          "command": "gitorbit.changes.unstageAll",
+          "when": "view == gitorbit.views.changes && viewItem == stagedGroup",
+          "group": "inline@2"
         },
         {
           "command": "gitorbit.changes.openDiff",
           "when": "view == gitorbit.views.changes && (viewItem == change || viewItem == stagedChange)",
           "group": "inline@1"
+        },
+        {
+          "command": "gitorbit.changes.stage",
+          "when": "view == gitorbit.views.changes && viewItem == change",
+          "group": "inline@2"
+        },
+        {
+          "command": "gitorbit.changes.unstage",
+          "when": "view == gitorbit.views.changes && viewItem == stagedChange",
+          "group": "inline@2"
         },
         {
           "command": "gitorbit.deleteBranchMenu",
