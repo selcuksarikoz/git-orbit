@@ -39,6 +39,23 @@ export function activate(context: vscode.ExtensionContext) {
   const gitService = GitService.getInstance();
   IconService.getInstance(context.extensionUri);
 
+  // Initialize filter contexts
+  vscode.commands.executeCommand(
+    "setContext",
+    "gitorbit.graph.isFiltered",
+    false
+  );
+  vscode.commands.executeCommand(
+    "setContext",
+    "gitorbit.commits.isFiltered",
+    false
+  );
+  vscode.commands.executeCommand(
+    "setContext",
+    "gitorbit.fileHistory.isFiltered",
+    false
+  );
+
   // Register Content Providers
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(
@@ -299,6 +316,69 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Deletion Commands
+
+  const setFilterWithContext = (
+    provider: any,
+    viewKey: string,
+    filter: string
+  ) => {
+    provider.setFilter(filter);
+    vscode.commands.executeCommand(
+      "setContext",
+      `gitorbit.${viewKey}.isFiltered`,
+      !!filter
+    );
+  };
+
+  const handleFilter = async (
+    provider: any,
+    viewName: string,
+    viewKey: string
+  ) => {
+    const filter = await vscode.window.showInputBox({
+      placeHolder: `Filter ${viewName}...`,
+      prompt: "Enter text to filter by message, hash, or author",
+    });
+
+    if (filter === undefined) return; // User cancelled
+    setFilterWithContext(provider, viewKey, filter);
+  };
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.filterGraph", () =>
+      handleFilter(graphProvider, "Graph", "graph")
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.clearFilterGraph", () =>
+      setFilterWithContext(graphProvider, "graph", "")
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.filterCommits", () =>
+      handleFilter(commitProvider, "Commits", "commits")
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.clearFilterCommits", () =>
+      setFilterWithContext(commitProvider, "commits", "")
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.filterFileHistory", () =>
+      handleFilter(fileHistoryProvider, "File History", "fileHistory")
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.clearFilterFileHistory", () =>
+      setFilterWithContext(fileHistoryProvider, "fileHistory", "")
+    )
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("gitorbit.refreshViews", async () => {

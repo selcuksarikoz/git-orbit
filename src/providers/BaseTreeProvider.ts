@@ -9,8 +9,15 @@ export abstract class BaseTreeProvider<T>
   readonly onDidChangeTreeData: vscode.Event<T | undefined | null | void> =
     this._onDidChangeTreeData.event;
 
+  protected filterText: string = "";
+
   refresh(): void {
     this._onDidChangeTreeData.fire();
+  }
+
+  setFilter(filter: string): void {
+    this.filterText = filter;
+    this.refresh();
   }
 
   abstract getTreeItem(element: T): vscode.TreeItem | Thenable<vscode.TreeItem>;

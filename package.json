@@ -194,6 +194,42 @@
         "title": "Delete...",
         "category": "GitOrbit",
         "icon": "$(trash)"
+      },
+      {
+        "command": "gitorbit.filterGraph",
+        "title": "Filter",
+        "category": "GitOrbit",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "gitorbit.clearFilterGraph",
+        "title": "Clear Filter",
+        "category": "GitOrbit",
+        "icon": "$(close)"
+      },
+      {
+        "command": "gitorbit.filterCommits",
+        "title": "Filter",
+        "category": "GitOrbit",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "gitorbit.clearFilterCommits",
+        "title": "Clear Filter",
+        "category": "GitOrbit",
+        "icon": "$(close)"
+      },
+      {
+        "command": "gitorbit.filterFileHistory",
+        "title": "Filter",
+        "category": "GitOrbit",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "gitorbit.clearFilterFileHistory",
+        "title": "Clear Filter",
+        "category": "GitOrbit",
+        "icon": "$(close)"
       }
     ],
     "menus": {
@@ -217,6 +253,36 @@
           "command": "gitorbit.saveStash",
           "when": "view == gitorbit.views.stashes",
           "group": "navigation@1"
+        },
+        {
+          "command": "gitorbit.filterGraph",
+          "when": "view == gitorbit.views.graph",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitorbit.clearFilterGraph",
+          "when": "view == gitorbit.views.graph && gitorbit.graph.isFiltered",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitorbit.filterCommits",
+          "when": "view == gitorbit.views.commits",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitorbit.clearFilterCommits",
+          "when": "view == gitorbit.views.commits && gitorbit.commits.isFiltered",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitorbit.filterFileHistory",
+          "when": "view == gitorbit.views.fileHistory",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitorbit.clearFilterFileHistory",
+          "when": "view == gitorbit.views.fileHistory && gitorbit.fileHistory.isFiltered",
+          "group": "navigation@2"
         },
         {
           "command": "gitorbit.refreshViews",

@@ -86,7 +86,19 @@ export class CommitTreeProvider extends BaseTreeProvider<
     if (element) return [];
 
     const log = await this.gitService.getLog(this.limit);
-    const items: (CommitItem | vscode.TreeItem)[] = log.all.map(
+
+    let commits = log.all;
+    if (this.filterText) {
+      const search = this.filterText.toLowerCase();
+      commits = commits.filter(
+        (c) =>
+          c.message.toLowerCase().includes(search) ||
+          c.hash.toLowerCase().includes(search) ||
+          c.author_name.toLowerCase().includes(search)
+      );
+    }
+
+    const items: (CommitItem | vscode.TreeItem)[] = commits.map(
       (commit, index) =>
         new CommitItem(
           commit.message,
@@ -99,7 +111,7 @@ export class CommitTreeProvider extends BaseTreeProvider<
         )
     );
 
-    if (log.all.length >= this.limit) {
+    if (log.all.length >= this.limit && !this.filterText) {
       const loadMoreItem = new vscode.TreeItem(
         "Load More...",
         vscode.TreeItemCollapsibleState.None

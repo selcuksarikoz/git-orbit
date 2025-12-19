@@ -5,7 +5,9 @@ import { ConfigService } from "../services/ConfigService";
 import { StatusDecorationProvider } from "./StatusDecorationProvider";
 import { TooltipGenerator } from "../utils/TooltipGenerator";
 
-export class GraphTreeProvider extends BaseTreeProvider<GraphItem> {
+export class GraphTreeProvider extends BaseTreeProvider<
+  GraphItem | vscode.TreeItem
+> {
   private gitService: GitService;
   private limit: number = 50;
 
@@ -22,13 +24,13 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem> {
     });
   }
 
-  getTreeItem(element: GraphItem): vscode.TreeItem {
+  getTreeItem(element: GraphItem | vscode.TreeItem): vscode.TreeItem {
     return element;
   }
 
   resolveTreeItem(
     item: vscode.TreeItem,
-    element: GraphItem
+    element: GraphItem | vscode.TreeItem
   ): vscode.ProviderResult<vscode.TreeItem> {
     if (element instanceof GraphItem) {
       element.resolveTooltip();
@@ -36,11 +38,31 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem> {
     return element;
   }
 
-  async getChildren(element?: GraphItem): Promise<GraphItem[]> {
-    if (!element) {
+  async getChildren(
+    element?: GraphItem | vscode.TreeItem
+  ): Promise<(GraphItem | vscode.TreeItem)[]> {
+    if (element instanceof vscode.TreeItem && !(element instanceof GraphItem)) {
+      return [];
+    }
+
+    const graphElement = element as GraphItem | undefined;
+
+    if (!graphElement) {
       // Root: All commits
       const log = await this.gitService.getAllLog(this.limit);
-      return log.all.map(
+
+      let commits = log.all;
+      if (this.filterText) {
+        const search = this.filterText.toLowerCase();
+        commits = commits.filter(
+          (c) =>
+            c.message.toLowerCase().includes(search) ||
+            c.hash.toLowerCase().includes(search) ||
+            c.author_name.toLowerCase().includes(search)
+        );
+      }
+
+      const items: (GraphItem | vscode.TreeItem)[] = commits.map(
         (commit, index) =>
           new GraphItem(
             commit.message,
@@ -54,15 +76,30 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem> {
             commit.author_email
           )
       );
-    } else if (element.type === "commit") {
+
+      if (log.all.length >= this.limit && !this.filterText) {
+        const loadMoreItem = new vscode.TreeItem(
+          "Load More...",
+          vscode.TreeItemCollapsibleState.None
+        );
+        loadMoreItem.command = {
+          command: "gitorbit.loadMoreCommits", // Reuse existing command
+          title: "Load More",
+        };
+        loadMoreItem.iconPath = new vscode.ThemeIcon("add");
+        items.push(loadMoreItem);
+      }
+
+      return items;
+    } else if (graphElement.type === "commit") {
       // Expand commit to show changed files (folder structure)
       const files = await this.gitService.getChangedFilesWithStatus(
-        element.hash
+        graphElement.hash
       );
       const tree = this.buildFileTree(files);
-      return this.mapToFileItems(tree, element.hash);
-    } else if (element.type === "folder" && element.subItems) {
-      return this.mapToFileItems(element.subItems, element.hash);
+      return this.mapToFileItems(tree, graphElement.hash);
+    } else if (graphElement.type === "folder" && graphElement.subItems) {
+      return this.mapToFileItems(graphElement.subItems, graphElement.hash);
     }
     return [];
   }
