@@ -68,7 +68,7 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
           this.refresh();
           break;
         case "commit":
-          await this._handleCommit(data.message, data.amend);
+          await this._handleCommit(data.message, data.amend, data.action);
           break;
         case "commitStaged":
           await this._handleCommitStaged(data.message);
@@ -245,7 +245,11 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
     this._view.webview.postMessage(this._lastData);
   }
 
-  private async _handleCommit(message: string, amend: boolean) {
+  private async _handleCommit(
+    message: string,
+    amend: boolean,
+    action: "commit" | "push" | "sync" = "commit"
+  ) {
     const gitService = GitService.getInstance();
     const status = await gitService.getStatus();
     const staged = status.filter(
@@ -262,16 +266,28 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
         try {
           const options = message ? ["-m", message] : [];
           await gitService.commit(options);
-          await gitService.push();
-          vscode.window.showInformationMessage(
-            "Auto-staged, committed and pushed!"
-          );
+
+          if (action === "push") {
+            await gitService.push();
+            vscode.window.showInformationMessage(
+              "Auto-staged, committed and pushed!"
+            );
+          } else if (action === "sync") {
+            await gitService.pull();
+            await gitService.push();
+            vscode.window.showInformationMessage(
+              "Auto-staged, committed and synced!"
+            );
+          } else {
+            vscode.window.showInformationMessage("Auto-staged and committed!");
+          }
+
           this.refresh();
           vscode.commands.executeCommand("gitorbit.refreshViews");
           return;
         } catch (error: any) {
           vscode.window.showErrorMessage(
-            `Auto-commit/push failed: ${error.message}`
+            `Auto-commit operation failed: ${error.message}`
           );
           return;
         }
@@ -288,7 +304,18 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
       if (amend) options.push("--amend");
 
       await gitService.commit(options);
-      vscode.window.showInformationMessage("Commit successful!");
+
+      if (action === "push") {
+        await gitService.push();
+        vscode.window.showInformationMessage("Commit and Push successful!");
+      } else if (action === "sync") {
+        await gitService.pull();
+        await gitService.push();
+        vscode.window.showInformationMessage("Commit and Sync successful!");
+      } else {
+        vscode.window.showInformationMessage("Commit successful!");
+      }
+
       this.refresh();
       vscode.commands.executeCommand("gitorbit.refreshViews");
     } catch (error: any) {
@@ -406,16 +433,18 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
             background: var(--vscode-input-background);
             border: 1px solid var(--border-color);
             color: var(--vscode-input-foreground);
-            padding: 6px 10px;
+            padding: 8px 10px;
             border-radius: 4px;
             resize: none;
             font-family: inherit;
             box-sizing: border-box;
-            max-height: 44px;
-            height: 44px;
+            min-height: 32px;
+            height: 32px;
             margin-bottom: 8px;
             line-height: 1.4;
             display: block;
+            overflow-y: hidden;
+            transition: height 0.1s ease;
         }
         textarea:focus {
             outline: 1px solid var(--vscode-focusBorder);
@@ -611,11 +640,6 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
             <span id="branch-text">loading...</span>
         </div>
         <div class="toolbar-actions">
-            <!-- Sync Action -->
-            <button class="icon-btn" title="Sync Changes" onclick="sync()">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M1 9.5a5.5 5.5 0 0 1 10.354-2.525.5.5 0 0 0 .866-.5A6.5 6.5 0 0 0 0 9.5a.5.5 0 1 0 1 0zM15 6.5a5.5 5.5 0 0 1-10.354 2.525.5.5 0 0 0-.866.5A6.5 6.5 0 0 0 16 6.5a.5.5 0 1 0-1 0zM7.146 11.854a.5.5 0 0 0 .708 0l2-2a.5.5 0 0 0-.708-.708L8 10.293V4.5a.5.5 0 0 0-1 0v5.793L5.854 9.146a.5.5 0 1 0-.708.708l2 2z"/></svg>
-            </button>
-            
             <!-- Three Dot Menu -->
             <div class="more-menu-container">
                 <button class="icon-btn" id="more-btn" title="More Actions...">
@@ -662,8 +686,8 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
             <div class="menu-item" onclick="commit()">Commit</div>
             <div class="menu-item" onclick="commit(true)">Commit (Amend)</div>
             <div class="menu-divider"></div>
-            <div class="menu-item" onclick="push()">Commit & Push</div>
-            <div class="menu-item" onclick="sync()">Commit & Sync</div>
+            <div class="menu-item" onclick="commit(false, 'push')">Commit & Push</div>
+            <div class="menu-item" onclick="commit(false, 'sync')">Commit & Sync</div>
         </div>
     </div>
 
@@ -718,14 +742,25 @@ export class ChangesViewProvider implements vscode.WebviewViewProvider {
             moreMenu.classList.remove('show');
         };
 
+        messageInput.addEventListener('input', () => {
+            messageInput.style.height = 'auto';
+            messageInput.style.height = (messageInput.scrollHeight) + 'px';
+            if (messageInput.scrollHeight > 120) {
+                messageInput.style.overflowY = 'auto';
+                messageInput.style.height = '120px';
+            } else {
+                messageInput.style.overflowY = 'hidden';
+            }
+        });
+
         messageInput.addEventListener('keydown', (e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                 if (!commitBtn.disabled) commit();
             }
         });
 
-        function commit(amend = false) {
-            vscode.postMessage({ type: 'commit', message: messageInput.value, amend });
+        function commit(amend = false, action = 'commit') {
+            vscode.postMessage({ type: 'commit', message: messageInput.value, amend, action });
             if (!amend) messageInput.value = '';
         }
         function commitStaged() {
