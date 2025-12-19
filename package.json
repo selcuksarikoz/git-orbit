@@ -26,6 +26,12 @@
     "views": {
       "gitorbit-explorer": [
         {
+          "type": "webview",
+          "id": "gitorbit.views.changes",
+          "name": "Changes",
+          "icon": "$(git-commit)"
+        },
+        {
           "id": "gitorbit.views.localBranches",
           "name": "Local Branches",
           "icon": "$(git-branch)"

@@ -20,6 +20,7 @@ import { DiffContentProvider } from "./providers/DiffContentProvider";
 import { GraphTreeProvider } from "./providers/GraphTreeProvider";
 import { StatusDecorationProvider } from "./providers/StatusDecorationProvider";
 import { ConfigService } from "./services/ConfigService";
+import { ChangesViewProvider } from "./providers/ChangesViewProvider";
 
 /**
  * Main entry point for the GitOrbit extension.
@@ -98,6 +99,14 @@ export function activate(context: vscode.ExtensionContext) {
   vscode.window.registerTreeDataProvider(
     "gitorbit.views.stashes",
     stashProvider
+  );
+
+  const changesProvider = new ChangesViewProvider(context.extensionUri);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      ChangesViewProvider.viewType,
+      changesProvider
+    )
   );
 
   // Decorators
@@ -241,6 +250,7 @@ export function activate(context: vscode.ExtensionContext) {
     graphProvider.refresh();
     fileHistoryProvider.refresh();
     stashProvider.refresh();
+    changesProvider.refresh();
   };
 
   // Register Centralized Command Classes (Branch & Stash)
