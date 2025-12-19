@@ -2,7 +2,7 @@
   "name": "gitorbit",
   "displayName": "GitOrbit",
   "description": "A professional and high-performance Git extension for VS Code.",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "selcuksarikoz",
   "icon": "assets/icons/logo.png",
   "repository": {
