@@ -339,5 +339,6 @@ function renderFileItem(file: { path: string; status: string }) {
         </div>
         <div class="diff-container" id="diff-${safeId}">Loading...</div>
     </div>
+    
     `;
 }
