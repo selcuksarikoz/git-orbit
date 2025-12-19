@@ -258,6 +258,11 @@
           "group": "inline@1"
         },
         {
+          "command": "gitorbit.openCommitDiffs",
+          "when": "view == gitorbit.views.stashes && viewItem == stash",
+          "group": "inline@0"
+        },
+        {
           "command": "gitorbit.stashApply",
           "when": "view == gitorbit.views.stashes && viewItem == stash",
           "group": "inline@1"

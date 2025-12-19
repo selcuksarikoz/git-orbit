@@ -31,7 +31,7 @@ export class StashCommands {
   }
 
   /**
-   * Registers stash commands to the extension context.
+   * Registers stash commands to the extension context. oasiduoia udoiasudoisau
    * @param context - The extension context.
    */
   public register(context: vscode.ExtensionContext) {

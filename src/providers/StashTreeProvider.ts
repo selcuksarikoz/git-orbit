@@ -16,6 +16,7 @@ export class StashItem extends vscode.TreeItem {
         : vscode.TreeItemCollapsibleState.None
     );
     this.contextValue = type;
+    this.hash = index !== undefined ? `stash@{${index}}` : "";
 
     if (type === "stash") {
       this.iconPath = new vscode.ThemeIcon("archive");
@@ -23,8 +24,15 @@ export class StashItem extends vscode.TreeItem {
     } else {
       this.iconPath = vscode.ThemeIcon.File;
       this.resourceUri = vscode.Uri.file(filePath || "");
+      this.command = {
+        command: "gitorbit.openCommitDiff",
+        title: "Open Diff",
+        arguments: [{ hash: this.hash, filePath: this.filePath }],
+      };
     }
   }
+
+  public readonly hash: string;
 }
 
 export class StashTreeProvider extends BaseTreeProvider<StashItem> {

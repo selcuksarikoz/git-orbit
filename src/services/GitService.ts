@@ -447,6 +447,34 @@ export class GitService {
     hash: string
   ): Promise<{ path: string; status: string }[]> {
     if (!this.executor) return [];
+
+    if (hash.startsWith("stash@")) {
+      // git stash show --name-status -u <hash>
+      try {
+        const result = await this.executor.exec([
+          "stash",
+          "show",
+          "--name-status",
+          "-u",
+          hash,
+        ]);
+        return result.stdout
+          .trim()
+          .split("\n")
+          .filter(Boolean)
+          .map((line) => {
+            // Output format: Status   Path
+            const parts = line.trim().split(/\s+/);
+            const status = parts[0];
+            const path = parts.slice(1).join(" ");
+            return { path, status };
+          });
+      } catch (e) {
+        console.error("Failed to get stash files:", e);
+        return [];
+      }
+    }
+
     // git diff-tree --no-commit-id --name-status -r <hash>
     const result = await this.executor.exec([
       "diff-tree",
