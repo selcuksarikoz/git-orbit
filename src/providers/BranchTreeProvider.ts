@@ -19,7 +19,9 @@ export class BranchItem extends vscode.TreeItem {
       type === "branch"
         ? isRemote
           ? "remoteBranch"
-          : "localBranch"
+          : isCurrent
+          ? "localBranchCurrent"
+          : "localBranchNotCurrent"
         : "folder";
 
     if (type === "branch") {
@@ -66,7 +68,8 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
         return await this.mapToBranchItems(
           element.subItems,
           element.isRemote,
-          branches.current
+          branches.current,
+          (branches as any).currentUpstream
         );
       }
       return [];
@@ -81,7 +84,12 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
         : branches.all.filter((b) => !b.startsWith("remotes/"));
 
       const tree = this.buildTree(branchNames);
-      return await this.mapToBranchItems(tree, this.isRemote, branches.current);
+      return await this.mapToBranchItems(
+        tree,
+        this.isRemote,
+        branches.current,
+        (branches as any).currentUpstream
+      );
     } catch {
       return [];
     }
@@ -107,7 +115,8 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
   private async mapToBranchItems(
     tree: any,
     isRemote: boolean,
-    currentBranch?: string
+    currentBranch?: string,
+    currentUpstream?: string
   ): Promise<BranchItem[]> {
     const items = await Promise.all(
       Object.keys(tree).map(async (key) => {
@@ -117,6 +126,10 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
           if (!isRemote) {
             status = await this.gitService.getBranchStatus(node._name);
           }
+          const isCurrent = isRemote
+            ? node._name === currentUpstream
+            : node._name === currentBranch;
+
           return new BranchItem(
             key,
             vscode.TreeItemCollapsibleState.None,
@@ -124,7 +137,7 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
             node._name,
             isRemote,
             undefined,
-            node._name === currentBranch,
+            isCurrent,
             status
           );
         } else {

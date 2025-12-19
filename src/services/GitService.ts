@@ -1,10 +1,16 @@
 import * as vscode from "vscode";
 import { GitExecutor } from "../utils/GitExecutor";
 
+import { clearMemoizedCache, memoize } from "../utils/Memoize";
+
 export class GitService {
   private static instance: GitService;
   private rootDir: string = "";
   private executor: GitExecutor | undefined;
+
+  public clearCache() {
+    clearMemoizedCache(this);
+  }
 
   private constructor() {
     this.initialize();
@@ -34,8 +40,9 @@ export class GitService {
     return !!this.executor;
   }
 
+  @memoize
   public async getBranches() {
-    if (!this.executor) return { all: [], current: "" };
+    if (!this.executor) return { all: [], current: "", currentUpstream: "" };
 
     const result = await this.executor.exec([
       "branch",
@@ -63,7 +70,25 @@ export class GitService {
     ]);
     current = currentResult.stdout.trim();
 
-    return { all, current };
+    current = currentResult.stdout.trim();
+
+    let currentUpstream = "";
+    try {
+      const upstreamResult = await this.executor.exec([
+        "rev-parse",
+        "--abbrev-ref",
+        "@{u}",
+      ]);
+      currentUpstream = upstreamResult.stdout.trim();
+      // upstream usually comes as "origin/main", but our list has "remotes/origin/main"
+      // Let's normalize to match "remotes/..." format if possible, or just keep as is and handle in provider.
+      // The provider expects "remotes/origin/main".
+      // "git rev-parse --abbrev-ref @{u}" gives "origin/main".
+    } catch (e) {
+      // No upstream configured
+    }
+
+    return { all, current, currentUpstream };
   }
 
   public async findMainBranch(): Promise<string> {
@@ -75,6 +100,7 @@ export class GitService {
     return branches.all.length > 0 ? branches.all[0] : "";
   }
 
+  @memoize
   public async getLog(limit: number = 20, filePath?: string) {
     if (!this.executor) return { all: [] };
 
@@ -105,6 +131,7 @@ export class GitService {
     return { all: commits };
   }
 
+  @memoize
   public async getStashes() {
     if (!this.executor) return { all: [] };
     const result = await this.executor.exec(["stash", "list"]);
@@ -114,6 +141,62 @@ export class GitService {
       index,
     }));
     return { all: stashes };
+  }
+
+  public async getStashFiles(index: number): Promise<string[]> {
+    if (!this.executor) return [];
+    // git stash show --name-only stash@{n}
+    const result = await this.executor.exec([
+      "stash",
+      "show",
+      "--name-only",
+      `stash@{${index}}`,
+    ]);
+    return result.stdout.trim().split("\n").filter(Boolean);
+  }
+
+  public async stashSave(message?: string, includeUntracked: boolean = false) {
+    if (!this.executor) return;
+    const args = ["stash", "push"];
+    if (includeUntracked) args.push("-u");
+    if (message) args.push("-m", message);
+
+    const result = await this.executor.exec(args);
+    this.clearCache();
+    return result;
+  }
+
+  public async stashApply(index: number) {
+    if (!this.executor) return;
+    const result = await this.executor.exec([
+      "stash",
+      "apply",
+      `stash@{${index}}`,
+    ]);
+    this.clearCache();
+    return result;
+  }
+
+  public async stashDrop(index: number) {
+    if (!this.executor) return;
+    const result = await this.executor.exec([
+      "stash",
+      "drop",
+      `stash@{${index}}`,
+    ]);
+    this.clearCache();
+    return result;
+  }
+
+  public async stashPop(index: number) {
+    if (!this.executor) return;
+    const result = await this.executor.exec([
+      "stash",
+      "pop",
+      `stash@{${index}}`,
+    ]);
+    this.clearCache();
+    return result;
   }
 
   public async checkout(branchName: string) {
@@ -139,10 +222,12 @@ export class GitService {
     }
   }
 
+  @memoize
   public async getFileHistory(filePath: string, limit: number = 20) {
     return this.getLog(limit, filePath);
   }
 
+  @memoize
   public async getBlame(filePath: string) {
     if (!this.executor) return "";
     const result = await this.executor.exec([
@@ -159,7 +244,9 @@ export class GitService {
     if (branch) {
       args.push(branch);
     }
-    return await this.executor.exec(args);
+    const result = await this.executor.exec(args);
+    this.clearCache();
+    return result;
   }
 
   public async pull(remote: string = "origin", branch?: string) {
@@ -168,14 +255,38 @@ export class GitService {
     if (branch) {
       args.push(branch);
     }
-    return await this.executor.exec(args);
+    const result = await this.executor.exec(args);
+    this.clearCache();
+    return result;
+  }
+
+  public async updateLocalBranchFromRemote(
+    branch: string,
+    remote: string = "origin"
+  ) {
+    // Fetch the specific branch to update remote tracking
+    await this.executor?.exec(["fetch", remote, branch]);
+
+    // Check if we can fast-forward the local branch to match remote
+    // git fetch origin branch:branch
+    try {
+      await this.executor?.exec(["fetch", remote, `${branch}:${branch}`]);
+    } catch (e) {
+      throw new Error(
+        "Cannot update branch safely (non-fast-forward). Please checkout and pull."
+      );
+    }
+    this.clearCache();
   }
 
   public async fetch(remote: string = "origin") {
     if (!this.executor) return;
-    return await this.executor.exec(["fetch", remote]);
+    const result = await this.executor.exec(["fetch", "--prune", remote]);
+    this.clearCache();
+    return result;
   }
 
+  @memoize
   public async getBranchStatus(
     branchName: string
   ): Promise<{ ahead: number; behind: number }> {
@@ -220,6 +331,7 @@ export class GitService {
     }
   }
 
+  @memoize
   public async getAllLog(limit: number = 50) {
     if (!this.executor) return { all: [] };
 
@@ -250,6 +362,7 @@ export class GitService {
     return { all: commits };
   }
 
+  @memoize
   public async getCommitStats(hash: string) {
     if (!this.executor) return "";
     // git show --stat --oneline <hash>
@@ -262,6 +375,7 @@ export class GitService {
     return result.stdout.trim();
   }
 
+  @memoize
   public async getChangedFilesWithStatus(
     hash: string
   ): Promise<{ path: string; status: string }[]> {
@@ -284,6 +398,7 @@ export class GitService {
       });
   }
 
+  @memoize
   public async getChangedFiles(hash: string): Promise<string[]> {
     if (!this.executor) return [];
     // git show --name-only --format= <hash>
@@ -296,6 +411,7 @@ export class GitService {
     return result.stdout.trim().split("\n").filter(Boolean);
   }
 
+  @memoize
   public async getDiff(
     hash: string,
     filePath?: string,

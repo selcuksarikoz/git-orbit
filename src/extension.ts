@@ -10,6 +10,8 @@ import { StashTreeProvider } from "./providers/StashTreeProvider";
 import { InlineBlameDecorator } from "./decorators/InlineBlameDecorator";
 import { GutterBlameDecorator } from "./decorators/GutterBlameDecorator";
 import { CherryPickCommand } from "./commands/CherryPickCommand";
+import { BranchCommands } from "./commands/BranchCommands";
+import { StashCommands } from "./commands/StashCommands";
 import { AuthorshipCodeLensProvider } from "./providers/AuthorshipCodeLensProvider";
 import { GitContentProvider } from "./providers/GitContentProvider";
 import { DiffContentProvider } from "./providers/DiffContentProvider";
@@ -148,6 +150,10 @@ export function activate(context: vscode.ExtensionContext) {
     stashProvider.refresh();
   };
 
+  // Register Command Classes
+  BranchCommands.getInstance(refreshAll).register(context);
+  StashCommands.getInstance(refreshAll).register(context);
+
   context.subscriptions.push(
     vscode.commands.registerCommand("gitorbit.startRemoteBranch", () => {
       GitflowService.getInstance().startRemoteBranch();
@@ -190,88 +196,25 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Deletion Commands
+
   context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "gitorbit.deleteBranch",
-      async (item: any) => {
-        const name = item.branchName || item.label;
-        const branches = await gitService.getBranches();
-
-        const confirm = await vscode.window.showWarningMessage(
-          `Delete branch ${name}?`,
-          "Delete",
-          "Cancel"
-        );
-        if (confirm !== "Delete") return;
-
-        if (branches.current === name) {
-          const main = await gitService.findMainBranch();
-          if (main && main !== name) {
-            await gitService.checkout(main);
-          } else {
-            vscode.window.showErrorMessage(
-              "Cannot delete the current branch because no other branch was found to switch to."
-            );
-            return;
+    vscode.commands.registerCommand("gitorbit.refreshViews", async () => {
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "Fetching...",
+          cancellable: false,
+        },
+        async () => {
+          try {
+            await gitService.fetch();
+          } catch (e) {
+            console.error("Fetch failed", e);
           }
-        }
-
-        await gitService.deleteBranch(name, false);
-        refreshAll();
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "gitorbit.forceDeleteBranch",
-      async (item: any) => {
-        const name = item.branchName || item.label;
-        const branches = await gitService.getBranches();
-
-        const confirm = await vscode.window.showWarningMessage(
-          `FORCE Delete branch ${name}?`,
-          "Force Delete",
-          "Cancel"
-        );
-        if (confirm !== "Force Delete") return;
-
-        if (branches.current === name) {
-          const main = await gitService.findMainBranch();
-          if (main && main !== name) {
-            await gitService.checkout(main);
-          }
-        }
-
-        await gitService.deleteBranch(name, true);
-        refreshAll();
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "gitorbit.deleteRemoteBranch",
-      async (item: any) => {
-        const fullName = item.branchName || item.label; // e.g. origin/feature/x
-        const parts = fullName.split("/");
-        const remote = parts[0];
-        const branchName = parts.slice(1).join("/");
-        const confirm = await vscode.window.showWarningMessage(
-          `Delete remote branch ${branchName} from ${remote}?`,
-          "Delete Remote",
-          "Cancel"
-        );
-        if (confirm === "Delete Remote") {
-          await gitService.deleteRemoteBranch(remote, branchName, false);
           refreshAll();
         }
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand("gitorbit.refreshViews", refreshAll)
+      );
+    })
   );
 
   context.subscriptions.push(
@@ -287,85 +230,6 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Sync Commands
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "gitorbit.pushBranch",
-      async (item: any) => {
-        const branchName = item.branchName || item.label;
-        await vscode.window.withProgress(
-          {
-            location: vscode.ProgressLocation.Notification,
-            title: `Pushing ${branchName}...`,
-            cancellable: false,
-          },
-          async () => {
-            await gitService.push("origin", branchName);
-            refreshAll();
-          }
-        );
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "gitorbit.pullBranch",
-      async (item: any) => {
-        const branchName = item.branchName || item.label;
-        const remote = item.isRemote ? branchName.split("/")[0] : "origin";
-        const actualBranch = item.isRemote
-          ? branchName.split("/").slice(1).join("/")
-          : branchName;
-
-        await vscode.window.withProgress(
-          {
-            location: vscode.ProgressLocation.Notification,
-            title: `Pulling ${actualBranch}...`,
-            cancellable: false,
-          },
-          async () => {
-            await gitService.pull(remote, actualBranch);
-            refreshAll();
-          }
-        );
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "gitorbit.syncBranch",
-      async (item: any) => {
-        const branchName = item.branchName || item.label;
-        await vscode.window.withProgress(
-          {
-            location: vscode.ProgressLocation.Notification,
-            title: `Syncing ${branchName}...`,
-            cancellable: false,
-          },
-          async () => {
-            await gitService.pull("origin", branchName);
-            await gitService.push("origin", branchName);
-            refreshAll();
-          }
-        );
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "gitorbit.checkoutBranch",
-      async (item: any) => {
-        const branchName = item.branchName || item.label;
-        const actualBranch = item.isRemote
-          ? branchName.split("/").slice(1).join("/")
-          : branchName;
-        await gitService.checkout(actualBranch);
-        refreshAll();
-      }
-    )
-  );
 
   // Auto Sync Logic
   let syncInterval: NodeJS.Timeout | undefined;

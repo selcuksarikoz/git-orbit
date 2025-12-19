@@ -150,6 +150,30 @@
         "title": "Checkout",
         "category": "GitOrbit",
         "icon": "$(check)"
+      },
+      {
+        "command": "gitorbit.saveStash",
+        "title": "Stash",
+        "category": "GitOrbit",
+        "icon": "$(plus)"
+      },
+      {
+        "command": "gitorbit.stashApply",
+        "title": "Apply Stash",
+        "category": "GitOrbit",
+        "icon": "$(reply)"
+      },
+      {
+        "command": "gitorbit.stashPop",
+        "title": "Pop Stash",
+        "category": "GitOrbit",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "gitorbit.stashDrop",
+        "title": "Delete Stash",
+        "category": "GitOrbit",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -166,19 +190,29 @@
         },
         {
           "command": "gitorbit.gitflow.menu",
-          "when": "view == gitorbit.views.localBranches || view == gitorbit.views.remoteBranches || view == gitorbit.views.graph",
+          "when": "view == gitorbit.views.localBranches || view == gitorbit.views.remoteBranches",
           "group": "navigation@3"
+        },
+        {
+          "command": "gitorbit.saveStash",
+          "when": "view == gitorbit.views.stashes",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitorbit.refreshViews",
+          "when": "view == gitorbit.views.localBranches || view == gitorbit.views.remoteBranches || view == gitorbit.views.stashes",
+          "group": "title"
         }
       ],
       "view/item/context": [
         {
           "command": "gitorbit.deleteBranch",
-          "when": "view == gitorbit.views.localBranches && viewItem == localBranch",
+          "when": "view == gitorbit.views.localBranches && (viewItem == localBranchCurrent || viewItem == localBranchNotCurrent)",
           "group": "branchActions@1"
         },
         {
           "command": "gitorbit.forceDeleteBranch",
-          "when": "view == gitorbit.views.localBranches && viewItem == localBranch",
+          "when": "view == gitorbit.views.localBranches && (viewItem == localBranchCurrent || viewItem == localBranchNotCurrent)",
           "group": "branchActions@2"
         },
         {
@@ -192,24 +226,44 @@
           "group": "inline"
         },
         {
-          "command": "gitorbit.pushBranch",
-          "when": "view == gitorbit.views.localBranches && viewItem == localBranch",
+          "command": "gitorbit.checkoutBranch",
+          "when": "view == gitorbit.views.localBranches && viewItem == localBranchNotCurrent",
           "group": "inline@1"
         },
         {
-          "command": "gitorbit.pullBranch",
-          "when": "(view == gitorbit.views.localBranches && viewItem == localBranch) || (view == gitorbit.views.remoteBranches && viewItem == remoteBranch)",
+          "command": "gitorbit.pushBranch",
+          "when": "view == gitorbit.views.localBranches && (viewItem == localBranchCurrent || viewItem == localBranchNotCurrent)",
           "group": "inline@2"
         },
         {
-          "command": "gitorbit.syncBranch",
-          "when": "view == gitorbit.views.localBranches && viewItem == localBranch",
+          "command": "gitorbit.pullBranch",
+          "when": "(view == gitorbit.views.localBranches && (viewItem == localBranchCurrent || viewItem == localBranchNotCurrent)) || (view == gitorbit.views.remoteBranches && viewItem == remoteBranch)",
           "group": "inline@3"
+        },
+        {
+          "command": "gitorbit.syncBranch",
+          "when": "view == gitorbit.views.localBranches && (viewItem == localBranchCurrent || viewItem == localBranchNotCurrent)",
+          "group": "inline@4"
         },
         {
           "command": "gitorbit.checkoutBranch",
           "when": "view == gitorbit.views.remoteBranches && viewItem == remoteBranch",
           "group": "inline@1"
+        },
+        {
+          "command": "gitorbit.stashApply",
+          "when": "view == gitorbit.views.stashes && viewItem == stash",
+          "group": "inline@1"
+        },
+        {
+          "command": "gitorbit.stashPop",
+          "when": "view == gitorbit.views.stashes && viewItem == stash",
+          "group": "inline@2"
+        },
+        {
+          "command": "gitorbit.stashDrop",
+          "when": "view == gitorbit.views.stashes && viewItem == stash",
+          "group": "inline@3"
         }
       ]
     },
