@@ -1,45 +1,46 @@
 # GitOrbit
 
-**GitOrbit** is built by developers for developers who want a high-performance, modular, and intuitive Git experience directly within VS Code. It focuses on maintaining your development flow by providing essential Git tools without the unnecessary bloat.
+**GitOrbit** is a professional, high-performance Git extension for VS Code designed to keep you in flow. It provides a comprehensive suite of Git tools—from detailed history graphs to seamless Gitflow integration—without the bloat.
 
-## 🚀 Streamlined Productivity
+## Quick Features
 
-GitOrbit is designed to handle everything from complex branch hierarchies to granular line-by-line blame, all while feeling like a native part of your editor. Whether you are managing stashes or exploring deep commit histories, GitOrbit stays out of your way and lets you focus on your code.
+- **📂 Changes Panel:** View, stage, unstage, and commit changes instantly with a modern UI. Includes robust "Discard All" and "Undo Last Commit" actions.
+- **🌳 Commit Graph:** Visualize your repository's history with an interactive, filterable graph. Click on commits to see hierarchical file changes.
+- **📜 File History:** Automatically tracks the active file to show its commit history. Works seamlessly even with preview files.
+- **🌱 Branch Management:** Visualize Local and Remote branches with folder grouping. Create, delete, push, pull, and sync branches effortlessly.
+- **📦 Stash Explorer:** View stashes and inspect their contents with **Multi-file Diff** support. Apply, pop, or drop stashes with a click.
+- **🚀 Gitflow Integration:** Start features and hotfixes quickly with configurable prefixes.
 
-## Features
+## Editor Enhancements
 
-- **Side Bar Views:**
-  - **Branches:** Local and Remote branches grouped by folders.
-  - **Graph:** All commits across all branches with hierarchical file exploration.
-  - **Commits:** Paginated commit history for the current branch.
-  - **File History:** History of the active file in the editor.
-  - **Stashes:** List and manage your stashes. Now includes **file diff previews** on click and **Multi-file Diff** support for viewing entire stash changes.
-- **Gitflow Integration:** Easily start features and hotfixes with configurable prefixes.
-- **Editor Enhancements:**
-  - **Inline Blame:** Subtle ghost text (`editorGhostText`) showing authorship info on the current line. Automatically filtered for empty lines and optimized for rapid navigation.
-  - **CodeLens:** Authorship summary at the top of functions.
-  - **Gutter Blame:** Visual heatmap of file changes.
-- **Welcome Page:** Beautiful onboarding experience for new users.
+- **Inline Blame:** Unobtrusive ghost text showing the author and relative time for the current line.
+- **Gutter Indicators:** Visual heatmap status indicators in the editor gutter.
+- **CodeLens:** Authorship summaries at the top of files and functions.
+
+## Commands
+
+Access these commands via the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) or Context Menus:
+
+- `GitOrbit: Cherry Pick` - Cherry pick commits easily.
+- `GitOrbit: Checkout Commit` - Checkout any commit in a detached HEAD state.
+- `GitOrbit: Create Branch...` - Create new branches from current HEAD.
+- `GitOrbit: Refresh Views` - Manually refresh all GitOrbit views.
+- `GitOrbit: Create Remote Branch...` - Push a new branch to remote directly.
 
 ## Configuration
 
-Customizable via VS Code settings:
+Customize your experience in VS Code Settings:
 
-- `gitorbit.blame.inline.enabled`: Toggle inline blame ghost text.
-- `gitorbit.gitflow.featurePrefix`: Default prefix for features (default: `feature/`).
-- `gitorbit.gitflow.hotfixPrefix`: Default prefix for hotfixes (default: `hotfix/`).
-- `gitorbit.views.commitLimit`: Number of commits to load initially.
+- `gitorbit.blame.inline.enabled`: Toggle inline blame ghost text on/off.
+- `gitorbit.gitflow.featurePrefix`: Prefix for feature branches (default: `feature/`).
+- `gitorbit.gitflow.hotfixPrefix`: Prefix for hotfix branches (default: `hotfix/`).
+- `gitorbit.views.commitLimit`: Initial number of commits to load in lists.
+- `gitorbit.sync.autoSyncInterval`: Interval (in minutes) for auto-fetching changes.
 
-## Architecture
+## Feedback & Support
 
-Built with a clean, modular architecture:
+Found a bug or have a suggestion? Please open an issue on our [GitHub Repository](https://github.com/selcuk-sarikoz/git-orbit).
 
-- **Command Pattern:** Each command is encapsulated in its own class.
-- **Dependency Injection:** Services are managed as singletons.
-- **Strict TypeScript:** Type safety throughout the codebase.
+---
 
-## Getting Started
-
-1. Open the "GitOrbit" view in the Activity Bar.
-2. Use the context menus to Cherry Pick or start new Gitflow branches.
-3. Configure your preferences in Settings.
+**Enjoying GitOrbit?** Leave a rating on the Marketplace!
