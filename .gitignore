@@ -1,0 +1,33 @@
+# Compiled JavaScript
+out/
+dist/
+.vscode/
+
+# Dependencies
+node_modules/
+
+# VS Code Test Artifacts
+.vscode-test/
+
+# Packaged Extension
+*.vsix
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS Specific
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+
+# IDE/Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json

@@ -1,0 +1,208 @@
+{
+  "name": "gitorbit",
+  "displayName": "GitOrbit",
+  "description": "A comprehensive, open-source Git extension that rivals paid tools.",
+  "version": "0.1.0",
+  "publisher": "Selcuk Sarikoz",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/selcuk-sarikoz/git-orbit"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "workspaceContains:.git"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "views": {
+      "gitorbit-explorer": [
+        {
+          "id": "gitorbit.views.localBranches",
+          "name": "Local Branches",
+          "icon": "$(git-branch)"
+        },
+        {
+          "id": "gitorbit.views.remoteBranches",
+          "name": "Remote Branches",
+          "icon": "$(git-branch)"
+        },
+        {
+          "id": "gitorbit.views.commits",
+          "name": "Commits history",
+          "icon": "$(git-commit)"
+        },
+        {
+          "id": "gitorbit.views.fileHistory",
+          "name": "File history",
+          "icon": "$(history)"
+        },
+        {
+          "id": "gitorbit.views.graph",
+          "name": "Graph",
+          "icon": "$(graph)",
+          "visibility": "visible"
+        },
+        {
+          "id": "gitorbit.views.stashes",
+          "name": "Stashes",
+          "icon": "$(archive)"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "gitorbit-explorer",
+          "title": "GitOrbit",
+          "icon": "assets/icons/logo.svg"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "gitorbit.openCommitDiff",
+        "title": "Open Diff",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.startRemoteBranch",
+        "title": "Create Remote Branch...",
+        "category": "GitOrbit",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "gitorbit.deleteBranch",
+        "title": "Delete Branch",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.forceDeleteBranch",
+        "title": "Force Delete Branch",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.deleteRemoteBranch",
+        "title": "Delete Remote Branch",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.cherryPick",
+        "title": "Cherry Pick",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.startBranch",
+        "title": "Create Branch...",
+        "category": "GitOrbit",
+        "icon": "$(plus)"
+      },
+      {
+        "command": "gitorbit.gitflow.menu",
+        "title": "Create...",
+        "category": "GitOrbit",
+        "icon": "$(plus)"
+      },
+      {
+        "command": "gitorbit.refreshViews",
+        "title": "Refresh",
+        "category": "GitOrbit",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gitorbit.showWelcome",
+        "title": "Show Welcome Page",
+        "category": "GitOrbit"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "gitorbit.refreshViews",
+          "when": "viewContainer == gitorbit-explorer",
+          "group": "navigation"
+        },
+        {
+          "command": "gitorbit.gitflow.menu",
+          "when": "view == gitorbit.views.localBranches || view == gitorbit.views.remoteBranches",
+          "group": "navigation@1"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "gitorbit.deleteBranch",
+          "when": "view == gitorbit.views.localBranches && viewItem == localBranch",
+          "group": "branchActions@1"
+        },
+        {
+          "command": "gitorbit.forceDeleteBranch",
+          "when": "view == gitorbit.views.localBranches && viewItem == localBranch",
+          "group": "branchActions@2"
+        },
+        {
+          "command": "gitorbit.deleteRemoteBranch",
+          "when": "view == gitorbit.views.remoteBranches && viewItem == remoteBranch",
+          "group": "branchActions@1"
+        },
+        {
+          "command": "gitorbit.cherryPick",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.fileHistory) && viewItem == commit",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "GitOrbit",
+      "properties": {
+        "gitorbit.blame.inline.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable inline blame ghost text."
+        },
+        "gitorbit.gitflow.featurePrefix": {
+          "type": "string",
+          "default": "feature/",
+          "description": "Prefix for feature branches."
+        },
+        "gitorbit.gitflow.hotfixPrefix": {
+          "type": "string",
+          "default": "hotfix/",
+          "description": "Prefix for hotfix branches."
+        },
+        "gitorbit.views.commitLimit": {
+          "type": "number",
+          "default": 20,
+          "description": "Number of commits to load initially."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "build": "npm run compile",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "20.x",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vscode/test-electron": "^2.3.3",
+    "@vscode/vsce": "^3.7.1",
+    "eslint": "^8.44.0",
+    "typescript": "^5.1.3"
+  }
+}
