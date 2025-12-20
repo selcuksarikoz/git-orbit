@@ -2,7 +2,7 @@
   "name": "gitorbit",
   "displayName": "GitOrbit",
   "description": "Supercharge your workflow with the ultimate AI-powered Git companion. Seamlessly blend professional version control with advanced AI intelligence.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "selcuksarikoz",
   "icon": "assets/icons/logo.png",
   "repository": {
