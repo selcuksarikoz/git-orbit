@@ -103,10 +103,27 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   const changesProvider = new ChangesTreeProvider(context.extensionUri);
-  vscode.window.registerTreeDataProvider(
+  const changesTreeView = vscode.window.createTreeView(
     "gitorbit.views.changes",
-    changesProvider
+    {
+      treeDataProvider: changesProvider,
+    }
   );
+
+  const updateBadge = () => {
+    const total = changesProvider.stagedCount + changesProvider.unstagedCount;
+    changesTreeView.badge =
+      total > 0
+        ? { value: total, tooltip: `${total} pending changes` }
+        : undefined;
+  };
+
+  changesProvider.onDidChangeTreeData(() => {
+    updateBadge();
+  });
+
+  // Initial badge update
+  updateBadge();
 
   context.subscriptions.push(
     vscode.commands.registerCommand("gitorbit.refreshChanges", () => {

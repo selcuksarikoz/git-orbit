@@ -64,6 +64,14 @@ export class ChangesTreeProvider
   private _unstaged: any[] = [];
   private _refreshTimer: NodeJS.Timeout | undefined;
 
+  public get stagedCount(): number {
+    return this._staged.length;
+  }
+
+  public get unstagedCount(): number {
+    return this._unstaged.length;
+  }
+
   constructor(private readonly _extensionUri: vscode.Uri) {
     this.startWatchers();
   }
@@ -139,8 +147,19 @@ export class ChangesTreeProvider
     this.refresh();
   }
 
-  refresh() {
-    GitService.getInstance().clearCache();
+  async refresh() {
+    const gitService = GitService.getInstance();
+    gitService.clearCache();
+
+    // Pre-calculate counts for badge and UI
+    const status = await gitService.getStatus();
+    this._staged = status.filter(
+      (s) => s.stagedStatus !== " " && s.stagedStatus !== "?"
+    );
+    this._unstaged = status.filter(
+      (s) => s.workingTreeStatus !== " " || s.stagedStatus === "?"
+    );
+
     this._onDidChangeTreeData.fire();
   }
 
@@ -153,14 +172,6 @@ export class ChangesTreeProvider
 
     if (!element) {
       // Root: Groups
-      const status = await gitService.getStatus();
-      this._staged = status.filter(
-        (s) => s.stagedStatus !== " " && s.stagedStatus !== "?"
-      );
-      this._unstaged = status.filter(
-        (s) => s.workingTreeStatus !== " " || s.stagedStatus === "?"
-      );
-
       // Update Decorations
       const allStatus = [
         ...this._staged.map((s) => ({
@@ -175,8 +186,6 @@ export class ChangesTreeProvider
         })),
       ];
       StatusDecorationProvider.updateStatus(allStatus);
-      // We need to trigger decoration update, but it's cleaner if the provider exposes a fire method or we just rely on tree refresh if items are recreated.
-      // Actually tree refresh doesn't trigger decoration refresh automatically if URIs are same, so we must fire.
       new StatusDecorationProvider().fireUpdate();
 
       const items: GroupItem[] = [];
