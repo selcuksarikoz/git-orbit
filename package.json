@@ -21,7 +21,15 @@
     "onStartupFinished",
     "workspaceContains:.git"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
+  "scripts": {
+    "vscode:prepublish": "npm run bundle",
+    "compile": "node ./esbuild.js",
+    "watch": "node ./esbuild.js --watch",
+    "bundle": "node ./esbuild.js --production",
+    "package": "vsce package",
+    "test": "vscode-test"
+  },
   "contributes": {
     "views": {
       "gitorbit-explorer": [
@@ -702,17 +710,6 @@
         }
       }
     }
-  },
-  "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js",
-    "build": "npm run compile",
-    "package": "rm -rf ./out && vsce package",
-    "publish": "vsce publish"
   },
   "devDependencies": {
     "@types/node": "20.x",
