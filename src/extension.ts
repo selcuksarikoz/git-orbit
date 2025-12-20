@@ -150,6 +150,12 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.smartCommit", () =>
+      changesProvider.smartCommit()
+    )
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("gitorbit.changes.commitStaged", () =>
       changesProvider.commitStaged()
     )

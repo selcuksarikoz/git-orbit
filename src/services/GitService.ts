@@ -674,6 +674,20 @@ export class GitService {
     return result.stdout;
   }
 
+  public async getStagedDiff(): Promise<string> {
+    await this._ensureInitialized();
+    if (!this.executor) return "";
+    const result = await this.executor.exec(["diff", "--staged"]);
+    return result.stdout;
+  }
+
+  public async getWorkingDiff(): Promise<string> {
+    await this._ensureInitialized();
+    if (!this.executor) return "";
+    const result = await this.executor.exec(["diff"]);
+    return result.stdout;
+  }
+
   public async deleteBranch(branchName: string, force: boolean = false) {
     await this._ensureInitialized();
     if (!this.executor) return;

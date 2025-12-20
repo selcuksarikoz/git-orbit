@@ -3,6 +3,7 @@ import * as path from "path";
 import { GitService } from "../services/GitService";
 import { GitContentProvider } from "./GitContentProvider";
 import { StatusDecorationProvider } from "./StatusDecorationProvider";
+import { AIService } from "../services/AIService";
 
 class ChangeItem extends vscode.TreeItem {
   constructor(
@@ -480,5 +481,79 @@ export class ChangesTreeProvider
         this.refresh();
       }
     );
+  }
+  public async smartCommit() {
+    const gitService = GitService.getInstance();
+    const aiService = AIService.getInstance();
+
+    // 1. Determine what to diff
+    const status = await gitService.getStatus();
+    const staged = status.filter(
+      (s) => s.stagedStatus !== " " && s.stagedStatus !== "?"
+    );
+
+    let hasStagedChanges = staged.length > 0;
+    let diff = "";
+
+    if (hasStagedChanges) {
+      // Get staged diff
+      diff = await gitService.getStagedDiff();
+    } else {
+      // Nothing staged, try regular diff of all tracked changes
+      diff = await gitService.getWorkingDiff();
+
+      // If still nothing, maybe untracked files?
+      if (!diff) {
+        // Auto-stage all to get a diff?
+        vscode.window.showInformationMessage(
+          "Staging all changes to generate commit message..."
+        );
+        await gitService.stageAll();
+        diff = await gitService.getStagedDiff();
+        hasStagedChanges = true;
+      }
+    }
+
+    if (!diff) {
+      vscode.window.showWarningMessage(
+        "No changes found to generate commit message."
+      );
+      return;
+    }
+
+    // 2. Call AI
+    if (!aiService.validateConfig()) return;
+
+    try {
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "Generating Smart Commit Messages...",
+          cancellable: false,
+        },
+        async () => {
+          const messages = await aiService.generateCommitMessages(diff);
+
+          // 3. Show Quick Pick
+          const selected = await vscode.window.showQuickPick(messages, {
+            placeHolder: "Select a commit message...",
+            title: "Smart Commit Recommendations",
+          });
+
+          if (selected) {
+            // 4. Commit immediately
+            // If we generated message from working diff (unstaged), we must stage now
+            if (!hasStagedChanges) {
+              await gitService.stageAll();
+            }
+            await gitService.commit(["-m", selected]);
+            vscode.window.showInformationMessage("Smart Commit successful!");
+            this.refresh();
+          }
+        }
+      );
+    } catch (e: any) {
+      vscode.window.showErrorMessage(`Smart Commit failed: ${e.message}`);
+    }
   }
 }
