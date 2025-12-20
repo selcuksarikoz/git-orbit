@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { generateText } from "ai";
+import { generateText, streamText, CoreMessage } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createAnthropic } from "@ai-sdk/anthropic";
@@ -16,6 +16,20 @@ export class AIService {
       AIService.instance = new AIService();
     }
     return AIService.instance;
+  }
+
+  public async streamChat(
+    messages: CoreMessage[],
+    system: string,
+    abortSignal?: AbortSignal
+  ) {
+    const model = this.getModel();
+    return streamText({
+      model,
+      system,
+      messages,
+      abortSignal,
+    });
   }
 
   public validateConfig(): boolean {

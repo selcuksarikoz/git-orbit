@@ -16,7 +16,8 @@ import { StashCommands } from "./commands/StashCommands";
 import { AuthorshipCodeLensProvider } from "./providers/AuthorshipCodeLensProvider";
 import { GitContentProvider } from "./providers/GitContentProvider";
 import { DiffContentProvider } from "./providers/DiffContentProvider";
-import { ChangesTreeProvider } from "./providers/ChangesTreeProvider"; // Imported here
+import { ChangesTreeProvider } from "./providers/ChangesTreeProvider";
+import { CommitChatPanel } from "./panels/CommitChatPanel";
 
 import { GraphTreeProvider } from "./providers/GraphTreeProvider";
 import { StatusDecorationProvider } from "./providers/StatusDecorationProvider";
@@ -152,6 +153,42 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("gitorbit.changes.smartCommit", () =>
       changesProvider.smartCommit()
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitorbit.chatWithCommit",
+      async (node: any) => {
+        if (node && node.hash) {
+          let author = node.author || node.commit?.author;
+          let message = node.message || node.commit?.message;
+
+          if (
+            !author ||
+            author === "Unknown" ||
+            !message ||
+            message === "No message"
+          ) {
+            const details = await GitService.getInstance().getCommitDetails(
+              node.hash
+            );
+            author = details.author;
+            message = details.message;
+          }
+
+          CommitChatPanel.createOrShow(
+            context.extensionUri,
+            node.hash,
+            author || "Unknown",
+            message || "No message"
+          );
+        } else {
+          vscode.window.showErrorMessage(
+            "Could not resolve commit details for chat."
+          );
+        }
+      }
     )
   );
 

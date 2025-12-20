@@ -787,4 +787,30 @@ export class GitService {
     this.clearCache();
     return result;
   }
+  public async getCommitDiff(commitHash: string): Promise<string> {
+    await this._ensureInitialized();
+    if (!this.executor) return "";
+    const result = await this.executor.exec(["show", commitHash]);
+    return result.stdout;
+  }
+  public async getCommitDetails(
+    commitHash: string
+  ): Promise<{ author: string; message: string }> {
+    await this._ensureInitialized();
+    if (!this.executor) return { author: "Unknown", message: "Unknown" };
+    try {
+      const result = await this.executor.exec([
+        "show",
+        "-s",
+        "--format=%an|%s",
+        commitHash,
+      ]);
+      const parts = result.stdout.trim().split("|");
+      const author = parts[0];
+      const message = parts.slice(1).join("|"); // Join back in case message had pipes
+      return { author: author || "Unknown", message: message || "Unknown" };
+    } catch {
+      return { author: "Unknown", message: "Unknown" };
+    }
+  }
 }
