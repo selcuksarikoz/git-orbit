@@ -152,40 +152,40 @@ export class WelcomeView {
 <body>
     <div class="container">
         <h1>GitOrbit <span class="badge">v1.1</span></h1>
-        <p class="subtitle">Supercharge your workflow with the ultimate AI-powered Git companion. Seamlessly blend professional version control with advanced AI intelligence.</p>
+        <p class="subtitle">Simplify your Git management with helpful AI assistance. Designed to make your daily workflow easier and more organized.</p>
         
         <div class="card">
-            <h2>🤖 AI-Powered Workflow <span class="badge">NEW</span></h2>
+            <h2>✨ AI Assistance</h2>
             <div class="features-grid">
                 <div>
-                    <h3>💬 Context-Aware Chat</h3>
-                    <p>Discuss any commit or staged/unstaged changes. Get instant explanations for complex logic or potential bugs.</p>
+                    <h3>💬 Conversational AI</h3>
+                    <p>Ask about your changes or specific commits. Get helpful explanations for complex logic or diffs.</p>
                 </div>
                 <div>
-                    <h3>🔍 Advanced Code Smell Detection</h3>
-                    <p>Scan your entire workspace (including new files) for technical debt and common issues before committing.</p>
+                    <h3>🔍 Simple Code Smell Detection</h3>
+                    <p>Scan your changes for potential improvements and technical debt before you commit.</p>
                 </div>
                 <div>
-                    <h3>✨ Smart Commit Messages</h3>
-                    <p>Generate high-quality, professional commit messages in seconds by analyzing your staged differences.</p>
+                    <h3>✍️ Smart Commit Messages</h3>
+                    <p>Generate clean, professional commit messages based on your staged changes with a single click.</p>
                 </div>
             </div>
         </div>
 
         <div class="card">
-            <h2>🛠️ Tailored for You</h2>
+            <h2>🛠️ Easy Git Management</h2>
             <div class="features-grid">
                 <div>
-                    <h3>🌍 Multi-Provider Support</h3>
-                    <p>Connect your preferred AI model: OpenRouter, Gemini, OpenAI, Anthropic, or xGrok.</p>
+                    <h3>🌳 Simplified Workflow</h3>
+                    <p>Manage branches, history, and staging through a clean, intuitive interface that removes the clutter.</p>
                 </div>
                 <div>
-                    <h3>⚡️ Instant Insights</h3>
-                    <p>Get immediate summaries of your work, making code reviews and history navigation faster than ever.</p>
+                    <h3>⚡️ Multi-Provider Support</h3>
+                    <p>Works with your favorite AI: OpenRouter, Gemini, OpenAI, Anthropic, or xGrok.</p>
                 </div>
                 <div>
-                    <h3>🎯 Targeted Analysis</h3>
-                    <p>AI focuses on exactly what changed, providing relevant feedback without noise.</p>
+                    <h3>🎯 Focused Tools</h3>
+                    <p>From inline blame to detailed commit graphs, get the tools you need without the complexity.</p>
                 </div>
             </div>
         </div>

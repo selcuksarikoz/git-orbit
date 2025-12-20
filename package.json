@@ -1,8 +1,8 @@
 {
   "name": "gitorbit",
   "displayName": "GitOrbit",
-  "description": "Supercharge your workflow with the ultimate AI-powered Git companion. Seamlessly blend professional version control with advanced AI intelligence.",
-  "version": "1.0.2",
+  "description": "Simplify your Git management with AI assistance. Features include smart commit messages, code smell detection, and conversational AI to help you manage your workflow effortlessly.",
+  "version": "1.0.3",
   "publisher": "selcuksarikoz",
   "icon": "assets/icons/logo.png",
   "repository": {

@@ -550,12 +550,27 @@ export class ChangesTreeProvider
           });
 
           if (selected) {
-            // 4. Commit immediately
+            // 4. Allow editing the message
+            const editedMessage = await vscode.window.showInputBox({
+              value: selected,
+              placeHolder: "Commit message",
+              prompt: "Edit your commit message if needed",
+              ignoreFocusOut: true,
+            });
+
+            if (editedMessage === undefined) return; // User cancelled editing
+
+            if (!editedMessage) {
+              vscode.window.showErrorMessage("Commit message cannot be empty.");
+              return;
+            }
+
+            // 5. Commit
             // If we generated message from working diff (unstaged), we must stage now
             if (!hasStagedChanges) {
               await gitService.stageAll();
             }
-            await gitService.commit(["-m", selected]);
+            await gitService.commit(["-m", editedMessage]);
             vscode.window.showInformationMessage("Smart Commit successful!");
             this.refresh();
           }

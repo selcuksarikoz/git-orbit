@@ -56,12 +56,12 @@ export class InlineBlameDecorator {
       }
 
       const lineBlame = this.parseBlameForLine(blameOutput, line + 1);
+      const isUncommitted =
+        !lineBlame ||
+        lineBlame.hash === "0000000000000000000000000000000000000000" ||
+        lineBlame.author === "Not Committed Yet";
 
-      if (
-        lineBlame &&
-        lineBlame.author !== "Not Committed Yet" &&
-        lineBlame.subject !== "Not Committed Yet"
-      ) {
+      if (!isUncommitted) {
         const decoration: vscode.DecorationOptions = {
           range: new vscode.Range(line, 1024, line, 1024),
           renderOptions: {
@@ -88,9 +88,10 @@ export class InlineBlameDecorator {
 
     for (let i = 0; i < lines.length; i++) {
       const text = lines[i];
-      if (/^[0-9a-f]{40}/.test(text)) {
+      const hashMatch = text.match(/^([0-9a-f]{40})/);
+      if (hashMatch) {
         // New commit block
-        info = {};
+        info = { hash: hashMatch[1] };
       } else if (text.startsWith("author ")) {
         info.author = text.substring(7);
       } else if (text.startsWith("author-time ")) {

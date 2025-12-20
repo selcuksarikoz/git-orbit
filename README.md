@@ -1,17 +1,19 @@
-# 🚀 GitOrbit: Your Git Workflow, Evolved with AI Intelligence
+# GitOrbit: Simple & Smart Git Management
 
-**GitOrbit** isn't just another Git extension—it's your ultimate high-performance companion that bridges the gap between professional version control and cutting-edge AI. Experience a lightning-fast, intuitive, and **AI-supercharged** workflow designed to keep you in the ultimate flow state.
+**GitOrbit** is a lightweight Git extension designed to simplify your daily workflow. It focuses on making Git management straightforward while providing helpful AI-powered tools for commit messages, code analysis, and interactive assistance.
 
-## 🤖 Unleash the Power of AI on Your Git Workflow 🚀
+## 🚀 Helpful AI Assistance
 
-- **💬 Master Your Context with AI Chat:** Go beyond simple diffs. Engage in deep, context-aware conversations about any commit or your current workspace. Understand _why_ changes were made and how to improve them instantly.
-- **✨ Effortless Smart Commits:** Stop struggling with commit messages. Let our AI analyze your hard work and craft perfectly phrased, professional commit messages in a single click.
-- **🔍 Precision Code Smell Detection:** Ship with confidence. Our AI-driven engine scans your staged, unstaged, and even untracked changes to hunt down bugs, technical debt, and smells before they reach your repository.
-- **🌍 Choose Your Brain:** Seamlessly integrate with the world's most powerful AI providers, including **OpenRouter, Google Gemini, OpenAI, Anthropic, and xGrok**. Use the models you love most.
+Instead of overwhelming you, GitOrbit provides targeted AI features to help you keep your repository clean and your workflow smooth:
 
-## 🔥 Engineered for Speed, Built for Professionals
+- **💬 Conversational AI Chat:** Ask questions about your changes or specific commits. It's like having a teammate to help you understand complex diffs.
+- **✨ Smart Commit Messages:** Let AI suggest professional commit messages based on your changes, saving you time and keeping your history readable.
+- **🔍 Simple Code Smell Detection:** Quickly scan your changes for potential improvements or bugs before you commit.
+- **🌍 Flexible AI Providers:** Connect to your preferred model via **OpenRouter, Google Gemini, OpenAI, Anthropic, or xGrok**.
 
-Everything you need to master your repository, delivered in a stunning, minimalist package.
+## 🛠️ Streamlined Git Management
+
+Everything you need to manage your repository without the complexity.
 
 - **📂 Modern Changes Panel:** Stage, unstage, and commit with surgical precision. One-click "Discard All" and "Undo Last Commit" keep you in control.
 - **🌳 Beautiful Commit Graph:** Navigate your project's soul. An interactive, crystal-clear visualization of your entire history.
