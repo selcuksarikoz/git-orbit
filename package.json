@@ -370,6 +370,12 @@
         "title": "Chat with AI",
         "category": "GitOrbit",
         "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "gitorbit.checkCodeSmells",
+        "title": "Check for Code Smells",
+        "category": "GitOrbit",
+        "icon": "$(search-stop)"
       }
     ],
     "menus": {
@@ -377,7 +383,12 @@
         {
           "command": "gitorbit.changes.commit",
           "when": "view == gitorbit.views.changes",
-          "group": "more"
+          "group": "1_commit"
+        },
+        {
+          "command": "gitorbit.checkCodeSmells",
+          "when": "view == gitorbit.views.changes",
+          "group": "2_ai"
         },
         {
           "command": "gitorbit.changes.smartCommit",

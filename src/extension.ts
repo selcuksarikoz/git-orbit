@@ -193,6 +193,49 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.checkCodeSmells", async () => {
+      const gitService = GitService.getInstance();
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "Analyzing changes for code smells...",
+          cancellable: false,
+        },
+        async () => {
+          const stagedDiff = await gitService.getStagedDiff();
+          const workingDiff = await gitService.getWorkingDiff();
+          const untrackedDiff = await gitService.getUntrackedDiff();
+
+          const combinedDiff = [
+            stagedDiff ? `--- STAGED CHANGES ---\n${stagedDiff}` : "",
+            workingDiff ? `--- UNSTAGED CHANGES ---\n${workingDiff}` : "",
+            untrackedDiff ? `--- UNTRACKED FILES ---\n${untrackedDiff}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n\n");
+
+          if (!combinedDiff) {
+            vscode.window.showInformationMessage(
+              "No changes found to check for code smells."
+            );
+            return;
+          }
+
+          await CommitChatPanel.createOrShow(
+            context.extensionUri,
+            "current-changes",
+            "You",
+            "Workspace Changes",
+            combinedDiff,
+            "Please check these changes for any code smells, potential bugs, or improvements. Provide a detailed analysis."
+          );
+        }
+      );
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("gitorbit.changes.commitStaged", () =>
       changesProvider.commitStaged()
     )

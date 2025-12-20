@@ -18,27 +18,39 @@ export class CommitChatPanel {
     commitHash: string,
     author: string,
     message: string,
-    diff: string
+    diff: string,
+    initialPrompt?: string
   ) {
     this._panel = panel;
     this._extensionUri = extensionUri;
     this._commitHash = commitHash;
 
     // Set the webview's initial html content
-    this._update(author, message);
+    this._update(author, message, initialPrompt);
 
     // Initial system prompt setup
-    const systemPrompt = `You are a helpful AI assistant analyzing a specific git commit.
-Commit Details:
+    const isWorkspaceChanges = commitHash === "current-changes";
+    const systemPrompt = `You are a helpful AI assistant analyzing ${
+      isWorkspaceChanges ? "current workspace changes" : "a specific git commit"
+    }.
+${
+  isWorkspaceChanges
+    ? "Context: Current Workspace"
+    : `Commit Details:
 Hash: ${commitHash}
 Author: ${author}
-Message: ${message}
+Message: ${message}`
+}
 
 Diff/Changes:
-${diff.substring(0, 20000)} ${diff.length > 20000 ? "...(truncated)" : ""}
+${diff.substring(0, 25000)} ${diff.length > 25000 ? "...(truncated)" : ""}
 
-Your goal is to answer questions about this commit. 
-Start by providing a concise summary of the changes if the user hasn't asked a specific question yet (though the UI might initiate the chat).
+Your goal is to answer questions about these changes. 
+${
+  isWorkspaceChanges
+    ? "Help the user understand potential issues, code smells, or improvements."
+    : "Start by providing a concise summary of the changes if the user hasn't asked a specific question yet."
+}
 When replying, use markdown for formatting code blocks. Be concise.`;
 
     // Listen for messages from the webview
@@ -106,18 +118,22 @@ When replying, use markdown for formatting code blocks. Be concise.`;
     extensionUri: vscode.Uri,
     commitHash: string,
     author: string,
-    message: string
+    message: string,
+    customDiff?: string,
+    initialPrompt?: string
   ) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
 
     // Fetch diff for context
-    let diff = "";
-    try {
-      diff = await GitService.getInstance().getCommitDiff(commitHash);
-    } catch (e) {
-      diff = "Could not fetch diff.";
+    let diff = customDiff || "";
+    if (!diff) {
+      try {
+        diff = await GitService.getInstance().getCommitDiff(commitHash);
+      } catch (e) {
+        diff = "Could not fetch diff.";
+      }
     }
 
     // If we already have a panel, show it?
@@ -149,7 +165,8 @@ When replying, use markdown for formatting code blocks. Be concise.`;
       commitHash,
       author,
       message,
-      diff
+      diff,
+      initialPrompt
     );
   }
 
@@ -164,11 +181,23 @@ When replying, use markdown for formatting code blocks. Be concise.`;
     }
   }
 
-  private _update(author: string, message: string) {
-    this._panel.webview.html = this._getHtmlForWebview(author, message);
+  private _update(author: string, message: string, initialPrompt?: string) {
+    this._panel.title =
+      this._commitHash === "current-changes"
+        ? "Review Changes"
+        : `Chat: ${this._commitHash.substring(0, 7)}`;
+    this._panel.webview.html = this._getHtmlForWebview(
+      author,
+      message,
+      initialPrompt
+    );
   }
 
-  private _getHtmlForWebview(author: string, message: string) {
+  private _getHtmlForWebview(
+    author: string,
+    message: string,
+    initialPrompt?: string
+  ) {
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -335,7 +364,10 @@ When replying, use markdown for formatting code blocks. Be concise.`;
             }
         };
 
-        setTimeout(() => sendMessage("Please summarize this commit."), 300);
+        const initialPrompt = ${JSON.stringify(
+          initialPrompt || "Please summarize this commit."
+        )};
+        setTimeout(() => sendMessage(initialPrompt), 300);
 
         window.addEventListener('message', event => {
             const msg = event.data;

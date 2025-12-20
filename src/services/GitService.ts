@@ -688,6 +688,37 @@ export class GitService {
     return result.stdout;
   }
 
+  public async getUntrackedDiff(): Promise<string> {
+    await this._ensureInitialized();
+    if (!this.executor) return "";
+
+    const status = await this.getStatus();
+    const untracked = status.filter(
+      (s) => s.workingTreeStatus === "?" || s.stagedStatus === "?"
+    );
+
+    let diff = "";
+    for (const file of untracked) {
+      try {
+        const content = await vscode.workspace.fs.readFile(
+          vscode.Uri.file(path.join(this.rootDir, file.path))
+        );
+        const text = Buffer.from(content).toString("utf-8");
+        diff += `\n--- /dev/null\n+++ b/${file.path}\n@@ -0,0 +1,${
+          text.split("\n").length
+        } @@\n`;
+        diff +=
+          text
+            .split("\n")
+            .map((l) => "+" + l)
+            .join("\n") + "\n";
+      } catch (e) {
+        // Skip files that can't be read (e.g. binary or locked)
+      }
+    }
+    return diff;
+  }
+
   public async deleteBranch(branchName: string, force: boolean = false) {
     await this._ensureInitialized();
     if (!this.executor) return;
