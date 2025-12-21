@@ -2,7 +2,7 @@
   "name": "gitorbit",
   "displayName": "GitOrbit",
   "description": "Simplify your Git management with AI assistance. Features include smart commit messages, code smell detection, and conversational AI to help you manage your workflow effortlessly.",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "publisher": "selcuksarikoz",
   "icon": "assets/icons/logo.png",
   "repository": {
@@ -97,7 +97,7 @@
         {
           "id": "gitorbit-explorer",
           "title": "GitOrbit",
-          "icon": "assets/icons/toolbar-icon.svg"
+          "icon": "./assets/icons/toolbar-icon.svg"
         }
       ]
     },
@@ -403,6 +403,12 @@
         "title": "Check for Code Smells",
         "category": "GitOrbit",
         "icon": "$(search-stop)"
+      },
+      {
+        "command": "gitorbit.donate",
+        "title": "Donate (PayPal)",
+        "category": "GitOrbit",
+        "icon": "$(heart)"
       }
     ],
     "menus": {
@@ -410,12 +416,12 @@
         {
           "command": "gitorbit.changes.commit",
           "when": "view == gitorbit.views.changes",
-          "group": "1_commit"
+          "group": "gitorbit_1_actions@1"
         },
         {
           "command": "gitorbit.checkCodeSmells",
           "when": "view == gitorbit.views.changes",
-          "group": "2_ai"
+          "group": "gitorbit_2_extras@1"
         },
         {
           "command": "gitorbit.changes.smartCommit",
@@ -440,17 +446,17 @@
         {
           "command": "gitorbit.changes.stageAll",
           "when": "view == gitorbit.views.changes",
-          "group": "inline@1"
+          "group": "gitorbit_1_actions@3"
         },
         {
           "command": "gitorbit.changes.unstageAll",
           "when": "view == gitorbit.views.changes",
-          "group": "inline@2"
+          "group": "gitorbit_1_actions@4"
         },
         {
           "command": "gitorbit.changes.discardAll",
           "when": "view == gitorbit.views.changes",
-          "group": "inline@3"
+          "group": "gitorbit_1_actions@5"
         },
         {
           "command": "gitorbit.openSettings",
@@ -515,7 +521,12 @@
         {
           "command": "gitorbit.changes.undoCommit",
           "when": "view == gitorbit.views.changes",
-          "group": "more"
+          "group": "gitorbit_1_actions@2"
+        },
+        {
+          "command": "gitorbit.donate",
+          "when": "view == gitorbit.views.changes",
+          "group": "gitorbit_3_donate@1"
         },
         {
           "command": "gitorbit.refreshViews",

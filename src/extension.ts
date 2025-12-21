@@ -690,6 +690,16 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.donate", () => {
+      vscode.env.openExternal(
+        vscode.Uri.parse(
+          "https://www.paypal.com/donate?business=selcuksarikoz%40icloud.com&item_name=selcuk+sarikoz+-+gitorbit-vscode+extension&currency_code=USD"
+        )
+      );
+    })
+  );
+
   // Webview - Show on Update/Install
   WelcomeView.show(context);
 

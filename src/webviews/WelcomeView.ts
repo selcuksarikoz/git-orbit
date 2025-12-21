@@ -142,6 +142,11 @@ export class WelcomeView {
 </head>
 <body>
     <div class="container">
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+            <a href="https://www.paypal.com/donate?business=selcuksarikoz%40icloud.com&item_name=selcuk+sarikoz+-+gitorbit-vscode+extension&currency_code=USD" style="background: #003087; color: white; padding: 8px 16px; border-radius: 20px; text-decoration: none; font-weight: bold; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 8px;">
+                <span>Donate with PayPal</span>
+            </a>
+        </div>
         <h1>GitOrbit</h1>
         <p class="subtitle">Simplify your Git management with helpful AI assistance. Designed to make your daily workflow easier and more organized.</p>
         
