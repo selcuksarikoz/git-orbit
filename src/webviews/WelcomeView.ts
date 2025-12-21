@@ -138,20 +138,11 @@ export class WelcomeView {
             opacity: 0.9;
             transform: translateY(-1px);
         }
-        .badge {
-            background: #818cf8;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            vertical-align: middle;
-            margin-left: 8px;
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>GitOrbit <span class="badge">v1.1</span></h1>
+        <h1>GitOrbit</h1>
         <p class="subtitle">Simplify your Git management with helpful AI assistance. Designed to make your daily workflow easier and more organized.</p>
         
         <div class="card">

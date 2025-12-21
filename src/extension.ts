@@ -144,6 +144,18 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.openFile", (item) =>
+      changesProvider.openFile(item)
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitorbit.changes.discard", (item) =>
+      changesProvider.discard(item)
+    )
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("gitorbit.changes.unstage", (item) =>
       changesProvider.unstage(item)
     )

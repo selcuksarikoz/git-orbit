@@ -12,16 +12,14 @@ class ChangeItem extends vscode.TreeItem {
     public readonly isStaged: boolean,
     public readonly rootPath: string
   ) {
-    super(path.split("/").pop() || path);
+    // No more StatusDecorationProvider.getUri calls
+
+    const label = path.split("/").pop() || path;
+    super(status === "D" ? ChangeItem.toStrikethrough(label) : label);
 
     this.resourceUri = vscode.Uri.file(
       vscode.Uri.joinPath(vscode.Uri.file(rootPath), path).fsPath
     );
-    // ChangeItem constructor:
-    this.resourceUri = vscode.Uri.file(
-      vscode.Uri.joinPath(vscode.Uri.file(rootPath), path).fsPath
-    );
-    // No more StatusDecorationProvider.getUri calls
 
     this.tooltip = `${path} • ${
       status === "A" ? "A" : status === "M" ? "M" : status === "D" ? "D" : "U"
@@ -38,7 +36,18 @@ class ChangeItem extends vscode.TreeItem {
     };
 
     // Use Context Value for inline actions (Stage/Unstage)
-    this.contextValue = isStaged ? "stagedChange" : "change";
+    if (isStaged) {
+      this.contextValue = "stagedChange";
+    } else {
+      this.contextValue = status === "D" ? "change_deleted" : "change";
+    }
+  }
+
+  static toStrikethrough(text: string): string {
+    return text
+      .split("")
+      .map((char) => char + "\u0336")
+      .join("");
   }
 }
 
@@ -285,8 +294,15 @@ export class ChangesTreeProvider
     try {
       if (item.isStaged) {
         // HEAD vs INDEX
-        const headUri = GitContentProvider.getUri("HEAD", relativePath);
-        const indexUri = GitContentProvider.getUri("INDEX", relativePath);
+        let headUri = GitContentProvider.getUri("HEAD", relativePath);
+        let indexUri = GitContentProvider.getUri("INDEX", relativePath);
+
+        if (item.status === "A") {
+          headUri = GitContentProvider.getUri("EMPTY", relativePath);
+        } else if (item.status === "D") {
+          indexUri = GitContentProvider.getUri("EMPTY", relativePath);
+        }
+
         await vscode.commands.executeCommand(
           "vscode.diff",
           headUri,
@@ -295,11 +311,31 @@ export class ChangesTreeProvider
         );
       } else {
         // INDEX vs Working Tree
-        const indexUri = GitContentProvider.getUri("INDEX", relativePath);
+        if (item.status === "D") {
+          // Deleted: Just open original
+          const indexUri = GitContentProvider.getUri("INDEX", relativePath);
+          await vscode.commands.executeCommand("vscode.open", indexUri, {
+            preview: true,
+            label: `${relativePath} (Deleted)`,
+          });
+          return;
+        }
+
+        let indexUri = GitContentProvider.getUri("INDEX", relativePath);
+        let workingUri = uri;
+
+        if (item.status === "?" || item.status === "U") {
+          // Untracked: EMPTY vs Working Tree
+          indexUri = GitContentProvider.getUri("EMPTY", relativePath);
+        } else if (item.status === "A") {
+          // Treat as Untracked
+          indexUri = GitContentProvider.getUri("EMPTY", relativePath);
+        }
+
         await vscode.commands.executeCommand(
           "vscode.diff",
           indexUri,
-          uri,
+          workingUri,
           `${relativePath} (Changes)`
         );
       }
@@ -372,6 +408,51 @@ export class ChangesTreeProvider
       this.refresh();
     } catch (e: any) {
       vscode.window.showErrorMessage(`Failed to abort merge: ${e.message}`);
+    }
+  }
+
+  public async openFile(item: ChangeItem) {
+    if (item.status === "D") {
+      vscode.window.showWarningMessage("File is deleted.");
+      return;
+    }
+    const gitService = GitService.getInstance();
+    const uri = vscode.Uri.file(
+      vscode.Uri.joinPath(vscode.Uri.file(gitService.rootDir), item.path).fsPath
+    );
+    try {
+      await vscode.commands.executeCommand("vscode.open", uri);
+    } catch (e: any) {
+      vscode.window.showErrorMessage("Could not open file: " + e.message);
+    }
+  }
+
+  public async discard(item: ChangeItem) {
+    const gitService = GitService.getInstance();
+    const confirm = await vscode.window.showWarningMessage(
+      `Discard changes in ${item.label}?`,
+      { modal: true },
+      "Discard"
+    );
+
+    if (confirm !== "Discard") return;
+
+    try {
+      if (item.status === "?" || item.status === "U") {
+        const uri = vscode.Uri.file(
+          vscode.Uri.joinPath(vscode.Uri.file(gitService.rootDir), item.path)
+            .fsPath
+        );
+        await vscode.workspace.fs.delete(uri, {
+          recursive: true,
+          useTrash: false,
+        });
+      } else {
+        await gitService.discardChanges(item.path);
+      }
+      this.refresh();
+    } catch (e: any) {
+      vscode.window.showErrorMessage(`Failed to discard: ${e.message}`);
     }
   }
 

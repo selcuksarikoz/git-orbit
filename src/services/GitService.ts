@@ -763,6 +763,25 @@ export class GitService {
     this.clearCache();
   }
 
+  public async discardChanges(filePath: string) {
+    await this._ensureInitialized();
+    if (!this.executor) return;
+    try {
+      // Unstage first just in case?
+      // No, "Discard Changes" usually targets working tree.
+      // If user wants to discard staged, they unstage first.
+      await this.executor.exec(["restore", this.getRelativePath(filePath)]);
+    } catch (e) {
+      // Fallback for older git or other issues
+      await this.executor.exec([
+        "checkout",
+        "--",
+        this.getRelativePath(filePath),
+      ]);
+    }
+    this.clearCache();
+  }
+
   public async reset(mode: "soft" | "mixed" | "hard", target: string) {
     await this._ensureInitialized();
     if (!this.executor) return;

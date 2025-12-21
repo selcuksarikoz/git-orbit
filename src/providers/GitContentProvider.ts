@@ -9,6 +9,10 @@ export class GitContentProvider implements vscode.TextDocumentContentProvider {
     const gitService = GitService.getInstance();
     const relativePath = gitService.getRelativePath(uri.path);
 
+    if (authority === "EMPTY") {
+      return Promise.resolve("");
+    }
+
     if (authority.toUpperCase() === "INDEX") {
       // For index content, we use :0:path to specify the stage clearly
       return gitService.showFileContentRaw(`:0:${relativePath}`);

@@ -44,6 +44,7 @@ export class StatusDecorationProvider implements vscode.FileDecorationProvider {
     let color: vscode.ThemeColor | undefined;
     let badge: string | undefined;
     let tooltip: string | undefined;
+    let strikethrough: boolean | undefined;
 
     switch (status) {
       case "A":
@@ -64,6 +65,7 @@ export class StatusDecorationProvider implements vscode.FileDecorationProvider {
         );
         // badge = "D"; // Native Git already handles this
         tooltip = "Deleted";
+        strikethrough = true;
         break;
       case "?":
       case "U":
@@ -80,6 +82,8 @@ export class StatusDecorationProvider implements vscode.FileDecorationProvider {
       color,
       tooltip,
       propagate: false,
+      // @ts-ignore
+      strikethrough,
     };
   }
 }

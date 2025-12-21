@@ -2,7 +2,7 @@
   "name": "gitorbit",
   "displayName": "GitOrbit",
   "description": "Simplify your Git management with AI assistance. Features include smart commit messages, code smell detection, and conversational AI to help you manage your workflow effortlessly.",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "publisher": "selcuksarikoz",
   "icon": "assets/icons/logo.png",
   "repository": {
@@ -370,6 +370,18 @@
         "icon": "$(tag)"
       },
       {
+        "command": "gitorbit.changes.discard",
+        "title": "Discard Changes",
+        "category": "GitOrbit",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "gitorbit.changes.openFile",
+        "title": "Open File",
+        "category": "GitOrbit",
+        "icon": "$(go-to-file)"
+      },
+      {
         "command": "gitorbit.changes.stashFile",
         "title": "Stash File",
         "category": "GitOrbit"
@@ -534,12 +546,12 @@
         },
         {
           "command": "gitorbit.changes.openDiff",
-          "when": "view == gitorbit.views.changes && (viewItem == change || viewItem == stagedChange)",
+          "when": "view == gitorbit.views.changes && (viewItem == change || viewItem == change_deleted || viewItem == stagedChange)",
           "group": "inline@1"
         },
         {
           "command": "gitorbit.changes.stage",
-          "when": "view == gitorbit.views.changes && viewItem == change",
+          "when": "view == gitorbit.views.changes && (viewItem == change || viewItem == change_deleted)",
           "group": "inline@2"
         },
         {
@@ -643,8 +655,18 @@
           "group": "2_actions"
         },
         {
+          "command": "gitorbit.changes.openFile",
+          "when": "view == gitorbit.views.changes && viewItem == change",
+          "group": "inline@0"
+        },
+        {
+          "command": "gitorbit.changes.discard",
+          "when": "view == gitorbit.views.changes && (viewItem == change || viewItem == change_deleted)",
+          "group": "inline@3"
+        },
+        {
           "command": "gitorbit.changes.stashFile",
-          "when": "view == gitorbit.views.changes && (viewItem == change || viewItem == stagedChange)",
+          "when": "view == gitorbit.views.changes && (viewItem == change || viewItem == change_deleted || viewItem == stagedChange)",
           "group": "2_actions"
         }
       ]
