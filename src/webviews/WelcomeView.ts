@@ -148,10 +148,11 @@ export class WelcomeView {
             </a>
         </div>
         <h1>GitOrbit</h1>
-        <p class="subtitle">Simplify your Git management with helpful AI assistance. Designed to make your daily workflow easier and more organized.</p>
+        <p class="subtitle">Your Ultimate Git Manager & AI Companion. Manage your repository effortlessly and benefit from optional AI features using your own API keys.</p>
         
         <div class="card">
             <h2>✨ AI Assistance</h2>
+            <p style="margin-bottom: 20px; color: #94a3b8; font-size: 0.9em;">Use your own API keys (OpenRouter, Google Gemini, OpenAI, etc.) - completely free to use without extra subscriptions!</p>
             <div class="features-grid">
                 <div>
                     <h3>💬 Conversational AI</h3>
@@ -169,7 +170,7 @@ export class WelcomeView {
         </div>
 
         <div class="card">
-            <h2>🛠️ Easy Git Management</h2>
+            <h2>🛠️ Powerful Git Manager</h2>
             <div class="features-grid">
                 <div>
                     <h3>🌳 Simplified Workflow</h3>
@@ -190,7 +191,7 @@ export class WelcomeView {
             <div class="card">
                 <h2>⚡️ Core Features</h2>
                 <ul>
-                    <li><strong>Commit Graph:</strong> Interactive, filterable history visualization.</li>
+                    <li><strong>Commit Graph:</strong> List-based history (Visual Graph coming soon).</li>
                     <li><strong>Branch Manager:</strong> Organize and interact with local/remote branches.</li>
                     <li><strong>Stash Explorer:</strong> View and apply stashes with diff previews.</li>
                     <li><strong>Inline Blame:</strong> Unobtrusive ghost text for authorship.</li>

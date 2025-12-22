@@ -1,31 +1,31 @@
 # GitOrbit: Simple & Smart Git Management
 
-**GitOrbit** is a lightweight Git extension designed to simplify your daily workflow. It focuses on making Git management straightforward while providing helpful AI-powered tools for commit messages, code analysis, and interactive assistance.
+**GitOrbit** is your ultimate Git management tool, designed to streamline your development workflow. While it serves as a powerful Git client, it also enhances your productivity with optional AI-powered features for smarter commits, code analysis, and interactive assistance.
 
-## 🚀 Helpful AI Assistance
+## 🚀 Intelligent AI Features (BYO Keys)
 
-Instead of overwhelming you, GitOrbit provides targeted AI features to help you keep your repository clean and your workflow smooth:
+GitOrbit empowers you with AI tools without hidden costs. Simply plug in your own API keys from providers like **OpenRouter, Google Gemini, OpenAI, Anthropic, or xGrok**.
 
-- **💬 Conversational AI Chat:** Ask questions about your changes or specific commits. It's like having a teammate to help you understand complex diffs.
-- **✨ Smart Commit Messages:** Let AI suggest professional commit messages based on your changes, saving you time and keeping your history readable.
-- **🔍 Simple Code Smell Detection:** Quickly scan your changes for potential improvements or bugs before you commit.
-- **🌍 Flexible AI Providers:** Connect to your preferred model via **OpenRouter, Google Gemini, OpenAI, Anthropic, or xGrok**.
+- **💬 Conversational AI:** Chat with your codebase context. Ask about specific commits or changes to understand complex diffs instantly.
+- **✨ Smart Commit Messages:** Generate professional, descriptive commit messages from your changes in one click.
+- **🔍 Code Smell Detection:** Proactively identify potential issues and technical debt in your staged changes before committing.
+- **💸 No Extra Fees:** You only pay your AI provider directly (if applicable) – GitOrbit itself adds no surcharge.
 
-## 🛠️ Streamlined Git Management
+## 🛠️ Comprehensive Git Manager
 
-Everything you need to manage your repository without the complexity.
+GitOrbit is first and foremost a robust Git client within VS Code.
 
-- **📂 Modern Changes Panel:** Stage, unstage, and commit with surgical precision. One-click "Discard All" and "Undo Last Commit" keep you in control.
-- **🌳 Beautiful Commit Graph:** Navigate your project's soul. An interactive, crystal-clear visualization of your entire history.
-- **📜 File History:** Automatically tracks the active file to show its commit history. Works seamlessly even with preview files.
-- **🌱 Branch Management:** Visualize Local and Remote branches with folder grouping. Create, delete, push, pull, and sync branches effortlessly.
-- **📦 Stash Explorer:** View stashes and inspect their contents with **Multi-file Diff** support. Apply, pop, or drop stashes with a click.
-- **🚀 Gitflow Integration:** Start features and hotfixes quickly with configurable prefixes.
+- **📂 Modern Changes Panel:** Stage, unstage, and commit with precision. Includes "Discard All" and "Undo Last Commit" actions.
+- **📉 Commit History:** A list-based view of your repository's history (Interactive Visual Graph **coming soon**!).
+- **📜 File History:** Automatically tracks the active file to show its complete commit lifecycle.
+- **🌱 Branch Management:** Easily manage Local and Remote branches. Create, delete, push, pull, and sync with folder grouping support.
+- **📦 Stash Explorer:** Inspect stash contents with **Multi-file Diff** support and manage them effortlessly.
+- **🚀 Gitflow Shortcuts:** Quickly start features and hotfixes with standard naming conventions.
 
 ## Editor Enhancements
 
 - **Inline Blame:** Unobtrusive ghost text showing the author and relative time for the current line.
-- **Gutter Indicators:** Visual heatmap status indicators in the editor gutter.
+
 - **CodeLens:** Authorship summaries at the top of files and functions.
 
 ## Commands
