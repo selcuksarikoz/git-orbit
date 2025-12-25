@@ -23,6 +23,7 @@ import { ChangesTreeProvider } from './providers/ChangesTreeProvider';
 import { GitGraphPanel } from './panels/GitGraphPanel';
 import { FileBlameDecorator } from './decorators/FileBlameDecorator';
 import { CommitChatPanel } from './panels/CommitChatPanel';
+import { RebasePanel } from './panels/RebasePanel';
 
 import { GraphTreeProvider } from './providers/GraphTreeProvider';
 import { StatusDecorationProvider } from './providers/StatusDecorationProvider';
@@ -161,8 +162,13 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.chatWithCommit', async (node: any) => {
       if (node && node.hash) {
-        let author = node.author || node.commit?.author;
-        let message = node.message || node.commit?.message;
+        // Handle both CommitItem and GraphItem properties
+        let author = node.author || node.authorName || node.commit?.author;
+        let message = node.label || node.message || node.commit?.message;
+
+        if (typeof message !== 'string' && message?.label) {
+          message = message.label;
+        }
 
         if (!author || author === 'Unknown' || !message || message === 'No message') {
           const details = await GitService.getInstance().getCommitDetails(node.hash);
@@ -598,6 +604,90 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.showGitGraph', () => {
       GitGraphPanel.createOrShow(context.extensionUri);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.interactiveRebase', () => {
+      RebasePanel.createOrShow(context.extensionUri);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.graph.tag', async (node: any) => {
+      const hash = node ? node.hash : undefined;
+      if (!hash) return;
+
+      const tagName = await vscode.window.showInputBox({
+        prompt: `Enter tag name for commit ${hash.substring(0, 7)}`,
+        placeHolder: 'e.g. v1.0.0',
+      });
+
+      if (!tagName) return;
+
+      try {
+        await GitService.getInstance().createTag(tagName, hash);
+        vscode.window.showInformationMessage(`Tag '${tagName}' created successfully.`);
+        refreshAll();
+      } catch (e: any) {
+        vscode.window.showErrorMessage(`Failed to create tag: ${e.message}`);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.graph.revert', async (node: any) => {
+      const hash = node ? node.hash : undefined;
+      if (!hash) return;
+
+      const confirm = await vscode.window.showWarningMessage(
+        `Are you sure you want to revert commit ${hash.substring(0, 7)}?`,
+        'Yes',
+        'No'
+      );
+      if (confirm !== 'Yes') return;
+
+      try {
+        await GitService.getInstance().revert(hash);
+        vscode.window.showInformationMessage(`Commit ${hash.substring(0, 7)} reverted.`);
+        refreshAll();
+      } catch (e: any) {
+        vscode.window.showErrorMessage(`Failed to revert commit: ${e.message}`);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.graph.reset', async (node: any) => {
+      const hash = node ? node.hash : undefined;
+      if (!hash) return;
+
+      const mode = await vscode.window.showQuickPick(['soft', 'mixed', 'hard'], {
+        placeHolder: `Select reset mode for ${hash.substring(0, 7)}`,
+      });
+
+      if (!mode) return;
+
+      const confirm = await vscode.window.showWarningMessage(
+        `Are you sure you want to reset current branch to ${hash.substring(0, 7)} (${mode})?`,
+        { modal: true },
+        'Yes, Reset'
+      );
+      if (confirm !== 'Yes, Reset') return;
+
+      try {
+        await GitService.getInstance().reset(mode as any, hash);
+        vscode.window.showInformationMessage(`Reset to ${hash.substring(0, 7)} completed.`);
+        refreshAll();
+      } catch (e: any) {
+        vscode.window.showErrorMessage(`Reset failed: ${e.message}`);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.interactiveRebase', () => {
+      RebasePanel.createOrShow(context.extensionUri);
     })
   );
 
