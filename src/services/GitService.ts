@@ -763,4 +763,78 @@ export class GitService {
       return { author: 'Unknown', message: 'Unknown' };
     }
   }
+
+  @memoize
+  public async getTags() {
+    await this._ensureInitialized();
+    if (!this.executor) return [];
+    try {
+      // Get detailed tag info: name|hash|subject|date
+      const result = await this.executor.exec([
+        'tag',
+        '-l',
+        '--format=%(refname:short)|%(objectname)|%(contents:subject)|%(creatordate:relative)',
+      ]);
+      return result.stdout
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => {
+          const [name, hash, subject, date] = line.split('|');
+          return { name, hash, subject, date };
+        });
+    } catch {
+      return [];
+    }
+  }
+
+  @memoize
+  public async getContributors() {
+    await this._ensureInitialized();
+    if (!this.executor) return [];
+    try {
+      // Get contributors with email: count \t name <email>
+      const result = await this.executor.exec(['shortlog', 'HEAD', '-sne', '--no-merges']);
+      return result.stdout
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => {
+          const match = line.trim().match(/^(\d+)\s+(.+)\s+<(.+)>$/);
+          return {
+            count: match ? parseInt(match[1]) : 0,
+            name: match ? match[2] : line.trim(),
+            email: match ? match[3] : '',
+          };
+        });
+    } catch {
+      return [];
+    }
+  }
+
+  public async getBranchesForTag(tag: string): Promise<string[]> {
+    await this._ensureInitialized();
+    if (!this.executor) return [];
+    try {
+      const result = await this.executor.exec(['branch', '-a', '--contains', tag]);
+      return result.stdout
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((b) => b.replace('*', '').trim());
+    } catch {
+      return [];
+    }
+  }
+
+  public async getRemoteUrl(remote: string = 'origin'): Promise<string | undefined> {
+    await this._ensureInitialized();
+    if (!this.executor) return undefined;
+    try {
+      const result = await this.executor.exec(['remote', 'get-url', remote]);
+      return result.stdout.trim();
+    } catch {
+      return undefined;
+    }
+  }
 }

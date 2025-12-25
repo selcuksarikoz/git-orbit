@@ -8,6 +8,8 @@ import { BranchTreeProvider } from './providers/BranchTreeProvider';
 import { CommitTreeProvider } from './providers/CommitTreeProvider';
 import { FileHistoryProvider } from './providers/FileHistoryProvider';
 import { StashTreeProvider } from './providers/StashTreeProvider';
+import { TagTreeProvider } from './providers/TagTreeProvider';
+import { ContributorTreeProvider } from './providers/ContributorTreeProvider';
 import { InlineBlameDecorator } from './decorators/InlineBlameDecorator';
 import { GutterBlameDecorator } from './decorators/GutterBlameDecorator';
 import { CherryPickCommand } from './commands/CherryPickCommand';
@@ -70,6 +72,8 @@ export function activate(context: vscode.ExtensionContext) {
   const graphProvider = new GraphTreeProvider();
   const fileHistoryProvider = new FileHistoryProvider();
   const stashProvider = new StashTreeProvider();
+  const tagProvider = new TagTreeProvider();
+  const contributorProvider = new ContributorTreeProvider();
 
   vscode.window.registerTreeDataProvider('gitorbit.views.localBranches', localBranchProvider);
   vscode.window.registerTreeDataProvider('gitorbit.views.remoteBranches', remoteBranchProvider);
@@ -77,6 +81,8 @@ export function activate(context: vscode.ExtensionContext) {
   vscode.window.registerTreeDataProvider('gitorbit.views.graph', graphProvider);
   vscode.window.registerTreeDataProvider('gitorbit.views.fileHistory', fileHistoryProvider);
   vscode.window.registerTreeDataProvider('gitorbit.views.stashes', stashProvider);
+  vscode.window.registerTreeDataProvider('gitorbit.views.tags', tagProvider);
+  vscode.window.registerTreeDataProvider('gitorbit.views.contributors', contributorProvider);
 
   const changesProvider = new ChangesTreeProvider(context.extensionUri);
   const changesTreeView = vscode.window.createTreeView('gitorbit.views.changes', {
@@ -423,6 +429,8 @@ export function activate(context: vscode.ExtensionContext) {
     graphProvider.refresh();
     fileHistoryProvider.refresh();
     stashProvider.refresh();
+    tagProvider.refresh();
+    contributorProvider.refresh();
     changesProvider.refresh();
   };
 
@@ -590,6 +598,45 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.showGitGraph', () => {
       GitGraphPanel.createOrShow(context.extensionUri);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.contributors.openProfile', async (item: any) => {
+      if (item && (item.email || item.name)) {
+        const gitService = GitService.getInstance();
+        const remoteUrl = await gitService.getRemoteUrl();
+
+        let baseUrl = 'https://github.com/search?q=';
+        let searchSuffix = '&type=users';
+
+        if (remoteUrl) {
+          if (remoteUrl.includes('gitlab.com')) {
+            baseUrl = 'https://gitlab.com/search?search=';
+            searchSuffix = '&group_id=&project_id=&repository_ref=&scope=users';
+          } else if (remoteUrl.includes('bitbucket.org')) {
+            baseUrl = 'https://bitbucket.org/site/channels/desktop/index.html?search=';
+            searchSuffix = '';
+          }
+        }
+
+        const query = item.name || item.email;
+        vscode.env.openExternal(
+          vscode.Uri.parse(`${baseUrl}${encodeURIComponent(query)}${searchSuffix}`)
+        );
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.tags.refresh', () => {
+      tagProvider.refresh();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.contributors.refresh', () => {
+      contributorProvider.refresh();
     })
   );
 

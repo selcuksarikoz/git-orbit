@@ -40,6 +40,14 @@ export class ConfigService {
     return this.get<boolean>('blame.file.enabled') ?? true;
   }
 
+  public get isTagsViewEnabled(): boolean {
+    return this.get<boolean>('views.showTags') ?? true;
+  }
+
+  public get isContributorsViewEnabled(): boolean {
+    return this.get<boolean>('views.showContributors') ?? true;
+  }
+
   public get autoSyncInterval(): number {
     return this.get<number>('sync.autoSyncInterval') || 10;
   }

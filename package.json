@@ -90,6 +90,18 @@
           "name": "Stashes",
           "icon": "$(archive)",
           "when": "config.gitorbit.views.showStashes"
+        },
+        {
+          "id": "gitorbit.views.tags",
+          "name": "Tags",
+          "icon": "$(tag)",
+          "when": "config.gitorbit.views.showTags"
+        },
+        {
+          "id": "gitorbit.views.contributors",
+          "name": "Contributors",
+          "icon": "$(person)",
+          "when": "config.gitorbit.views.showContributors"
         }
       ]
     },
@@ -428,6 +440,24 @@
         "title": "Toggle File Blame (Inline)",
         "category": "GitOrbit",
         "icon": "$(list-unordered)"
+      },
+      {
+        "command": "gitorbit.contributors.openProfile",
+        "title": "Open Profile on GitHub",
+        "category": "GitOrbit",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "gitorbit.tags.refresh",
+        "title": "Refresh",
+        "category": "GitOrbit",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gitorbit.contributors.refresh",
+        "title": "Refresh",
+        "category": "GitOrbit",
+        "icon": "$(refresh)"
       }
     ],
     "menus": {
@@ -554,8 +584,8 @@
         },
         {
           "command": "gitorbit.refreshViews",
-          "when": "view == gitorbit.views.localBranches || view == gitorbit.views.remoteBranches || view == gitorbit.views.stashes",
-          "group": "title"
+          "when": "view == gitorbit.views.localBranches || view == gitorbit.views.remoteBranches || view == gitorbit.views.stashes || view == gitorbit.views.tags || view == gitorbit.views.contributors",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -703,6 +733,11 @@
           "command": "gitorbit.changes.stashFile",
           "when": "view == gitorbit.views.changes && (viewItem == change || viewItem == change_deleted || viewItem == stagedChange)",
           "group": "2_actions"
+        },
+        {
+          "command": "gitorbit.contributors.openProfile",
+          "when": "view == gitorbit.views.contributors && viewItem == contributor",
+          "group": "inline"
         }
       ],
       "editor/title": [
@@ -792,6 +827,16 @@
           "type": "boolean",
           "default": true,
           "description": "Show/Hide Stashes."
+        },
+        "gitorbit.views.showTags": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show/Hide Tags."
+        },
+        "gitorbit.views.showContributors": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show/Hide Contributors."
         },
         "gitorbit.gitflow.featurePrefix": {
           "type": "string",
