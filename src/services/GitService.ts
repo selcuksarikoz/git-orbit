@@ -837,4 +837,19 @@ export class GitService {
       return undefined;
     }
   }
+
+  public async getUserInfo(): Promise<{ name: string; email: string }> {
+    await this._ensureInitialized();
+    if (!this.executor) return { name: 'You', email: '' };
+    try {
+      const name = await this.executor.exec(['config', 'user.name']);
+      const email = await this.executor.exec(['config', 'user.email']);
+      return {
+        name: name.stdout.trim() || 'You',
+        email: email.stdout.trim() || '',
+      };
+    } catch {
+      return { name: 'You', email: '' };
+    }
+  }
 }
