@@ -2,6 +2,12 @@
   <img src="https://raw.githubusercontent.com/selcuksarikoz/git-orbit/main/assets/icons/logo.png" alt="GitOrbit Logo" width="150">
 </p>
 
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=selcuksarikoz.gitorbit">
+    <img src="https://img.shields.io/visual-studio-marketplace/v/selcuksarikoz.gitorbit?label=Install%20GitOrbit&style=for-the-badge&logo=visual-studio-code&color=007ACC" alt="Install on Marketplace">
+  </a>
+</p>
+
 <h1 align="center">GitOrbit</h1>
 
 ## What is GitOrbit?
@@ -27,31 +33,12 @@ Supercharge your workflow with optional AI features. Crucially, GitOrbit adds no
 AI aside, it’s first and foremost a comprehensive Git manager:
 
 - **👤 Inline Blame:** Instantly see who changed what and when (author, date, and commit message) right next to your code line.
+- **📄 File Blame (Sidebar):** Toggle a detailed vertical blame view showing full author details and timestamps for the entire file.
 - **📂 Modern Changes Panel:** Precision staging/unstaging. Includes essential "Discard All" and "Undo Last Commit" actions.
 - **🌱 Advanced Branch Management:** Easily manage Local and Remote branches. Sync, push, pull, and organize with folder grouping support.
 - **📦 Stash Explorer:** Inspect stash contents quickly with Multi-file Diff support.
-- **📜 Deep History Views:** Automatic active file history tracking and a list-based repo history (**Interactive Visual Graph coming soon!**).
+- **📜 Deep History Views:** Automatic active file history tracking and an interactive **Visual Git Graph** to explore repository branching and commit history.
 - **🚀 Gitflow Shortcuts:** Quickly start features and hotfixes with standard naming conventions.
-
-## Other Features
-
-- **CodeLens:** Authorship summaries at the top of files and functions.
-
-<details>
-<summary>Commands</summary>
-
-Access these commands via the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) or Context Menus:
-
-- `GitOrbit: Chat with AI` - Ask about a specific commit or your current changes.
-- `GitOrbit: Generate Commit Message` - Generate a smart commit message for your staged changes.
-- `GitOrbit: Check for Code Smells` - Analyze your active workspace for issues.
-- `GitOrbit: Cherry Pick` - Cherry pick commits easily.
-- `GitOrbit: Checkout Commit` - Checkout any commit in a detached HEAD state.
-- `GitOrbit: Create Branch...` - Create new branches from current HEAD.
-- `GitOrbit: Refresh Views` - Manually refresh all GitOrbit views.
-- `GitOrbit: Create Remote Branch...` - Push a new branch to remote directly.
-
-</details>
 
 <details>
 <summary>Configuration</summary>
@@ -61,7 +48,9 @@ Customize your experience in VS Code Settings:
 - `gitorbit.ai.provider`: Choose your AI provider (OpenRouter, Google Gemini, OpenAI, Anthropic, xGrok).
 - `gitorbit.ai.model`: Select the specific model (e.g., `openai/gpt-4o-mini`).
 - `gitorbit.ai.apiKey`: Unified API key for the chosen provider.
-- `gitorbit.blame.inline.enabled`: Toggle inline blame ghost text on/off.
+- `gitorbit.blame.inline.enabled`: Toggle inline blame ghost text (author information at the end of the line).
+- `gitorbit.blame.gutter.enabled`: Toggle gutter blame heatmap (color indicators on the edge of the editor).
+- `gitorbit.blame.file.enabled`: Toggle vertical file blame view support.
 - `gitorbit.sync.autoSyncInterval`: Interval (in minutes) for auto-fetching changes.
 
 </details>

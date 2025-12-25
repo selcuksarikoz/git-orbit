@@ -143,7 +143,7 @@ export class WelcomeView {
         </div>
         <h1>GitOrbit</h1>
         <p class="subtitle">Your Ultimate Git Manager & AI Companion. Manage your repository effortlessly and benefit from optional AI features using your own API keys.</p>
-        
+
         <div class="card">
             <h2>✨ AI Assistance</h2>
             <p style="margin-bottom: 20px; color: #94a3b8; font-size: 0.9em;">Use your own API keys (OpenRouter, Google Gemini, OpenAI, etc.) - completely free to use without extra subscriptions!</p>
@@ -175,8 +175,8 @@ export class WelcomeView {
                     <p>Works with your favorite AI: OpenRouter, Gemini, OpenAI, Anthropic, or xGrok.</p>
                 </div>
                 <div>
-                    <h3>🎯 Focused Tools</h3>
-                    <p>From inline blame to detailed commit graphs, get the tools you need without the complexity.</p>
+                    <h3>👁️ Inline & File Blame</h3>
+                    <p>Instantly see who changed what with unobtrusive inline text or a detailed vertical blame view.</p>
                 </div>
             </div>
         </div>
@@ -185,14 +185,14 @@ export class WelcomeView {
             <div class="card">
                 <h2>⚡️ Core Features</h2>
                 <ul>
-                    <li><strong>Commit Graph:</strong> List-based history (Visual Graph coming soon).</li>
+                    <li><strong>Commit Graph:</strong> Interactive Visual Graph to explore repository history.</li>
                     <li><strong>Branch Manager:</strong> Organize and interact with local/remote branches.</li>
                     <li><strong>Stash Explorer:</strong> View and apply stashes with diff previews.</li>
-                    <li><strong>Inline Blame:</strong> Unobtrusive ghost text for authorship.</li>
+                    <li><strong>Inline & File Blame:</strong> Author information directly in your editor.</li>
                     <li><strong>CodeLens:</strong> Quick insights at the top of functions.</li>
                 </ul>
             </div>
-            
+
             <div class="card">
                 <h2>⚙️ Get Started</h2>
                 <p>Tailor GitOrbit to your needs. Toggle inline blame, set commit limits, or configure auto-sync intervals.</p>

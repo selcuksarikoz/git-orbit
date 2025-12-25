@@ -18,8 +18,8 @@ export class FileBlameDecorator {
     this.gitService = GitService.getInstance();
     this.configService = ConfigService.getInstance();
 
-    // Set initial visibility based on config
-    this.isVisible = this.configService.isFileBlameEnabled;
+    // Initial visibility is false by default, requires manual toggle
+    this.isVisible = false;
 
     this.highlightDecorationType = vscode.window.createTextEditorDecorationType({
       backgroundColor: 'rgba(100, 100, 255, 0.15)',
