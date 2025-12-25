@@ -43,6 +43,26 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerFileDecorationProvider(new StatusDecorationProvider())
   );
 
+  // Core Commands
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.openSettings', () => {
+      vscode.commands.executeCommand(
+        'workbench.action.openSettings',
+        '@ext:selcuksarikoz.gitorbit'
+      );
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.donate', () => {
+      vscode.env.openExternal(
+        vscode.Uri.parse(
+          'https://www.paypal.com/donate?business=selcuksarikoz%40icloud.com&item_name=selcuk+sarikoz+-+gitorbit-vscode+extension&currency_code=USD'
+        )
+      );
+    })
+  );
+
   // Initialize Services
   const gitService = GitService.getInstance();
   IconService.getInstance(context.extensionUri);
@@ -758,25 +778,6 @@ export function activate(context: vscode.ExtensionContext) {
       setupAutoSync();
     }
   });
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('gitorbit.openSettings', () => {
-      vscode.commands.executeCommand(
-        'workbench.action.openSettings',
-        '@ext:selcuksarikoz.gitorbit'
-      );
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('gitorbit.donate', () => {
-      vscode.env.openExternal(
-        vscode.Uri.parse(
-          'https://www.paypal.com/donate?business=selcuksarikoz%40icloud.com&item_name=selcuk+sarikoz+-+gitorbit-vscode+extension&currency_code=USD'
-        )
-      );
-    })
-  );
 
   // Webview - Show on Update/Install
   WelcomeView.show(context);

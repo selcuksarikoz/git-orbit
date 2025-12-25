@@ -20,8 +20,32 @@ export class ConfigService {
     return this.get<string>('gitflow.featurePrefix') || 'feature/';
   }
 
+  public get featureBase(): string {
+    return this.get<string>('gitflow.featureBase') || '';
+  }
+
   public get hotfixPrefix(): string {
     return this.get<string>('gitflow.hotfixPrefix') || 'hotfix/';
+  }
+
+  public get hotfixBase(): string {
+    return this.get<string>('gitflow.hotfixBase') || '';
+  }
+
+  public get bugfixPrefix(): string {
+    return this.get<string>('gitflow.bugfixPrefix') || 'bugfix/';
+  }
+
+  public get bugfixBase(): string {
+    return this.get<string>('gitflow.bugfixBase') || '';
+  }
+
+  public get releasePrefix(): string {
+    return this.get<string>('gitflow.releasePrefix') || 'release/';
+  }
+
+  public get releaseBase(): string {
+    return this.get<string>('gitflow.releaseBase') || '';
   }
 
   public get commitLimit(): number {

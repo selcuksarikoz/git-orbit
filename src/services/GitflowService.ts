@@ -102,6 +102,14 @@ export class GitflowService {
         description: `Create a branch with prefix '${this.configService.hotfixPrefix}'`,
       },
       {
+        label: '$(plus) Start Bugfix',
+        description: `Create a branch with prefix '${this.configService.bugfixPrefix}'`,
+      },
+      {
+        label: '$(plus) Start Release',
+        description: `Create a branch with prefix '${this.configService.releasePrefix}'`,
+      },
+      {
         label: '$(cloud-upload) Create Remote Branch',
         description: 'Create a branch and push it to origin',
       },
@@ -113,9 +121,13 @@ export class GitflowService {
 
     if (selected) {
       if (selected.label.includes('Feature')) {
-        await this.startFeature();
+        await this.startGitflowBranch('feature');
       } else if (selected.label.includes('Hotfix')) {
-        await this.startHotfix();
+        await this.startGitflowBranch('hotfix');
+      } else if (selected.label.includes('Bugfix')) {
+        await this.startGitflowBranch('bugfix');
+      } else if (selected.label.includes('Release')) {
+        await this.startGitflowBranch('release');
       } else if (selected.label.includes('Remote')) {
         await this.startRemoteBranch();
       } else if (selected.label.includes('Create Branch')) {
@@ -125,49 +137,75 @@ export class GitflowService {
   }
 
   /**
-   * Starts a new feature branch using the configured feature prefix.
+   * Starts a new Gitflow branch (feature, hotfix, bugfix, or release).
+   * Automatically uses the base branch from settings if configured.
    */
-  public async startFeature() {
+  public async startGitflowBranch(type: 'feature' | 'hotfix' | 'bugfix' | 'release') {
+    let prefix = '';
+    let baseBranch = '';
+    let placeholder = '';
+
+    switch (type) {
+      case 'feature':
+        prefix = this.configService.featurePrefix;
+        baseBranch = this.configService.featureBase;
+        placeholder = 'cool-new-feature';
+        break;
+      case 'hotfix':
+        prefix = this.configService.hotfixPrefix;
+        baseBranch = this.configService.hotfixBase;
+        placeholder = 'urgent-fix';
+        break;
+      case 'bugfix':
+        prefix = this.configService.bugfixPrefix;
+        baseBranch = this.configService.bugfixBase;
+        placeholder = 'minor-fix';
+        break;
+      case 'release':
+        prefix = this.configService.releasePrefix;
+        baseBranch = this.configService.releaseBase;
+        placeholder = 'v1.0.0';
+        break;
+    }
+
+    let source = baseBranch;
+
+    // If base branch isn't set or doesn't exist, ask the user
     const branches = await this.gitService.getBranches();
-    const source = await vscode.window.showQuickPick(branches.all, {
-      placeHolder: 'Select source branch to branch from',
-    });
+    if (!source || !branches.all.includes(source)) {
+      source =
+        (await vscode.window.showQuickPick(branches.all, {
+          placeHolder: `Select source branch to branch from for ${type} (Config: '${baseBranch}' not found)`,
+        })) || '';
+    }
 
     if (!source) return;
 
     const name = await vscode.window.showInputBox({
-      prompt: 'Enter feature name',
-      placeHolder: 'cool-new-feature',
+      prompt: `Enter ${type} name (branching from '${source}', prefix '${prefix}' will be added)`,
+      placeHolder: placeholder,
     });
 
     if (name) {
-      const prefix = this.configService.featurePrefix;
       const branchName = `${prefix}${name}`;
       await this.createAndCheckout(branchName, source);
     }
   }
 
   /**
+   * Starts a new feature branch using the configured feature prefix.
+   * @deprecated Use startGitflowBranch('feature')
+   */
+  public async startFeature() {
+    await this.startGitflowBranch('feature');
+  }
+
+  /**
    * Starts a new hotfix branch using the configured hotfix prefix.
+   * @deprecated Use startGitflowBranch('hotfix')
    */
   public async startHotfix() {
-    const branches = await this.gitService.getBranches();
-    const source = await vscode.window.showQuickPick(branches.all, {
-      placeHolder: 'Select source branch to branch from',
-    });
-
-    if (!source) return;
-
-    const name = await vscode.window.showInputBox({
-      prompt: 'Enter hotfix name',
-      placeHolder: 'urgent-fix',
-    });
-
-    if (name) {
-      const prefix = this.configService.hotfixPrefix;
-      const branchName = `${prefix}${name}`;
-      await this.createAndCheckout(branchName, source);
-    }
+    await this.startGitflowBranch('hotfix');
   }
 
   /**

@@ -874,10 +874,40 @@
           "default": "feature/",
           "description": "Prefix for feature branches."
         },
+        "gitorbit.gitflow.featureBase": {
+          "type": "string",
+          "default": "develop",
+          "description": "Base branch for features (if empty, user will be prompted)."
+        },
         "gitorbit.gitflow.hotfixPrefix": {
           "type": "string",
           "default": "hotfix/",
           "description": "Prefix for hotfix branches."
+        },
+        "gitorbit.gitflow.hotfixBase": {
+          "type": "string",
+          "default": "main",
+          "description": "Base branch for hotfixes (if empty, user will be prompted)."
+        },
+        "gitorbit.gitflow.bugfixPrefix": {
+          "type": "string",
+          "default": "bugfix/",
+          "description": "Prefix for bugfix branches."
+        },
+        "gitorbit.gitflow.bugfixBase": {
+          "type": "string",
+          "default": "develop",
+          "description": "Base branch for bugfixes (if empty, user will be prompted)."
+        },
+        "gitorbit.gitflow.releasePrefix": {
+          "type": "string",
+          "default": "release/",
+          "description": "Prefix for release branches."
+        },
+        "gitorbit.gitflow.releaseBase": {
+          "type": "string",
+          "default": "main",
+          "description": "Base branch for releases (if empty, user will be prompted)."
         },
         "gitorbit.views.commitLimit": {
           "type": "number",
