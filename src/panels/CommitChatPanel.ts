@@ -30,28 +30,44 @@ export class CommitChatPanel {
 
     // Initial system prompt setup
     const isWorkspaceChanges = commitHash === 'current-changes';
-    const systemPrompt = `You are a helpful AI assistant analyzing ${
-      isWorkspaceChanges ? 'current workspace changes' : 'a specific git commit'
-    }.
+    const isSelection = commitHash === 'selected-code';
+
+    const contextType = isSelection
+      ? 'selected code snippet'
+      : isWorkspaceChanges
+        ? 'current workspace changes'
+        : 'a specific git commit';
+
+    const systemPrompt = `You are a highly experienced Staff Software Engineer and Architect.
+Your goal is to provide world-class technical guidance, focusing on Industry Best Practices, Clean Code principles (SOLID, DRY), and high-performance patterns.
+
+Context being analyzed: ${contextType}
 ${
-  isWorkspaceChanges
-    ? 'Context: Current Workspace'
-    : `Commit Details:
+  !isWorkspaceChanges && !isSelection
+    ? `Commit Details:
 Hash: ${commitHash}
 Author: ${author}
 Message: ${message}`
+    : ''
 }
 
-Diff/Changes:
+Input Content (Diff or Selection):
 ${diff.substring(0, 25000)} ${diff.length > 25000 ? '...(truncated)' : ''}
 
-Your goal is to answer questions about these changes. 
-${
-  isWorkspaceChanges
-    ? 'Help the user understand potential issues, code smells, or improvements.'
-    : "Start by providing a concise summary of the changes if the user hasn't asked a specific question yet."
-}
-When replying, use markdown for formatting code blocks. Be concise.`;
+Operational Guidelines:
+1. **Persona**: Act as a mentor and Staff Engineer. Be professional, pragmatic, and brutally honest about code quality.
+2. **Best Practices**: Always recommend modern, standard-compliant solutions. If the user asks about "code smells", identify them precisely (e.g., Primitive Obsession, Deep Nesting, Shotgun Surgery) and provide a refactored "Gold Standard" version.
+3. **Performance**: Highlight any O(n^2) operations, memory leaks, or inefficient resource handling.
+4. **Readability & Maintenance**: Prioritize code that is easy to test and maintain.
+5. **Formatting**: Use clean Markdown with syntax highlighting for code blocks.
+
+Your mission: ${
+      isSelection
+        ? 'Critique the selected code and provide a superior, production-ready alternative if improvements are possible.'
+        : isWorkspaceChanges
+          ? 'Analyze the current workspace changes for architectural integrity and potential bugs.'
+          : 'Explain the intent of this commit and point out any regressive patterns or brilliant implementations.'
+    }`;
 
     // Listen for messages from the webview
     this._panel.webview.onDidReceiveMessage(
@@ -193,10 +209,10 @@ When replying, use markdown for formatting code blocks. Be concise.`;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' https://cdn.jsdelivr.net; script-src 'unsafe-inline' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net;">
-    
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
-    
+
     <title>Commit Chat</title>
     <style>
         :root {
@@ -206,13 +222,13 @@ When replying, use markdown for formatting code blocks. Be concise.`;
             --bs-border-color: var(--vscode-panel-border);
             --bs-tertiary-bg: var(--vscode-editor-inactiveSelectionBackground);
         }
-        
+
         body { background: var(--bs-body-bg); color: var(--bs-body-color); height: 100vh; font-size: 0.875rem; }
-        
+
         /* VS Code Specific Theme Fixes */
         .card { background-color: var(--bs-tertiary-bg); border-color: var(--bs-border-color); color: inherit; }
         .user-msg { background-color: var(--vscode-button-background) !important; color: var(--vscode-button-foreground) !important; border: none; }
-        
+
         .form-control { background-color: var(--vscode-input-background); color: var(--vscode-input-foreground); border-color: var(--vscode-input-border); }
         .form-control:focus { background-color: var(--vscode-input-background); color: var(--vscode-input-foreground); box-shadow: none; border-color: var(--vscode-focusBorder); }
         .form-control::placeholder { color: var(--vscode-input-placeholderForeground); opacity: 0.7; }
@@ -221,7 +237,7 @@ When replying, use markdown for formatting code blocks. Be concise.`;
         .chat-container { flex: 1; overflow-y: auto; }
         .copy-btn { position: absolute; bottom: 8px; right: 12px; display: none; font-size: 0.7rem; }
         .finished .copy-btn { display: block; }
-        
+
         /* Markdown rendering fixes for dark themes */
         pre { background: var(--vscode-textBlockQuote-background); padding: 10px; border-radius: 6px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
@@ -243,7 +259,7 @@ When replying, use markdown for formatting code blocks. Be concise.`;
         )} &bull; ${author}</div>
         <div class="fw-bold text-truncate" style="font-size: 0.9rem;">${message}</div>
     </div>
-    
+
     <div id="chatContainer" class="chat-container p-4 d-flex flex-column gap-2"></div>
 
     <div class="input-area p-4 border-top">
@@ -291,18 +307,18 @@ When replying, use markdown for formatting code blocks. Be concise.`;
 
         function addMessage(text, isUser) {
             const wrapper = document.createElement('div');
-            wrapper.className = isUser 
-                ? 'card user-msg p-2 px-3 rounded-4 shadow-sm align-self-end text-end' 
+            wrapper.className = isUser
+                ? 'card user-msg p-2 px-3 rounded-4 shadow-sm align-self-end text-end'
                 : 'card ai-msg p-2 px-3 rounded-4 shadow-sm align-self-start position-relative finished';
             wrapper.style.maxWidth = '85%';
-            
+
             if (isUser) {
                 wrapper.textContent = text;
             } else {
                 wrapper.innerHTML = '<div class="md-content">' + md.render(text) + '</div>';
                 wrapper.appendChild(createCopyBtn(() => text));
             }
-            
+
             chatContainer.appendChild(wrapper);
             scrollToBottom();
             return wrapper;
@@ -318,7 +334,7 @@ When replying, use markdown for formatting code blocks. Be concise.`;
             messageInput.style.height = '38px';
             setLoading(true);
             vscode.postMessage({ type: 'sendMessage', text: text });
-            
+
             currentAiMessageDiv = document.createElement('div');
             currentAiMessageDiv.className = 'card ai-msg p-2 px-3 rounded-4 shadow-sm align-self-start position-relative';
             currentAiMessageDiv.style.maxWidth = '85%';
