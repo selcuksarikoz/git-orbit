@@ -1,5 +1,6 @@
 .env
 .vscode
+.agent
 .vscode-test
 node_modules
 src

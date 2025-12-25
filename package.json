@@ -171,6 +171,12 @@
         "category": "GitOrbit"
       },
       {
+        "command": "gitorbit.showGitGraph",
+        "title": "Show Git Graph",
+        "category": "GitOrbit",
+        "icon": "$(graph)"
+      },
+      {
         "command": "gitorbit.openSettings",
         "title": "Open Settings",
         "category": "GitOrbit",
@@ -410,6 +416,12 @@
         "title": "Donate (PayPal)",
         "category": "GitOrbit",
         "icon": "$(heart)"
+      },
+      {
+        "command": "gitorbit.showBlameAtCursor",
+        "title": "Show Blame Details",
+        "category": "GitOrbit",
+        "icon": "$(info)"
       }
     ],
     "menus": {
@@ -483,6 +495,11 @@
           "command": "gitorbit.gitflow.menu",
           "when": "view == gitorbit.views.localBranches || view == gitorbit.views.remoteBranches",
           "group": "navigation@3"
+        },
+        {
+          "command": "gitorbit.showGitGraph",
+          "when": "view == gitorbit.views.localBranches",
+          "group": "navigation@4"
         },
         {
           "command": "gitorbit.saveStash",
@@ -680,6 +697,13 @@
           "command": "gitorbit.changes.stashFile",
           "when": "view == gitorbit.views.changes && (viewItem == change || viewItem == change_deleted || viewItem == stagedChange)",
           "group": "2_actions"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "gitorbit.showBlameAtCursor",
+          "when": "editorTextFocus && config.gitorbit.blame.inline.enabled",
+          "group": "navigation"
         }
       ]
     },

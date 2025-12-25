@@ -13,10 +13,12 @@ import { GutterBlameDecorator } from './decorators/GutterBlameDecorator';
 import { CherryPickCommand } from './commands/CherryPickCommand';
 import { BranchCommands } from './commands/BranchCommands';
 import { StashCommands } from './commands/StashCommands';
+import { BlameCommands } from './commands/BlameCommands';
 import { AuthorshipCodeLensProvider } from './providers/AuthorshipCodeLensProvider';
 import { GitContentProvider } from './providers/GitContentProvider';
 import { DiffContentProvider } from './providers/DiffContentProvider';
 import { ChangesTreeProvider } from './providers/ChangesTreeProvider';
+import { GitGraphPanel } from './panels/GitGraphPanel';
 import { CommitChatPanel } from './panels/CommitChatPanel';
 
 import { GraphTreeProvider } from './providers/GraphTreeProvider';
@@ -273,8 +275,29 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Decorators
-  new InlineBlameDecorator();
-  new GutterBlameDecorator();
+  const inlineBlameDecorator = new InlineBlameDecorator();
+  const gutterBlameDecorator = new GutterBlameDecorator(context.extensionUri);
+  context.subscriptions.push(inlineBlameDecorator);
+  context.subscriptions.push(gutterBlameDecorator);
+
+  // Blame Commands
+  new BlameCommands(context);
+
+  // Show Blame at Cursor command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.showBlameAtCursor', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showWarningMessage('No active editor');
+        return;
+      }
+
+      const line = editor.selection.active.line;
+      const filePath = editor.document.uri.fsPath;
+
+      await vscode.commands.executeCommand('gitorbit.showBlameDetails', { filePath, line });
+    })
+  );
 
   // CodeLens
   context.subscriptions.push(
@@ -548,6 +571,12 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.showWelcome', () => {
       WelcomeView.show(context, true);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.showGitGraph', () => {
+      GitGraphPanel.createOrShow(context.extensionUri);
     })
   );
 
