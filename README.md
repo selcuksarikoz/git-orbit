@@ -4,23 +4,9 @@
 
 <h1 align="center">GitOrbit</h1>
 
-<p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=selcuksarikoz.gitorbit">
-    <img src="https://vs-marketplace-badge.apphb.com/version-short/selcuksarikoz.gitorbit.svg" alt="Version">
-  </a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=selcuksarikoz.gitorbit">
-    <img src="https://vs-marketplace-badge.apphb.com/installs-short/selcuksarikoz.gitorbit.svg" alt="Installs">
-  </a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=selcuksarikoz.gitorbit">
-    <img src="https://vs-marketplace-badge.apphb.com/rating-short/selcuksarikoz.gitorbit.svg" alt="Rating">
-  </a>
-</p>
+## What is GitOrbit?
 
-<p align="center">
-  <strong>A robust, native Git client for VS Code, supercharged with AI to improve your developer experience.</strong>
-</p>
-
----
+<strong>GitOrbit</strong> is your ultimate Git management tool, designed to streamline your development workflow. While it serves as a powerful Git client, it also enhances your productivity with optional AI-powered features for smarter commits, code analysis, and interactive assistance.
 
 I built GitOrbit because, frankly, VS Code's native Git features just weren't cutting it for me anymore.
 
@@ -51,7 +37,8 @@ AI aside, it’s first and foremost a comprehensive Git manager:
 
 - **CodeLens:** Authorship summaries at the top of files and functions.
 
-## Commands
+<details>
+<summary>Commands</summary>
 
 Access these commands via the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) or Context Menus:
 
@@ -64,7 +51,10 @@ Access these commands via the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) o
 - `GitOrbit: Refresh Views` - Manually refresh all GitOrbit views.
 - `GitOrbit: Create Remote Branch...` - Push a new branch to remote directly.
 
-## Configuration
+</details>
+
+<details>
+<summary>Configuration</summary>
 
 Customize your experience in VS Code Settings:
 
@@ -73,6 +63,8 @@ Customize your experience in VS Code Settings:
 - `gitorbit.ai.apiKey`: Unified API key for the chosen provider.
 - `gitorbit.blame.inline.enabled`: Toggle inline blame ghost text on/off.
 - `gitorbit.sync.autoSyncInterval`: Interval (in minutes) for auto-fetching changes.
+
+</details>
 
 ## Feedback & Support
 
