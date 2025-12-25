@@ -1,30 +1,53 @@
-# GitOrbit: Simple & Smart Git Management
+<p align="center">
+  <img src="https://raw.githubusercontent.com/selcuksarikoz/git-orbit/main/assets/icons/logo.png" alt="GitOrbit Logo" width="150">
+</p>
 
-**GitOrbit** is your ultimate Git management tool, designed to streamline your development workflow. While it serves as a powerful Git client, it also enhances your productivity with optional AI-powered features for smarter commits, code analysis, and interactive assistance.
+<h1 align="center">GitOrbit</h1>
 
-## 🚀 Intelligent AI Features (BYO Keys)
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=selcuksarikoz.gitorbit">
+    <img src="https://vs-marketplace-badge.apphb.com/version-short/selcuksarikoz.gitorbit.svg" alt="Version">
+  </a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=selcuksarikoz.gitorbit">
+    <img src="https://vs-marketplace-badge.apphb.com/installs-short/selcuksarikoz.gitorbit.svg" alt="Installs">
+  </a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=selcuksarikoz.gitorbit">
+    <img src="https://vs-marketplace-badge.apphb.com/rating-short/selcuksarikoz.gitorbit.svg" alt="Rating">
+  </a>
+</p>
 
-GitOrbit empowers you with AI tools without hidden costs. Simply plug in your own API keys from providers like **OpenRouter, Google Gemini, OpenAI, Anthropic, or xGrok**.
+<p align="center">
+  <strong>A robust, native Git client for VS Code, supercharged with AI to improve your developer experience.</strong>
+</p>
 
-- **💬 Conversational AI:** Chat with your codebase context. Ask about specific commits or changes to understand complex diffs instantly.
-- **✨ Smart Commit Messages:** Generate professional, descriptive commit messages from your changes in one click.
-- **🔍 Code Smell Detection:** Proactively identify potential issues and technical debt in your staged changes before committing.
-- **💸 No Extra Fees:** You only pay your AI provider directly (if applicable) – GitOrbit itself adds no surcharge.
+---
 
-## 🛠️ Comprehensive Git Manager
+I built GitOrbit because, frankly, VS Code's native Git features just weren't cutting it for me anymore.
 
-GitOrbit is first and foremost a robust Git client within VS Code.
+I found myself constantly switching between VS Code for coding and heavy external clients for managing complex branches, histories, and stashes. I needed a tool that handled Git the way a dedicated manager should—but right inside my editor.
 
-- **📂 Modern Changes Panel:** Stage, unstage, and commit with precision. Includes "Discard All" and "Undo Last Commit" actions.
-- **📉 Commit History:** A list-based view of your repository's history (Interactive Visual Graph **coming soon**!).
-- **📜 File History:** Automatically tracks the active file to show its complete commit lifecycle.
-- **🌱 Branch Management:** Easily manage Local and Remote branches. Create, delete, push, pull, and sync with folder grouping support.
-- **📦 Stash Explorer:** Inspect stash contents with **Multi-file Diff** support and manage them effortlessly.
+So, I built GitOrbit to fill that gap between basic terminal commands and bloated external apps. It’s lightweight, efficient, and built by a dev for devs.
+
+## The AI Advantage 🤖
+
+Supercharge your workflow with optional AI features. Crucially, GitOrbit adds no surcharge—you only connect and pay your AI provider directly (if applicable). BYO keys for providers like **OpenRouter, Google Gemini, OpenAI, Anthropic, or xGrok**.
+
+- **💬 Conversational AI:** Chat with your codebase context. Don't understand a complex diff? Just ask the AI to explain specific commits or changes instantly.
+- **✨ Smart Commit Messages:** Stop writing "fixes thing". Generate professional, descriptive commit messages from your staged changes in one click.
+- **🔍 Proactive Code Smell Detection:** Identify potential issues and technical debt in your staged changes before you commit.
+
+## A Solid Git Foundation 🛠️
+
+AI aside, it’s first and foremost a comprehensive Git manager:
+
+- **👤 Inline Blame:** Instantly see who changed what and when (author, date, and commit message) right next to your code line.
+- **📂 Modern Changes Panel:** Precision staging/unstaging. Includes essential "Discard All" and "Undo Last Commit" actions.
+- **🌱 Advanced Branch Management:** Easily manage Local and Remote branches. Sync, push, pull, and organize with folder grouping support.
+- **📦 Stash Explorer:** Inspect stash contents quickly with Multi-file Diff support.
+- **📜 Deep History Views:** Automatic active file history tracking and a list-based repo history (**Interactive Visual Graph coming soon!**).
 - **🚀 Gitflow Shortcuts:** Quickly start features and hotfixes with standard naming conventions.
 
-## Editor Enhancements
-
-- **Inline Blame:** Unobtrusive ghost text showing the author and relative time for the current line.
+## Other Features
 
 - **CodeLens:** Authorship summaries at the top of files and functions.
 
@@ -33,6 +56,7 @@ GitOrbit is first and foremost a robust Git client within VS Code.
 Access these commands via the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) or Context Menus:
 
 - `GitOrbit: Chat with AI` - Ask about a specific commit or your current changes.
+- `GitOrbit: Generate Commit Message` - Generate a smart commit message for your staged changes.
 - `GitOrbit: Check for Code Smells` - Analyze your active workspace for issues.
 - `GitOrbit: Cherry Pick` - Cherry pick commits easily.
 - `GitOrbit: Checkout Commit` - Checkout any commit in a detached HEAD state.
@@ -52,8 +76,8 @@ Customize your experience in VS Code Settings:
 
 ## Feedback & Support
 
-Found a bug or have a suggestion? Please open an issue on our [GitHub Repository](https://github.com/selcuksarikoz/git-orbit).
+I’d love to hear your feedback! Found a bug or have a suggestion? Please open an issue on our [GitHub Repository](https://github.com/selcuksarikoz/git-orbit).
 
 ---
 
-**Enjoying GitOrbit?** Leave a rating on the Marketplace!
+**Enjoying GitOrbit?** Leave a rating on the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=selcuksarikoz.gitorbit)!
