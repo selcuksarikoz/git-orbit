@@ -1,4 +1,4 @@
-import * as vscode from "vscode";
+import * as vscode from 'vscode';
 
 export class ConfigService {
   private static instance: ConfigService;
@@ -13,26 +13,26 @@ export class ConfigService {
   }
 
   public get<T>(key: string): T | undefined {
-    return vscode.workspace.getConfiguration("gitorbit").get<T>(key);
+    return vscode.workspace.getConfiguration('gitorbit').get<T>(key);
   }
 
   public get featurePrefix(): string {
-    return this.get<string>("gitflow.featurePrefix") || "feature/";
+    return this.get<string>('gitflow.featurePrefix') || 'feature/';
   }
 
   public get hotfixPrefix(): string {
-    return this.get<string>("gitflow.hotfixPrefix") || "hotfix/";
+    return this.get<string>('gitflow.hotfixPrefix') || 'hotfix/';
   }
 
   public get commitLimit(): number {
-    return this.get<number>("views.commitLimit") || 20;
+    return this.get<number>('views.commitLimit') || 20;
   }
 
   public get isInlineBlameEnabled(): boolean {
-    return this.get<boolean>("blame.inline.enabled") || true;
+    return this.get<boolean>('blame.inline.enabled') || true;
   }
 
   public get autoSyncInterval(): number {
-    return this.get<number>("sync.autoSyncInterval") || 10;
+    return this.get<number>('sync.autoSyncInterval') || 10;
   }
 }

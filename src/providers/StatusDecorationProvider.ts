@@ -1,25 +1,18 @@
-import * as vscode from "vscode";
+import * as vscode from 'vscode';
 
 export class StatusDecorationProvider implements vscode.FileDecorationProvider {
   private static statusMap: Map<string, string> = new Map();
 
-  private _onDidChangeFileDecorations: vscode.EventEmitter<
-    vscode.Uri | vscode.Uri[] | undefined
-  > = new vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined>();
-  readonly onDidChangeFileDecorations: vscode.Event<
-    vscode.Uri | vscode.Uri[] | undefined
-  > = this._onDidChangeFileDecorations.event;
+  private _onDidChangeFileDecorations: vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined> =
+    new vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined>();
+  readonly onDidChangeFileDecorations: vscode.Event<vscode.Uri | vscode.Uri[] | undefined> =
+    this._onDidChangeFileDecorations.event;
 
-  public static updateStatus(
-    statuses: { path: string; status: string; rootDir: string }[]
-  ) {
+  public static updateStatus(statuses: { path: string; status: string; rootDir: string }[]) {
     this.statusMap.clear();
     for (const s of statuses) {
       // Construct absolute path for the key
-      const absPath = vscode.Uri.joinPath(
-        vscode.Uri.file(s.rootDir),
-        s.path
-      ).fsPath;
+      const absPath = vscode.Uri.joinPath(vscode.Uri.file(s.rootDir), s.path).fsPath;
       this.statusMap.set(absPath, s.status);
     }
   }
@@ -27,8 +20,8 @@ export class StatusDecorationProvider implements vscode.FileDecorationProvider {
   // Trigger an update notification to VS Code
   public fireUpdate() {
     // Fire for all keys in map
-    const uris = Array.from(StatusDecorationProvider.statusMap.keys()).map(
-      (p) => vscode.Uri.file(p)
+    const uris = Array.from(StatusDecorationProvider.statusMap.keys()).map((p) =>
+      vscode.Uri.file(p)
     );
     this._onDidChangeFileDecorations.fire(uris);
   }
@@ -47,33 +40,27 @@ export class StatusDecorationProvider implements vscode.FileDecorationProvider {
     let strikethrough: boolean | undefined;
 
     switch (status) {
-      case "A":
-        color = new vscode.ThemeColor("gitDecoration.addedResourceForeground");
+      case 'A':
+        color = new vscode.ThemeColor('gitDecoration.addedResourceForeground');
         // badge = "A"; // Native Git already handles this
-        tooltip = "Added";
+        tooltip = 'Added';
         break;
-      case "M":
-        color = new vscode.ThemeColor(
-          "gitDecoration.modifiedResourceForeground"
-        );
+      case 'M':
+        color = new vscode.ThemeColor('gitDecoration.modifiedResourceForeground');
         // badge = "M"; // Native Git already handles this
-        tooltip = "Modified";
+        tooltip = 'Modified';
         break;
-      case "D":
-        color = new vscode.ThemeColor(
-          "gitDecoration.deletedResourceForeground"
-        );
+      case 'D':
+        color = new vscode.ThemeColor('gitDecoration.deletedResourceForeground');
         // badge = "D"; // Native Git already handles this
-        tooltip = "Deleted";
+        tooltip = 'Deleted';
         strikethrough = true;
         break;
-      case "?":
-      case "U":
-        color = new vscode.ThemeColor(
-          "gitDecoration.untrackedResourceForeground"
-        );
+      case '?':
+      case 'U':
+        color = new vscode.ThemeColor('gitDecoration.untrackedResourceForeground');
         // badge = "U"; // Native Git already handles this
-        tooltip = "Untracked";
+        tooltip = 'Untracked';
         break;
     }
 

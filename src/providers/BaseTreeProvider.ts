@@ -1,15 +1,12 @@
-import * as vscode from "vscode";
+import * as vscode from 'vscode';
 
-export abstract class BaseTreeProvider<T>
-  implements vscode.TreeDataProvider<T>
-{
-  protected _onDidChangeTreeData: vscode.EventEmitter<
-    T | undefined | null | void
-  > = new vscode.EventEmitter<T | undefined | null | void>();
+export abstract class BaseTreeProvider<T> implements vscode.TreeDataProvider<T> {
+  protected _onDidChangeTreeData: vscode.EventEmitter<T | undefined | null | void> =
+    new vscode.EventEmitter<T | undefined | null | void>();
   readonly onDidChangeTreeData: vscode.Event<T | undefined | null | void> =
     this._onDidChangeTreeData.event;
 
-  protected filterText: string = "";
+  protected filterText: string = '';
 
   refresh(): void {
     this._onDidChangeTreeData.fire();

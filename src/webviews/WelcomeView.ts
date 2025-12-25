@@ -1,7 +1,7 @@
-import * as vscode from "vscode";
+import * as vscode from 'vscode';
 
 export class WelcomeView {
-  private static readonly viewType = "gitorbit.welcome";
+  private static readonly viewType = 'gitorbit.welcome';
   private static currentPanel: vscode.WebviewPanel | undefined;
 
   public static show(context: vscode.ExtensionContext, force: boolean = false) {
@@ -9,9 +9,9 @@ export class WelcomeView {
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
 
-    const extension = vscode.extensions.getExtension("selcuksarikoz.gitorbit");
-    const version = extension ? extension.packageJSON.version : "1.0.0";
-    const lastVersionShown = context.globalState.get<string>("welcomeVersion");
+    const extension = vscode.extensions.getExtension('selcuksarikoz.gitorbit');
+    const version = extension ? extension.packageJSON.version : '1.0.0';
+    const lastVersionShown = context.globalState.get<string>('welcomeVersion');
 
     if (!force && lastVersionShown === version) {
       return;
@@ -24,7 +24,7 @@ export class WelcomeView {
 
     const panel = vscode.window.createWebviewPanel(
       WelcomeView.viewType,
-      "GitOrbit - Welcome",
+      'GitOrbit - Welcome',
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -33,16 +33,13 @@ export class WelcomeView {
     );
 
     WelcomeView.currentPanel = panel;
-    panel.webview.html = WelcomeView.getHtmlContent(
-      panel.webview,
-      context.extensionUri
-    );
+    panel.webview.html = WelcomeView.getHtmlContent(panel.webview, context.extensionUri);
 
     panel.webview.onDidReceiveMessage(
       (message) => {
         switch (message.command) {
-          case "openSettings":
-            vscode.commands.executeCommand("gitorbit.openSettings");
+          case 'openSettings':
+            vscode.commands.executeCommand('gitorbit.openSettings');
             return;
         }
       },
@@ -58,13 +55,10 @@ export class WelcomeView {
       context.subscriptions
     );
 
-    context.globalState.update("welcomeVersion", version);
+    context.globalState.update('welcomeVersion', version);
   }
 
-  private static getHtmlContent(
-    webview: vscode.Webview,
-    extensionUri: vscode.Uri
-  ): string {
+  private static getHtmlContent(webview: vscode.Webview, extensionUri: vscode.Uri): string {
     return `<!DOCTYPE html>
 <html lang="en">
 <head>

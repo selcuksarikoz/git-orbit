@@ -1,9 +1,9 @@
-import * as vscode from "vscode";
-import { BaseTreeProvider } from "./BaseTreeProvider";
-import { GitService } from "../services/GitService";
-import { ConfigService } from "../services/ConfigService";
+import * as vscode from 'vscode';
+import { BaseTreeProvider } from './BaseTreeProvider';
+import { GitService } from '../services/GitService';
+import { ConfigService } from '../services/ConfigService';
 
-import { TooltipGenerator } from "../utils/TooltipGenerator";
+import { TooltipGenerator } from '../utils/TooltipGenerator';
 
 export class CommitItem extends vscode.TreeItem {
   constructor(
@@ -14,10 +14,10 @@ export class CommitItem extends vscode.TreeItem {
       .TreeItemCollapsibleState.None,
     public readonly filePath?: string,
     public readonly isLatest: boolean = false,
-    public readonly authorEmail: string = ""
+    public readonly authorEmail: string = ''
   ) {
     super(label, collapsibleState);
-    const [name, date] = description.split(" • ");
+    const [name, date] = description.split(' • ');
     this.tooltip = TooltipGenerator.generateCommitTooltip(
       name,
       authorEmail,
@@ -26,37 +26,32 @@ export class CommitItem extends vscode.TreeItem {
       hash
     );
 
-    this.contextValue = "commit";
+    this.contextValue = 'commit';
 
     this.iconPath = this.getDotIcon(label, isLatest);
 
     this.command = {
-      command: "gitorbit.openCommitDiff",
-      title: "Open Commit Diff",
+      command: 'gitorbit.openCommitDiff',
+      title: 'Open Commit Diff',
       arguments: [this],
     };
   }
 
-  private getDotIcon(
-    message: string,
-    isLatest: boolean
-  ): vscode.ThemeIcon | undefined {
+  private getDotIcon(message: string, isLatest: boolean): vscode.ThemeIcon | undefined {
     const msg = message.toLowerCase();
-    let colorId = "charts.gray"; // Default to gray
-    if (msg.startsWith("feat")) colorId = "charts.blue";
-    else if (msg.startsWith("fix")) colorId = "charts.red";
-    else if (msg.startsWith("refactor")) colorId = "charts.gray";
+    let colorId = 'charts.gray'; // Default to gray
+    if (msg.startsWith('feat')) colorId = 'charts.blue';
+    else if (msg.startsWith('fix')) colorId = 'charts.red';
+    else if (msg.startsWith('refactor')) colorId = 'charts.gray';
 
     return new vscode.ThemeIcon(
-      isLatest ? "record" : "primitive-dot",
+      isLatest ? 'record' : 'primitive-dot',
       new vscode.ThemeColor(colorId)
     );
   }
 }
 
-export class CommitTreeProvider extends BaseTreeProvider<
-  CommitItem | vscode.TreeItem
-> {
+export class CommitTreeProvider extends BaseTreeProvider<CommitItem | vscode.TreeItem> {
   private gitService: GitService;
   private configService: ConfigService;
   private limit: number;
@@ -68,7 +63,7 @@ export class CommitTreeProvider extends BaseTreeProvider<
     this.limit = this.configService.commitLimit;
 
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration("gitorbit.views.commitLimit")) {
+      if (e.affectsConfiguration('gitorbit.views.commitLimit')) {
         this.limit = this.configService.commitLimit;
         this.refresh();
       }
@@ -113,14 +108,14 @@ export class CommitTreeProvider extends BaseTreeProvider<
 
     if (log.all.length >= this.limit && !this.filterText) {
       const loadMoreItem = new vscode.TreeItem(
-        "Load More...",
+        'Load More...',
         vscode.TreeItemCollapsibleState.None
       );
       loadMoreItem.command = {
-        command: "gitorbit.loadMoreCommits",
-        title: "Load More",
+        command: 'gitorbit.loadMoreCommits',
+        title: 'Load More',
       };
-      loadMoreItem.iconPath = new vscode.ThemeIcon("add");
+      loadMoreItem.iconPath = new vscode.ThemeIcon('add');
       items.push(loadMoreItem);
     }
 

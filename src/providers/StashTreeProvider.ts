@@ -1,32 +1,32 @@
-import * as vscode from "vscode";
-import { BaseTreeProvider } from "./BaseTreeProvider";
-import { GitService } from "../services/GitService";
+import * as vscode from 'vscode';
+import { BaseTreeProvider } from './BaseTreeProvider';
+import { GitService } from '../services/GitService';
 
 export class StashItem extends vscode.TreeItem {
   constructor(
     public readonly label: string,
-    public readonly type: "stash" | "file",
+    public readonly type: 'stash' | 'file',
     public readonly index?: number, // stash index
     public readonly filePath?: string
   ) {
     super(
       label,
-      type === "stash"
+      type === 'stash'
         ? vscode.TreeItemCollapsibleState.Collapsed
         : vscode.TreeItemCollapsibleState.None
     );
     this.contextValue = type;
-    this.hash = index !== undefined ? `stash@{${index}}` : "";
+    this.hash = index !== undefined ? `stash@{${index}}` : '';
 
-    if (type === "stash") {
-      this.iconPath = new vscode.ThemeIcon("archive");
+    if (type === 'stash') {
+      this.iconPath = new vscode.ThemeIcon('archive');
       this.description = `stash@{${index}}`;
     } else {
       this.iconPath = vscode.ThemeIcon.File;
-      this.resourceUri = vscode.Uri.file(filePath || "");
+      this.resourceUri = vscode.Uri.file(filePath || '');
       this.command = {
-        command: "gitorbit.openCommitDiff",
-        title: "Open Diff",
+        command: 'gitorbit.openCommitDiff',
+        title: 'Open Diff',
         arguments: [{ hash: this.hash, filePath: this.filePath }],
       };
     }
@@ -53,17 +53,13 @@ export class StashTreeProvider extends BaseTreeProvider<StashItem> {
     // Root: List Stashes
     if (!element) {
       const stashes = await this.gitService.getStashes();
-      return stashes.all.map(
-        (stash) => new StashItem(stash.message, "stash", stash.index)
-      );
+      return stashes.all.map((stash) => new StashItem(stash.message, 'stash', stash.index));
     }
 
     // Stash content: List changed files
-    if (element.type === "stash" && element.index !== undefined) {
+    if (element.type === 'stash' && element.index !== undefined) {
       const files = await this.gitService.getStashFiles(element.index);
-      return files.map(
-        (file) => new StashItem(file, "file", element.index, file)
-      );
+      return files.map((file) => new StashItem(file, 'file', element.index, file));
     }
 
     return [];

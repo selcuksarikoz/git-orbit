@@ -1,10 +1,10 @@
-import * as vscode from "vscode";
-import { generateText, streamText, CoreMessage } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createXai } from "@ai-sdk/xai";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import * as vscode from 'vscode';
+import { generateText, streamText, CoreMessage } from 'ai';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { createXai } from '@ai-sdk/xai';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 
 export class AIService {
   private static instance: AIService;
@@ -18,11 +18,7 @@ export class AIService {
     return AIService.instance;
   }
 
-  public async streamChat(
-    messages: CoreMessage[],
-    system: string,
-    abortSignal?: AbortSignal
-  ) {
+  public async streamChat(messages: CoreMessage[], system: string, abortSignal?: AbortSignal) {
     const model = this.getModel();
     return streamText({
       model,
@@ -33,22 +29,19 @@ export class AIService {
   }
 
   public validateConfig(): boolean {
-    const config = vscode.workspace.getConfiguration("gitorbit.ai");
-    const apiKey = config.get<string>("apiKey");
-    const provider = config.get<string>("provider") || "openrouter";
+    const config = vscode.workspace.getConfiguration('gitorbit.ai');
+    const apiKey = config.get<string>('apiKey');
+    const provider = config.get<string>('provider') || 'openrouter';
 
     if (!apiKey) {
       vscode.window
         .showErrorMessage(
           `API Key for ${provider} is missing. Please configure 'gitorbit.ai.apiKey' in settings.`,
-          "Open Settings"
+          'Open Settings'
         )
         .then((selection) => {
-          if (selection === "Open Settings") {
-            vscode.commands.executeCommand(
-              "workbench.action.openSettings",
-              "gitorbit.ai.apiKey"
-            );
+          if (selection === 'Open Settings') {
+            vscode.commands.executeCommand('workbench.action.openSettings', 'gitorbit.ai.apiKey');
           }
         });
       return false;
@@ -57,28 +50,28 @@ export class AIService {
   }
 
   private getModel() {
-    const config = vscode.workspace.getConfiguration("gitorbit.ai");
-    const provider = config.get<string>("provider") || "openrouter";
-    const modelName = config.get<string>("model") || "openai/gpt-4o-mini";
-    const apiKey = config.get<string>("apiKey");
+    const config = vscode.workspace.getConfiguration('gitorbit.ai');
+    const provider = config.get<string>('provider') || 'openrouter';
+    const modelName = config.get<string>('model') || 'openai/gpt-4o-mini';
+    const apiKey = config.get<string>('apiKey');
 
     if (!apiKey) {
-      throw new Error("API Key is missing.");
+      throw new Error('API Key is missing.');
     }
 
-    if (provider === "openai") {
+    if (provider === 'openai') {
       const openai = createOpenAI({ apiKey });
       return openai(modelName);
-    } else if (provider === "gemini") {
+    } else if (provider === 'gemini') {
       const google = createGoogleGenerativeAI({ apiKey });
       return google(modelName);
-    } else if (provider === "anthropic") {
+    } else if (provider === 'anthropic') {
       const anthropic = createAnthropic({ apiKey });
       return anthropic(modelName);
-    } else if (provider === "xgrok") {
+    } else if (provider === 'xgrok') {
       const xai = createXai({ apiKey });
       return xai(modelName);
-    } else if (provider === "openrouter") {
+    } else if (provider === 'openrouter') {
       const openrouter = createOpenRouter({ apiKey });
       return openrouter(modelName);
     }
@@ -88,15 +81,13 @@ export class AIService {
 
   public async generateCommitMessages(diff: string): Promise<string[]> {
     if (!diff || diff.trim().length === 0) {
-      throw new Error("No changes to generate commit message for.");
+      throw new Error('No changes to generate commit message for.');
     }
 
     // Truncate diff if it's too massive to avoid context limits or huge costs
     const maxDiffLength = 50000;
     const truncatedDiff =
-      diff.length > maxDiffLength
-        ? diff.substring(0, maxDiffLength) + "...(truncated)"
-        : diff;
+      diff.length > maxDiffLength ? diff.substring(0, maxDiffLength) + '...(truncated)' : diff;
 
     const model = this.getModel();
 
@@ -122,15 +113,13 @@ export class AIService {
       });
 
       return text
-        .split("\n")
+        .split('\n')
         .map((line) => line.trim())
-        .filter((line) => line.length > 0 && !line.startsWith("#"))
-        .map((line) =>
-          line.replace(/^[\d\-\*\.]+\s*/, "").replace(/^[`"']|[`"']$/g, "")
-        ) // Remove leading numbering/bullets/quotes
+        .filter((line) => line.length > 0 && !line.startsWith('#'))
+        .map((line) => line.replace(/^[\d\-\*\.]+\s*/, '').replace(/^[`"']|[`"']$/g, '')) // Remove leading numbering/bullets/quotes
         .filter((line) => line.length > 0);
     } catch (error: any) {
-      console.error("AI Generation failed:", error);
+      console.error('AI Generation failed:', error);
       throw new Error(`AI Generation failed: ${error.message}`);
     }
   }

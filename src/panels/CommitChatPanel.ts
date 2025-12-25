@@ -1,7 +1,7 @@
-import * as vscode from "vscode";
-import { GitService } from "../services/GitService";
-import { AIService } from "../services/AIService";
-import { CoreMessage } from "ai";
+import * as vscode from 'vscode';
+import { GitService } from '../services/GitService';
+import { AIService } from '../services/AIService';
+import { CoreMessage } from 'ai';
 
 export class CommitChatPanel {
   public static currentPanel: CommitChatPanel | undefined;
@@ -29,13 +29,13 @@ export class CommitChatPanel {
     this._update(author, message, initialPrompt);
 
     // Initial system prompt setup
-    const isWorkspaceChanges = commitHash === "current-changes";
+    const isWorkspaceChanges = commitHash === 'current-changes';
     const systemPrompt = `You are a helpful AI assistant analyzing ${
-      isWorkspaceChanges ? "current workspace changes" : "a specific git commit"
+      isWorkspaceChanges ? 'current workspace changes' : 'a specific git commit'
     }.
 ${
   isWorkspaceChanges
-    ? "Context: Current Workspace"
+    ? 'Context: Current Workspace'
     : `Commit Details:
 Hash: ${commitHash}
 Author: ${author}
@@ -43,12 +43,12 @@ Message: ${message}`
 }
 
 Diff/Changes:
-${diff.substring(0, 25000)} ${diff.length > 25000 ? "...(truncated)" : ""}
+${diff.substring(0, 25000)} ${diff.length > 25000 ? '...(truncated)' : ''}
 
 Your goal is to answer questions about these changes. 
 ${
   isWorkspaceChanges
-    ? "Help the user understand potential issues, code smells, or improvements."
+    ? 'Help the user understand potential issues, code smells, or improvements.'
     : "Start by providing a concise summary of the changes if the user hasn't asked a specific question yet."
 }
 When replying, use markdown for formatting code blocks. Be concise.`;
@@ -57,9 +57,9 @@ When replying, use markdown for formatting code blocks. Be concise.`;
     this._panel.webview.onDidReceiveMessage(
       async (message) => {
         switch (message.type) {
-          case "sendMessage":
+          case 'sendMessage':
             const userText = message.text;
-            this._messages.push({ role: "user", content: userText });
+            this._messages.push({ role: 'user', content: userText });
 
             // Cancel previous if any
             if (this._currentAbortController) {
@@ -74,22 +74,22 @@ When replying, use markdown for formatting code blocks. Be concise.`;
                 this._currentAbortController.signal
               );
 
-              let fullResponse = "";
+              let fullResponse = '';
               for await (const chunk of stream.textStream) {
                 // Send chunk to webview
                 fullResponse += chunk;
                 this._panel.webview.postMessage({
-                  type: "receiveToken",
+                  type: 'receiveToken',
                   token: chunk,
                 });
               }
 
-              this._panel.webview.postMessage({ type: "streamComplete" });
-              this._messages.push({ role: "assistant", content: fullResponse });
+              this._panel.webview.postMessage({ type: 'streamComplete' });
+              this._messages.push({ role: 'assistant', content: fullResponse });
             } catch (e: any) {
-              if (e.name !== "AbortError") {
+              if (e.name !== 'AbortError') {
                 this._panel.webview.postMessage({
-                  type: "error",
+                  type: 'error',
                   message: e.message,
                 });
               }
@@ -98,7 +98,7 @@ When replying, use markdown for formatting code blocks. Be concise.`;
             }
             return;
 
-          case "stopGeneration":
+          case 'stopGeneration':
             if (this._currentAbortController) {
               this._currentAbortController.abort();
               this._currentAbortController = null;
@@ -127,35 +127,32 @@ When replying, use markdown for formatting code blocks. Be concise.`;
       : undefined;
 
     // Fetch diff for context
-    let diff = customDiff || "";
+    let diff = customDiff || '';
     if (!diff) {
       try {
         diff = await GitService.getInstance().getCommitDiff(commitHash);
       } catch (e) {
-        diff = "Could not fetch diff.";
+        diff = 'Could not fetch diff.';
       }
     }
 
     // If we already have a panel, show it?
     // Actually, for a *new* commit chat, we probably want a new panel or replace the existing one.
     // Let's create a new one for specific commit context to avoid confusion, or reuse if same commit.
-    if (
-      CommitChatPanel.currentPanel &&
-      CommitChatPanel.currentPanel._commitHash === commitHash
-    ) {
+    if (CommitChatPanel.currentPanel && CommitChatPanel.currentPanel._commitHash === commitHash) {
       CommitChatPanel.currentPanel._panel.reveal(column);
       return;
     }
 
     // Otherwise create new
     const panel = vscode.window.createWebviewPanel(
-      "chatWithCommit",
+      'chatWithCommit',
       `Chat: ${commitHash.substring(0, 7)}`,
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
         retainContextWhenHidden: true,
-        localResourceRoots: [vscode.Uri.joinPath(extensionUri, "assets")],
+        localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'assets')],
       }
     );
 
@@ -183,21 +180,13 @@ When replying, use markdown for formatting code blocks. Be concise.`;
 
   private _update(author: string, message: string, initialPrompt?: string) {
     this._panel.title =
-      this._commitHash === "current-changes"
-        ? "Review Changes"
+      this._commitHash === 'current-changes'
+        ? 'Review Changes'
         : `Chat: ${this._commitHash.substring(0, 7)}`;
-    this._panel.webview.html = this._getHtmlForWebview(
-      author,
-      message,
-      initialPrompt
-    );
+    this._panel.webview.html = this._getHtmlForWebview(author, message, initialPrompt);
   }
 
-  private _getHtmlForWebview(
-    author: string,
-    message: string,
-    initialPrompt?: string
-  ) {
+  private _getHtmlForWebview(author: string, message: string, initialPrompt?: string) {
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -364,9 +353,7 @@ When replying, use markdown for formatting code blocks. Be concise.`;
             }
         };
 
-        const initialPrompt = ${JSON.stringify(
-          initialPrompt || "Please summarize this commit."
-        )};
+        const initialPrompt = ${JSON.stringify(initialPrompt || 'Please summarize this commit.')};
         setTimeout(() => sendMessage(initialPrompt), 300);
 
         window.addEventListener('message', event => {

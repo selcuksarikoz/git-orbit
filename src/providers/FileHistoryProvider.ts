@@ -1,12 +1,10 @@
-import * as vscode from "vscode";
-import { BaseTreeProvider } from "./BaseTreeProvider";
-import { GitService } from "../services/GitService";
-import { CommitItem } from "./CommitTreeProvider";
-import { ConfigService } from "../services/ConfigService";
+import * as vscode from 'vscode';
+import { BaseTreeProvider } from './BaseTreeProvider';
+import { GitService } from '../services/GitService';
+import { CommitItem } from './CommitTreeProvider';
+import { ConfigService } from '../services/ConfigService';
 
-export class FileHistoryProvider extends BaseTreeProvider<
-  CommitItem | vscode.TreeItem
-> {
+export class FileHistoryProvider extends BaseTreeProvider<CommitItem | vscode.TreeItem> {
   private gitService: GitService;
   private limit: number = 20;
   private currentFilePath: string | undefined;
@@ -20,7 +18,7 @@ export class FileHistoryProvider extends BaseTreeProvider<
     vscode.window.onDidChangeActiveTextEditor(() => this.updateCurrentFile());
 
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration("gitorbit.views.commitLimit")) {
+      if (e.affectsConfiguration('gitorbit.views.commitLimit')) {
         this.limit = ConfigService.getInstance().commitLimit;
         this.refresh();
       }
@@ -41,7 +39,7 @@ export class FileHistoryProvider extends BaseTreeProvider<
 
     // Condition 2: Active editor is NOT a 'file' scheme -> Clear
     // This allows preview (italic) files to pass, but blocks Diff/Settings/Output panels
-    if (editor.document.uri.scheme !== "file") {
+    if (editor.document.uri.scheme !== 'file') {
       if (this.currentFilePath !== undefined) {
         this.currentFilePath = undefined;
         this.refresh();
@@ -50,7 +48,7 @@ export class FileHistoryProvider extends BaseTreeProvider<
     }
 
     // Condition 3: Valid file -> Update
-    const newPath = editor.document.uri.fsPath.replace(/\\/g, "/");
+    const newPath = editor.document.uri.fsPath.replace(/\\/g, '/');
     if (newPath !== this.currentFilePath) {
       this.currentFilePath = newPath;
       this.refresh();
@@ -69,10 +67,7 @@ export class FileHistoryProvider extends BaseTreeProvider<
 
     if (!this.currentFilePath) return [];
 
-    const log = await this.gitService.getFileHistory(
-      this.currentFilePath,
-      this.limit
-    );
+    const log = await this.gitService.getFileHistory(this.currentFilePath, this.limit);
 
     let commits = log.all;
     if (this.filterText) {
@@ -100,14 +95,14 @@ export class FileHistoryProvider extends BaseTreeProvider<
 
     if (log.all.length >= this.limit && !this.filterText) {
       const loadMoreItem = new vscode.TreeItem(
-        "Load More...",
+        'Load More...',
         vscode.TreeItemCollapsibleState.None
       );
       loadMoreItem.command = {
-        command: "gitorbit.fileHistory.loadMore",
-        title: "Load More",
+        command: 'gitorbit.fileHistory.loadMore',
+        title: 'Load More',
       };
-      loadMoreItem.iconPath = new vscode.ThemeIcon("add");
+      loadMoreItem.iconPath = new vscode.ThemeIcon('add');
       items.push(loadMoreItem);
     }
 

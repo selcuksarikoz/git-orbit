@@ -43,7 +43,7 @@ export function clearMemoizedCache(instance: any) {
 
   const propertyNames = Object.getOwnPropertyNames(instance);
   for (const name of propertyNames) {
-    if (name.startsWith("__memoized_")) {
+    if (name.startsWith('__memoized_')) {
       const cache = instance[name];
       if (cache instanceof Map) {
         cache.clear();

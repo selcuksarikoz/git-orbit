@@ -1,5 +1,5 @@
-import * as vscode from "vscode";
-import * as crypto from "crypto";
+import * as vscode from 'vscode';
+import * as crypto from 'crypto';
 
 /**
  * Utility to generate standardized tooltips for commit items.
@@ -75,12 +75,12 @@ export class TooltipGenerator {
    * @param email - User's email address.
    */
   private static getAvatarUrl(email: string): string {
-    const cleanEmail = (email || "").trim().toLowerCase();
+    const cleanEmail = (email || '').trim().toLowerCase();
     if (this.avatarCache.has(cleanEmail)) {
       return this.avatarCache.get(cleanEmail)!;
     }
 
-    const emailHash = crypto.createHash("md5").update(cleanEmail).digest("hex");
+    const emailHash = crypto.createHash('md5').update(cleanEmail).digest('hex');
     const url = `https://www.gravatar.com/avatar/${emailHash}?d=identicon&s=64`;
 
     this.avatarCache.set(cleanEmail, url);

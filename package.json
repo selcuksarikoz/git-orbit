@@ -2,7 +2,7 @@
   "name": "gitorbit",
   "displayName": "GitOrbit",
   "description": "Simplify your Git management with AI assistance. Features include smart commit messages, code smell detection, and conversational AI to help you manage your workflow effortlessly.",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "publisher": "selcuksarikoz",
   "icon": "assets/icons/logo.png",
   "repository": {
@@ -43,7 +43,8 @@
     "watch": "node ./esbuild.js --watch",
     "bundle": "node ./esbuild.js --production",
     "package": "vsce package",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "prettier": "prettier --write . --cache"
   },
   "contributes": {
     "views": {
@@ -779,6 +780,7 @@
     "@vscode/vsce": "^3.7.1",
     "esbuild": "^0.27.2",
     "eslint": "^8.44.0",
+    "prettier": "^3.7.4",
     "typescript": "^5.1.3"
   },
   "dependencies": {

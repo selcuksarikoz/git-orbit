@@ -1,5 +1,5 @@
-import * as vscode from "vscode";
-import { GitService } from "../services/GitService";
+import * as vscode from 'vscode';
+import { GitService } from '../services/GitService';
 
 export class GutterBlameDecorator {
   private decorationType: vscode.TextEditorDecorationType;
@@ -8,7 +8,7 @@ export class GutterBlameDecorator {
   constructor() {
     this.gitService = GitService.getInstance();
     this.decorationType = vscode.window.createTextEditorDecorationType({
-      gutterIconSize: "contain",
+      gutterIconSize: 'contain',
       isWholeLine: true,
     });
 
@@ -24,10 +24,7 @@ export class GutterBlameDecorator {
     const filePath = editor.document.uri.fsPath;
     try {
       const blameOutput = await this.gitService.getBlame(filePath);
-      const decorations = this.generateHeatmapDecorations(
-        blameOutput,
-        editor.document.lineCount
-      );
+      const decorations = this.generateHeatmapDecorations(blameOutput, editor.document.lineCount);
       editor.setDecorations(this.decorationType, decorations);
     } catch {
       editor.setDecorations(this.decorationType, []);

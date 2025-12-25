@@ -1,7 +1,7 @@
-import * as vscode from "vscode";
-import { BaseTreeProvider } from "./BaseTreeProvider";
-import { GitService } from "../services/GitService";
-import { IconService } from "../services/IconService";
+import * as vscode from 'vscode';
+import { BaseTreeProvider } from './BaseTreeProvider';
+import { GitService } from '../services/GitService';
+import { IconService } from '../services/IconService';
 
 /**
  * Represents a branch or a folder in the tree view.
@@ -10,7 +10,7 @@ export class BranchItem extends vscode.TreeItem {
   constructor(
     public readonly label: string,
     public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-    public readonly type: "folder" | "branch",
+    public readonly type: 'folder' | 'branch',
     public readonly branchName?: string,
     public readonly isRemote: boolean = false,
     public readonly subItems?: any,
@@ -19,29 +19,29 @@ export class BranchItem extends vscode.TreeItem {
   ) {
     super(label, collapsibleState);
     this.contextValue =
-      type === "branch"
+      type === 'branch'
         ? isRemote
-          ? "remoteBranch"
+          ? 'remoteBranch'
           : isCurrent
-          ? "localBranchCurrent"
-          : "localBranchNotCurrent"
-        : "folder";
+            ? 'localBranchCurrent'
+            : 'localBranchNotCurrent'
+        : 'folder';
 
-    if (type === "branch") {
+    if (type === 'branch') {
       this.iconPath = new vscode.ThemeIcon(
-        "git-branch",
-        isCurrent ? new vscode.ThemeColor("charts.green") : undefined
+        'git-branch',
+        isCurrent ? new vscode.ThemeColor('charts.green') : undefined
       );
 
       const parts = [];
-      if (isCurrent) parts.push("(current)");
+      if (isCurrent) parts.push('(current)');
 
       if (status) {
         if (status.ahead > 0) parts.push(`↑${status.ahead}`);
         if (status.behind > 0) parts.push(`↓${status.behind}`);
       }
 
-      this.description = parts.join(" ");
+      this.description = parts.join(' ');
 
       if (status) {
         this.tooltip = `Ahead: ${status.ahead}, Behind: ${status.behind}`;
@@ -75,7 +75,7 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
     if (!this.gitService.isInitialized()) return [];
 
     if (element) {
-      if (element.type === "folder" && element.subItems) {
+      if (element.type === 'folder' && element.subItems) {
         const branches = await this.gitService.getBranches();
         return await this.mapToBranchItems(
           element.subItems,
@@ -90,10 +90,8 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
     try {
       const branches = await this.gitService.getBranches();
       const branchNames = this.isRemote
-        ? branches.all
-            .filter((b) => b.startsWith("remotes/"))
-            .map((b) => b.replace("remotes/", ""))
-        : branches.all.filter((b) => !b.startsWith("remotes/"));
+        ? branches.all.filter((b) => b.startsWith('remotes/')).map((b) => b.replace('remotes/', ''))
+        : branches.all.filter((b) => !b.startsWith('remotes/'));
 
       const tree = this.buildTree(branchNames);
       return await this.mapToBranchItems(
@@ -116,7 +114,7 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
   private buildTree(branchNames: string[]): any {
     const root: any = {};
     branchNames.forEach((name) => {
-      const parts = name.split("/");
+      const parts = name.split('/');
       let current = root;
       parts.forEach((part, i) => {
         if (i === parts.length - 1) {
@@ -159,7 +157,7 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
           return new BranchItem(
             key,
             vscode.TreeItemCollapsibleState.None,
-            "branch",
+            'branch',
             node._name,
             isRemote,
             undefined,
@@ -170,7 +168,7 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
           return new BranchItem(
             key,
             vscode.TreeItemCollapsibleState.Collapsed,
-            "folder",
+            'folder',
             undefined,
             isRemote,
             node

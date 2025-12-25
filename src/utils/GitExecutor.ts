@@ -1,5 +1,5 @@
-import * as cp from "child_process";
-import * as vscode from "vscode";
+import * as cp from 'child_process';
+import * as vscode from 'vscode';
 
 export interface GitResult {
   stdout: string;
@@ -16,31 +16,29 @@ export class GitExecutor {
 
   public async exec(args: string[]): Promise<GitResult> {
     return new Promise((resolve, reject) => {
-      const gitPath = "git"; // Usually in PATH
+      const gitPath = 'git'; // Usually in PATH
       const process = cp.spawn(gitPath, args, { cwd: this.baseDir });
 
-      let stdout = "";
-      let stderr = "";
+      let stdout = '';
+      let stderr = '';
 
-      process.stdout.on("data", (data) => {
+      process.stdout.on('data', (data) => {
         stdout += data.toString();
       });
 
-      process.stderr.on("data", (data) => {
+      process.stderr.on('data', (data) => {
         stderr += data.toString();
       });
 
-      process.on("close", (code) => {
+      process.on('close', (code) => {
         if (code === 0) {
           resolve({ stdout, stderr, exitCode: 0 });
         } else {
-          reject(
-            new Error(`Git command failed with exit code ${code}: ${stderr}`)
-          );
+          reject(new Error(`Git command failed with exit code ${code}: ${stderr}`));
         }
       });
 
-      process.on("error", (err) => {
+      process.on('error', (err) => {
         reject(err);
       });
     });

@@ -1,8 +1,8 @@
-import * as vscode from "vscode";
-import { GitService } from "../services/GitService";
+import * as vscode from 'vscode';
+import { GitService } from '../services/GitService';
 
 export class DiffContentProvider implements vscode.TextDocumentContentProvider {
-  static scheme = "gitorbit-diff";
+  static scheme = 'gitorbit-diff';
 
   async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
     const hash = decodeURIComponent(uri.authority);
@@ -18,9 +18,7 @@ export class DiffContentProvider implements vscode.TextDocumentContentProvider {
   }
 
   static getUri(hash: string, filePath?: string): vscode.Uri {
-    const query = filePath ? `?${JSON.stringify({ filePath })}` : "";
-    return vscode.Uri.parse(
-      `${DiffContentProvider.scheme}://${encodeURIComponent(hash)}${query}`
-    );
+    const query = filePath ? `?${JSON.stringify({ filePath })}` : '';
+    return vscode.Uri.parse(`${DiffContentProvider.scheme}://${encodeURIComponent(hash)}${query}`);
   }
 }

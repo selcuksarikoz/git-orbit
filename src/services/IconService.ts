@@ -1,5 +1,5 @@
-import * as vscode from "vscode";
-import * as path from "path";
+import * as vscode from 'vscode';
+import * as path from 'path';
 
 export class IconService {
   private static instance: IconService;
@@ -16,16 +16,9 @@ export class IconService {
     return IconService.instance;
   }
 
-  public getIcon(
-    name: string
-  ): { light: vscode.Uri; dark: vscode.Uri } | vscode.ThemeIcon {
+  public getIcon(name: string): { light: vscode.Uri; dark: vscode.Uri } | vscode.ThemeIcon {
     // Fallback or specialized icons can be handled here
-    const iconPath = path.join(
-      this.extensionUri.fsPath,
-      "assets",
-      "icons",
-      `${name}.svg`
-    );
+    const iconPath = path.join(this.extensionUri.fsPath, 'assets', 'icons', `${name}.svg`);
 
     // Return a URI-based icon path for both light and dark themes
     return {

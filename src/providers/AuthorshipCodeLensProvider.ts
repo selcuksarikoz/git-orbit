@@ -1,5 +1,5 @@
-import * as vscode from "vscode";
-import { GitService } from "../services/GitService";
+import * as vscode from 'vscode';
+import { GitService } from '../services/GitService';
 
 export class AuthorshipCodeLensProvider implements vscode.CodeLensProvider {
   private gitService: GitService;
@@ -18,17 +18,14 @@ export class AuthorshipCodeLensProvider implements vscode.CodeLensProvider {
     const range = new vscode.Range(0, 0, 0, 0);
 
     try {
-      const history = await this.gitService.getFileHistory(
-        document.uri.fsPath,
-        5
-      );
+      const history = await this.gitService.getFileHistory(document.uri.fsPath, 5);
       const authors = new Set(history.all.map((c) => c.author_name));
-      const lastAuthor = history.all[0]?.author_name || "Unknown";
+      const lastAuthor = history.all[0]?.author_name || 'Unknown';
 
       lenses.push(
         new vscode.CodeLens(range, {
           title: `${authors.size} authors • Last edit by ${lastAuthor}`,
-          command: "gitorbit.views.fileHistory.focus",
+          command: 'gitorbit.views.fileHistory.focus',
         })
       );
     } catch {

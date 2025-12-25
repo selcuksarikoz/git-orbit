@@ -1,6 +1,6 @@
-import * as vscode from "vscode";
-import { GitService } from "./GitService";
-import { ConfigService } from "./ConfigService";
+import * as vscode from 'vscode';
+import { GitService } from './GitService';
+import { ConfigService } from './ConfigService';
 
 /**
  * Service class handling Gitflow operations and branch creation workflows.
@@ -22,14 +22,14 @@ export class GitflowService {
   public async startRemoteBranch() {
     const branches = await this.gitService.getBranches();
     const source = await vscode.window.showQuickPick(branches.all, {
-      placeHolder: "Select source branch to branch from",
+      placeHolder: 'Select source branch to branch from',
     });
 
     if (!source) return;
 
     const name = await vscode.window.showInputBox({
-      prompt: "Enter branch name to create and push",
-      placeHolder: "my-remote-feature",
+      prompt: 'Enter branch name to create and push',
+      placeHolder: 'my-remote-feature',
     });
 
     if (name) {
@@ -45,15 +45,11 @@ export class GitflowService {
   private async createAndPush(branchName: string, source?: string) {
     try {
       await this.gitService.createBranch(branchName, source);
-      await this.gitService.push("origin", branchName);
-      vscode.window.showInformationMessage(
-        `Started and pushed branch: ${branchName}`
-      );
-      vscode.commands.executeCommand("gitorbit.refreshViews");
+      await this.gitService.push('origin', branchName);
+      vscode.window.showInformationMessage(`Started and pushed branch: ${branchName}`);
+      vscode.commands.executeCommand('gitorbit.refreshViews');
     } catch (error: any) {
-      vscode.window.showErrorMessage(
-        `Failed to create/push branch: ${error.message}`
-      );
+      vscode.window.showErrorMessage(`Failed to create/push branch: ${error.message}`);
     }
   }
 
@@ -63,14 +59,14 @@ export class GitflowService {
   public async startBranch() {
     const branches = await this.gitService.getBranches();
     const source = await vscode.window.showQuickPick(branches.all, {
-      placeHolder: "Select source branch to branch from",
+      placeHolder: 'Select source branch to branch from',
     });
 
     if (!source) return;
 
     const name = await vscode.window.showInputBox({
-      prompt: "Enter branch name",
-      placeHolder: "my-new-branch",
+      prompt: 'Enter branch name',
+      placeHolder: 'my-new-branch',
     });
 
     if (name) {
@@ -94,35 +90,35 @@ export class GitflowService {
   public async showMenu() {
     const items: vscode.QuickPickItem[] = [
       {
-        label: "$(plus) Create Branch",
-        description: "Create a simple branch without prefix",
+        label: '$(plus) Create Branch',
+        description: 'Create a simple branch without prefix',
       },
       {
-        label: "$(plus) Start Feature",
+        label: '$(plus) Start Feature',
         description: `Create a branch with prefix '${this.configService.featurePrefix}'`,
       },
       {
-        label: "$(plus) Start Hotfix",
+        label: '$(plus) Start Hotfix',
         description: `Create a branch with prefix '${this.configService.hotfixPrefix}'`,
       },
       {
-        label: "$(cloud-upload) Create Remote Branch",
-        description: "Create a branch and push it to origin",
+        label: '$(cloud-upload) Create Remote Branch',
+        description: 'Create a branch and push it to origin',
       },
     ];
 
     const selected = await vscode.window.showQuickPick(items, {
-      placeHolder: "Select Git Action",
+      placeHolder: 'Select Git Action',
     });
 
     if (selected) {
-      if (selected.label.includes("Feature")) {
+      if (selected.label.includes('Feature')) {
         await this.startFeature();
-      } else if (selected.label.includes("Hotfix")) {
+      } else if (selected.label.includes('Hotfix')) {
         await this.startHotfix();
-      } else if (selected.label.includes("Remote")) {
+      } else if (selected.label.includes('Remote')) {
         await this.startRemoteBranch();
-      } else if (selected.label.includes("Create Branch")) {
+      } else if (selected.label.includes('Create Branch')) {
         await this.startBranch();
       }
     }
@@ -134,14 +130,14 @@ export class GitflowService {
   public async startFeature() {
     const branches = await this.gitService.getBranches();
     const source = await vscode.window.showQuickPick(branches.all, {
-      placeHolder: "Select source branch to branch from",
+      placeHolder: 'Select source branch to branch from',
     });
 
     if (!source) return;
 
     const name = await vscode.window.showInputBox({
-      prompt: "Enter feature name",
-      placeHolder: "cool-new-feature",
+      prompt: 'Enter feature name',
+      placeHolder: 'cool-new-feature',
     });
 
     if (name) {
@@ -157,14 +153,14 @@ export class GitflowService {
   public async startHotfix() {
     const branches = await this.gitService.getBranches();
     const source = await vscode.window.showQuickPick(branches.all, {
-      placeHolder: "Select source branch to branch from",
+      placeHolder: 'Select source branch to branch from',
     });
 
     if (!source) return;
 
     const name = await vscode.window.showInputBox({
-      prompt: "Enter hotfix name",
-      placeHolder: "urgent-fix",
+      prompt: 'Enter hotfix name',
+      placeHolder: 'urgent-fix',
     });
 
     if (name) {
@@ -183,11 +179,9 @@ export class GitflowService {
     try {
       await this.gitService.createBranch(branchName, source);
       vscode.window.showInformationMessage(`Started branch: ${branchName}`);
-      vscode.commands.executeCommand("gitorbit.refreshViews");
+      vscode.commands.executeCommand('gitorbit.refreshViews');
     } catch (error: any) {
-      vscode.window.showErrorMessage(
-        `Failed to create branch: ${error.message}`
-      );
+      vscode.window.showErrorMessage(`Failed to create branch: ${error.message}`);
     }
   }
 }
