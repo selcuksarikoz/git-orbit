@@ -19,6 +19,7 @@ import { GitContentProvider } from './providers/GitContentProvider';
 import { DiffContentProvider } from './providers/DiffContentProvider';
 import { ChangesTreeProvider } from './providers/ChangesTreeProvider';
 import { GitGraphPanel } from './panels/GitGraphPanel';
+import { FileBlameDecorator } from './decorators/FileBlameDecorator';
 import { CommitChatPanel } from './panels/CommitChatPanel';
 
 import { GraphTreeProvider } from './providers/GraphTreeProvider';
@@ -277,11 +278,23 @@ export function activate(context: vscode.ExtensionContext) {
   // Decorators
   const inlineBlameDecorator = new InlineBlameDecorator();
   const gutterBlameDecorator = new GutterBlameDecorator(context.extensionUri);
+  const fileBlameDecorator = FileBlameDecorator.getInstance();
+
   context.subscriptions.push(inlineBlameDecorator);
   context.subscriptions.push(gutterBlameDecorator);
+  context.subscriptions.push({ dispose: () => fileBlameDecorator.hide() });
 
   // Blame Commands
   new BlameCommands(context);
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.toggleFileBlame', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (editor) {
+        await FileBlameDecorator.getInstance().toggle(editor);
+      }
+    })
+  );
 
   // Show Blame at Cursor command
   context.subscriptions.push(

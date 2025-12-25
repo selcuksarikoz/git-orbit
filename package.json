@@ -422,6 +422,12 @@
         "title": "Show Blame Details",
         "category": "GitOrbit",
         "icon": "$(info)"
+      },
+      {
+        "command": "gitorbit.toggleFileBlame",
+        "title": "Toggle File Blame (Inline)",
+        "category": "GitOrbit",
+        "icon": "$(list-unordered)"
       }
     ],
     "menus": {
@@ -703,7 +709,12 @@
         {
           "command": "gitorbit.showBlameAtCursor",
           "when": "editorTextFocus && config.gitorbit.blame.inline.enabled",
-          "group": "navigation"
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitorbit.toggleFileBlame",
+          "when": "resourceScheme == file && config.gitorbit.blame.file.enabled",
+          "group": "navigation@2"
         }
       ]
     },
@@ -735,7 +746,17 @@
         "gitorbit.blame.inline.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable inline blame ghost text."
+          "description": "Enable inline blame ghost text (author information at the end of the line)."
+        },
+        "gitorbit.blame.gutter.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable gutter blame heatmap (color indicators on the edge of the editor)."
+        },
+        "gitorbit.blame.file.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic vertical file blame view on file open."
         },
         "gitorbit.views.showChanges": {
           "type": "boolean",

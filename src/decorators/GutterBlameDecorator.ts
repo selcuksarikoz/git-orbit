@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/GitService';
+import { ConfigService } from '../services/ConfigService';
 import { getAgeBasedColor, formatRelativeTime } from '../utils/BlameUtils';
 import { BlamePanel } from '../panels/BlamePanel';
 
@@ -15,17 +16,25 @@ interface LineBlameInfo {
 export class GutterBlameDecorator {
   private decorationTypes: Map<string, vscode.TextEditorDecorationType> = new Map();
   private gitService: GitService;
+  private configService: ConfigService;
   private lineBlameMap: Map<string, Map<number, LineBlameInfo>> = new Map(); // filePath -> line -> blame info
   private extensionUri: vscode.Uri;
 
   constructor(extensionUri: vscode.Uri) {
     this.gitService = GitService.getInstance();
+    this.configService = ConfigService.getInstance();
     this.extensionUri = extensionUri;
 
     vscode.window.onDidChangeActiveTextEditor((e) => this.update(e));
     if (vscode.window.activeTextEditor) {
       this.update(vscode.window.activeTextEditor);
     }
+
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('gitorbit.blame.gutter.enabled')) {
+        this.update(vscode.window.activeTextEditor);
+      }
+    });
 
     // Register command to show blame details
     vscode.commands.registerCommand(
@@ -44,6 +53,13 @@ export class GutterBlameDecorator {
 
   private async update(editor: vscode.TextEditor | undefined) {
     if (!editor) return;
+
+    if (!this.configService.isGutterBlameEnabled) {
+      this.decorationTypes.forEach((type) => {
+        editor.setDecorations(type, []);
+      });
+      return;
+    }
 
     const filePath = editor.document.uri.fsPath;
     try {
@@ -148,6 +164,7 @@ export class GutterBlameDecorator {
       hoverMessage.appendMarkdown(
         `[Show Blame Panel](command:gitorbit.showBlameDetails?${encodeURIComponent(JSON.stringify({ filePath, line: index }))}) | `
       );
+      hoverMessage.appendMarkdown(`[Toggle File Blame](command:gitorbit.toggleFileBlame) | `);
       hoverMessage.appendMarkdown(
         `[Open on Web](command:gitorbit.openCommitOnWeb?${encodeURIComponent(JSON.stringify(info.hash))}) | `
       );

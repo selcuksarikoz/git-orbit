@@ -29,7 +29,15 @@ export class ConfigService {
   }
 
   public get isInlineBlameEnabled(): boolean {
-    return this.get<boolean>('blame.inline.enabled') || true;
+    return this.get<boolean>('blame.inline.enabled') ?? true;
+  }
+
+  public get isGutterBlameEnabled(): boolean {
+    return this.get<boolean>('blame.gutter.enabled') ?? true;
+  }
+
+  public get isFileBlameEnabled(): boolean {
+    return this.get<boolean>('blame.file.enabled') ?? true;
   }
 
   public get autoSyncInterval(): number {
