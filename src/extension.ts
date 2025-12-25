@@ -24,6 +24,7 @@ import { GitGraphPanel } from './panels/GitGraphPanel';
 import { FileBlameDecorator } from './decorators/FileBlameDecorator';
 import { CommitChatPanel } from './panels/CommitChatPanel';
 import { RebasePanel } from './panels/RebasePanel';
+import { SelectionCodeLensProvider } from './providers/SelectionCodeLensProvider';
 
 import { GraphTreeProvider } from './providers/GraphTreeProvider';
 import { StatusDecorationProvider } from './providers/StatusDecorationProvider';
@@ -348,6 +349,9 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider({ scheme: 'file' }, new AuthorshipCodeLensProvider())
   );
+  context.subscriptions.push(
+    vscode.languages.registerCodeLensProvider({ scheme: 'file' }, new SelectionCodeLensProvider())
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.openCommitDiff', async (item: any) => {
@@ -624,6 +628,31 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.showGitGraph', () => {
       GitGraphPanel.createOrShow(context.extensionUri);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.chatWithSelection', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) return;
+
+      const selection = editor.selection;
+      if (selection.isEmpty) {
+        vscode.window.showInformationMessage('Please select some code first.');
+        return;
+      }
+
+      const selectedText = editor.document.getText(selection);
+      const filename = editor.document.fileName.split('/').pop() || 'file';
+
+      CommitChatPanel.createOrShow(
+        context.extensionUri,
+        'selected-code',
+        'You',
+        `Analysis of selected code in ${filename}`,
+        selectedText,
+        'How can I improve this code? Please analyze it for code smells, performance issues, and readability.'
+      );
     })
   );
 
