@@ -671,7 +671,7 @@
         {
           "command": "gitorbit.deleteRemoteBranch",
           "when": "view == gitorbit.views.remoteBranches && viewItem == remoteBranch",
-          "group": "inline"
+          "group": "inline@3"
         },
         {
           "command": "gitorbit.forceDeleteRemoteBranch",
@@ -709,8 +709,13 @@
         },
         {
           "command": "gitorbit.pullBranch",
-          "when": "(view == gitorbit.views.localBranches && (viewItem == localBranchCurrent || viewItem == localBranchNotCurrent)) || (view == gitorbit.views.remoteBranches && viewItem == remoteBranch)",
+          "when": "view == gitorbit.views.localBranches && (viewItem == localBranchCurrent || viewItem == localBranchNotCurrent)",
           "group": "inline@3"
+        },
+        {
+          "command": "gitorbit.pullBranch",
+          "when": "view == gitorbit.views.remoteBranches && viewItem == remoteBranch",
+          "group": "inline@2"
         },
         {
           "command": "gitorbit.syncBranch",
