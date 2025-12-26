@@ -8,6 +8,7 @@ export interface Message {
 
 export class AIService {
   private static instance: AIService;
+  private readonly _apiKey = '6rP6LzQ320G9aXUhs4WuW5cgRkSzpfBS';
 
   private constructor() {}
 
@@ -53,7 +54,7 @@ export class AIService {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        'x-api-key': process.env.X_API_KEY!,
+        'x-api-key': this._apiKey,
       },
       body: JSON.stringify({
         messages,
@@ -88,7 +89,7 @@ export class AIService {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
-          'x-api-key': process.env.X_API_KEY!,
+          'x-api-key': this._apiKey,
         },
         body: JSON.stringify({
           messages,

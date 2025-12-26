@@ -20,7 +20,7 @@ export class SelectionCodeLensProvider implements vscode.CodeLensProvider {
     }
 
     const selection = editor.selection;
-    if (selection.isEmpty) {
+    if (selection.isEmpty || selection.isSingleLine) {
       return [];
     }
 
