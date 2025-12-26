@@ -573,10 +573,26 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
           cancellable: false,
         },
         async () => {
-          const messages = await aiService.generateCommitMessages(diff);
+          const prompt = `
+            You are an expert developer. Generate 5 conventional commit messages for the following git diff.
+            Rules:
+            - Return ONLY the raw commit messages.
+            - One message per line.
+            - No numbering (1., 2., etc).
+            - No markdown formatting (no backticks, no bullets).
+            - Use Conventional Commits format (feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert).
+            - Keep concise (under 72 chars).
+
+            Diff:
+            ${diff}
+            `;
+
+          const commitRecommendations = await aiService.generateCommitMessages([
+            { role: 'user', content: prompt },
+          ]);
 
           // 3. Show Quick Pick
-          const selected = await vscode.window.showQuickPick(messages, {
+          const selected = await vscode.window.showQuickPick(commitRecommendations, {
             placeHolder: 'Select a commit message...',
             title: 'Smart Commit Recommendations',
           });

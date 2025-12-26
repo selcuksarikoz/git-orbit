@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { GitService } from './services/GitService';
+import { AIService } from './services/AIService';
 import { GitflowService } from './services/GitflowService';
 import { IconService } from './services/IconService';
 import { WelcomeView } from './webviews/WelcomeView';
@@ -66,6 +67,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Initialize Services
   const gitService = GitService.getInstance();
+  const aiService = AIService.getInstance();
   IconService.getInstance(context.extensionUri);
 
   // Initialize filter contexts

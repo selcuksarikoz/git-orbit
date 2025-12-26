@@ -787,28 +787,6 @@
     "configuration": {
       "title": "GitOrbit",
       "properties": {
-        "gitorbit.ai.provider": {
-          "type": "string",
-          "enum": [
-            "gemini",
-            "openai",
-            "anthropic",
-            "xgrok",
-            "openrouter"
-          ],
-          "default": "openrouter",
-          "description": "Select AI Provider for Smart Commit."
-        },
-        "gitorbit.ai.model": {
-          "type": "string",
-          "default": "openai/gpt-4o-mini",
-          "description": "Model name (e.g. openai/gpt-4o-mini, openai/gpt-oss-20b:free, gemini-2.0-flash)."
-        },
-        "gitorbit.ai.apiKey": {
-          "type": "string",
-          "default": "",
-          "description": "API Key for the selected provider."
-        },
         "gitorbit.blame.inline.enabled": {
           "type": "boolean",
           "default": true,
@@ -934,12 +912,5 @@
     "prettier": "^3.7.4",
     "typescript": "^5.1.3"
   },
-  "dependencies": {
-    "@ai-sdk/anthropic": "^2.0.56",
-    "@ai-sdk/google": "^2.0.51",
-    "@ai-sdk/openai": "^2.0.88",
-    "@ai-sdk/xai": "^2.0.42",
-    "@openrouter/ai-sdk-provider": "^1.5.4",
-    "ai": "^5.0.115"
-  }
+  "dependencies": {}
 }

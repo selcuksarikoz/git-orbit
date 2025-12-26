@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/GitService';
-import { AIService } from '../services/AIService';
-import { CoreMessage } from 'ai';
+import { AIService, Message } from '../services/AIService';
 import { md5 } from '../utils/Hash';
 
 export class CommitChatPanel {
@@ -10,7 +9,7 @@ export class CommitChatPanel {
   private readonly _extensionUri: vscode.Uri;
   private _disposables: vscode.Disposable[] = [];
   private _commitHash: string;
-  private _messages: CoreMessage[] = [];
+  private _messages: Message[] = [];
   private _currentAbortController: AbortController | null = null;
 
   private constructor(
@@ -82,15 +81,21 @@ ${diff.substring(0, 25000)} ${diff.length > 25000 ? '...(truncated)' : ''}
             this._currentAbortController = new AbortController();
 
             try {
+              const fullMessages = [{ role: 'system', content: systemPrompt }, ...this._messages];
               const stream = await AIService.getInstance().streamChat(
-                this._messages,
-                systemPrompt,
+                fullMessages as Message[],
                 this._currentAbortController.signal
               );
 
+              const reader = stream.getReader();
+              const decoder = new TextDecoder();
               let fullResponse = '';
-              for await (const chunk of stream.textStream) {
-                // Send chunk to webview
+
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
                 fullResponse += chunk;
                 this._panel.webview.postMessage({
                   type: 'receiveToken',
