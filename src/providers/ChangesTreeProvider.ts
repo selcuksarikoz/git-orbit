@@ -89,7 +89,10 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     return this._unstaged.length;
   }
 
-  constructor(private readonly _extensionUri: vscode.Uri) {
+  constructor(
+    private readonly _extensionUri: vscode.Uri,
+    private readonly _onRefreshAll?: () => void
+  ) {
     this.startWatchers();
   }
 
@@ -482,7 +485,11 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       async () => {
         await GitService.getInstance().pull();
         await GitService.getInstance().push();
-        this.refresh();
+        if (this._onRefreshAll) {
+          this._onRefreshAll();
+        } else {
+          this.refresh();
+        }
       }
     );
   }
@@ -492,7 +499,11 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       { location: vscode.ProgressLocation.Notification, title: 'Pushing...' },
       async () => {
         await GitService.getInstance().push();
-        this.refresh();
+        if (this._onRefreshAll) {
+          this._onRefreshAll();
+        } else {
+          this.refresh();
+        }
       }
     );
   }
@@ -566,7 +577,11 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       { location: vscode.ProgressLocation.Notification, title: 'Pulling...' },
       async () => {
         await GitService.getInstance().pull();
-        this.refresh();
+        if (this._onRefreshAll) {
+          this._onRefreshAll();
+        } else {
+          this.refresh();
+        }
       }
     );
   }

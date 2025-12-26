@@ -2,7 +2,7 @@
   "name": "gitorbit",
   "displayName": "GitOrbit",
   "description": "Simplify your Git management with AI assistance. Features include smart commit messages, code smell detection, and conversational AI to help you manage your workflow effortlessly.",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "publisher": "selcuksarikoz",
   "icon": "assets/icons/logo.png",
   "repository": {
@@ -616,11 +616,6 @@
           "command": "gitorbit.feedback",
           "when": "view == gitorbit.views.changes",
           "group": "gitorbit_3_donate@2"
-        },
-        {
-          "command": "gitorbit.interactiveRebase",
-          "when": "view == gitorbit.views.changes",
-          "group": "navigation@1"
         },
         {
           "command": "gitorbit.interactiveRebase",

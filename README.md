@@ -1,8 +1,4 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/selcuksarikoz/git-orbit/main/assets/icons/logo.png" alt="GitOrbit Logo" width="150">
-</p>
-
-<p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=selcuksarikoz.gitorbit">
     <img src="https://img.shields.io/visual-studio-marketplace/v/selcuksarikoz.gitorbit?label=Install%20GitOrbit&style=for-the-badge&logo=visual-studio-code&color=007ACC" alt="Install on Marketplace">
   </a>

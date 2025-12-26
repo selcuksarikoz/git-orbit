@@ -153,7 +153,23 @@ export function activate(context: vscode.ExtensionContext) {
   vscode.window.registerTreeDataProvider('gitorbit.views.tags', tagProvider);
   vscode.window.registerTreeDataProvider('gitorbit.views.contributors', contributorProvider);
 
-  const changesProvider = new ChangesTreeProvider(context.extensionUri);
+  // Move refreshAll up so it's available for providers
+  const refreshAll = () => {
+    GitService.getInstance().clearCache(); // Ensure we fetch fresh data
+    localBranchProvider.refresh();
+    remoteBranchProvider.refresh();
+    commitProvider.refresh();
+    graphProvider.refresh();
+    fileHistoryProvider.refresh();
+    stashProvider.refresh();
+    tagProvider.refresh();
+    contributorProvider.refresh();
+    if (changesProvider) {
+      changesProvider.refresh();
+    }
+  };
+
+  const changesProvider = new ChangesTreeProvider(context.extensionUri, refreshAll);
   const changesTreeView = vscode.window.createTreeView('gitorbit.views.changes', {
     treeDataProvider: changesProvider,
   });
@@ -498,18 +514,6 @@ export function activate(context: vscode.ExtensionContext) {
   // Commands
   const cherryPickCmd = new CherryPickCommand();
   // Centralized Refresh Function
-  const refreshAll = () => {
-    GitService.getInstance().clearCache(); // Ensure we fetch fresh data
-    localBranchProvider.refresh();
-    remoteBranchProvider.refresh();
-    commitProvider.refresh();
-    graphProvider.refresh();
-    fileHistoryProvider.refresh();
-    stashProvider.refresh();
-    tagProvider.refresh();
-    contributorProvider.refresh();
-    changesProvider.refresh();
-  };
 
   // Register Centralized Command Classes (Branch & Stash)
   BranchCommands.getInstance(refreshAll).register(context);
