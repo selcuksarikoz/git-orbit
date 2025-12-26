@@ -49,6 +49,9 @@ export class WelcomeView {
           case 'donate':
             vscode.commands.executeCommand('gitorbit.donate');
             return;
+          case 'feedback':
+            vscode.commands.executeCommand('gitorbit.feedback');
+            return;
         }
       },
       null,
@@ -291,11 +294,14 @@ export class WelcomeView {
             <p class="subtitle">Your ultimate Git companion. Now faster, smarter, and sleeker.</p>
 
             <div class="actions" style="margin-top: 24px;">
-                 <button class="btn btn-secondary" onclick="donate()">
+                <button class="btn btn-secondary" onclick="donate()">
                     <span>💙 Support Development</span>
                 </button>
+                <button class="btn btn-secondary" onclick="feedback()">
+                    <span>💬 Feedback</span>
+                </button>
                 <button class="btn btn-secondary" onclick="openSettings()">
-                    <span>⚙️ Configure GitOrbit</span>
+                    <span>⚙️ Configure</span>
                 </button>
                 <button class="btn" onclick="login()">
                     <img src="${logoUri}" style="width: 20px; height: 20px; border-radius: 4px; vertical-align: middle;"> Login with Kuulto
@@ -367,6 +373,9 @@ export class WelcomeView {
         }
         function donate() {
             vscode.postMessage({ command: 'donate' });
+        }
+        function feedback() {
+            vscode.postMessage({ command: 'feedback' });
         }
     </script>
 </body>

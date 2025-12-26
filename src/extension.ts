@@ -6,6 +6,7 @@ import { GitflowService } from './services/GitflowService';
 import { GitService } from './services/GitService';
 import { IconService } from './services/IconService';
 import { WelcomeView } from './webviews/WelcomeView';
+import { FeedbackView } from './webviews/FeedbackView';
 
 import { BlameCommands } from './commands/BlameCommands';
 import { BranchCommands } from './commands/BranchCommands';
@@ -670,6 +671,12 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.showWelcome', () => {
       WelcomeView.show(context, true);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.feedback', () => {
+      FeedbackView.show(context.extensionUri);
     })
   );
 

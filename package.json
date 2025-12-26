@@ -482,6 +482,12 @@
         "command": "gitorbit.logout",
         "title": "Logout from Kuulto AI",
         "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.feedback",
+        "title": "Feedback",
+        "category": "GitOrbit",
+        "icon": "$(comment)"
       }
     ],
     "menus": {
@@ -605,6 +611,11 @@
           "command": "gitorbit.donate",
           "when": "view == gitorbit.views.changes",
           "group": "gitorbit_3_donate@1"
+        },
+        {
+          "command": "gitorbit.feedback",
+          "when": "view == gitorbit.views.changes",
+          "group": "gitorbit_3_donate@2"
         },
         {
           "command": "gitorbit.interactiveRebase",
