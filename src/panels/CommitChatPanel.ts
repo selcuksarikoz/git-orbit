@@ -81,9 +81,9 @@ ${diff.substring(0, 25000)} ${diff.length > 25000 ? '...(truncated)' : ''}
             this._currentAbortController = new AbortController();
 
             try {
-              const fullMessages = [{ role: 'system', content: systemPrompt }, ...this._messages];
               const stream = await AIService.getInstance().streamChat(
-                fullMessages as Message[],
+                this._messages,
+                systemPrompt,
                 this._currentAbortController.signal
               );
 
@@ -310,6 +310,7 @@ ${diff.substring(0, 25000)} ${diff.length > 25000 ? '...(truncated)' : ''}
         .message-content {
             display: flex;
             flex-direction: column;
+            min-width: 0;
         }
 
         .message-info {
@@ -336,6 +337,9 @@ ${diff.substring(0, 25000)} ${diff.length > 25000 ? '...(truncated)' : ''}
             font-size: 0.95rem;
             line-height: 1.5;
             position: relative;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            word-break: break-word;
         }
 
         .user .bubble {
@@ -351,6 +355,29 @@ ${diff.substring(0, 25000)} ${diff.length > 25000 ? '...(truncated)' : ''}
         }
 
         /* Markdown Styling */
+        .md-content {
+            width: 100%;
+        }
+
+        .md-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+        }
+
+        .md-content table {
+            display: block;
+            width: 100%;
+            overflow-x: auto;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+
+        .md-content th, .md-content td {
+            border: 1px solid var(--border-color);
+            padding: 8px;
+        }
+
         .md-content p:last-child { margin-bottom: 0; }
 
         .code-block-container {

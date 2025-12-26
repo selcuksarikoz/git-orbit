@@ -40,6 +40,14 @@ export class WelcomeView {
         switch (message.command) {
           case 'openSettings':
             vscode.commands.executeCommand('gitorbit.openSettings');
+          case 'openSettings':
+            vscode.commands.executeCommand('gitorbit.openSettings');
+            return;
+          case 'login':
+            vscode.commands.executeCommand('gitorbit.login');
+            return;
+          case 'donate':
+            vscode.commands.executeCommand('gitorbit.donate');
             return;
         }
       },
@@ -59,6 +67,10 @@ export class WelcomeView {
   }
 
   private static getHtmlContent(webview: vscode.Webview, extensionUri: vscode.Uri): string {
+    const logoUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(extensionUri, 'assets', 'icons', 'kuulto.png')
+    );
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -66,146 +78,295 @@ export class WelcomeView {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Welcome to GitOrbit</title>
     <style>
+        :root {
+            --primary: #38bdf8;
+            --secondary: #818cf8;
+            --accent: #c084fc;
+            --background: #0f172a;
+            --surface: rgba(30, 41, 59, 0.7);
+            --surface-hover: rgba(30, 41, 59, 0.9);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
             padding: 40px;
-            background: #0f172a;
-            color: #f8fafc;
+            background: var(--background);
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(129, 140, 248, 0.1) 0%, transparent 40%);
+            color: var(--text-main);
             line-height: 1.6;
         }
+
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
+            position: relative;
         }
+
+        /* Header & Hero */
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
         h1 {
-            font-size: 3rem;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(90deg, #38bdf8, #818cf8);
+            font-size: 3.5rem;
+            margin: 0 0 16px 0;
+            background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            font-weight: 800;
+            letter-spacing: -0.02em;
         }
+
         .subtitle {
             font-size: 1.25rem;
-            color: #94a3b8;
-            margin-bottom: 2rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto;
         }
+
+        /* Bento Grid Layout */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
         .card {
-            background: #1e293b;
-            border-radius: 12px;
+            background: var(--surface);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
             padding: 24px;
-            margin-bottom: 20px;
-            border: 1px solid #334155;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
         }
+
+        .card:hover {
+            transform: translateY(-4px);
+            background: var(--surface-hover);
+            border-color: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-full { grid-column: span 12; }
+        .card-half { grid-column: span 6; }
+        .card-third { grid-column: span 4; }
+
+        @media (max-width: 768px) {
+            .card-half, .card-third { grid-column: span 12; }
+        }
+
         .card h2 {
-            margin-top: 0;
-            color: #38bdf8;
+            margin: 0 0 12px 0;
+            font-size: 1.25rem;
+            color: var(--primary);
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
-        .features-grid {
+
+        .card p {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .tag {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--primary);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: auto;
+        }
+
+        /* UI Elements */
+        .icon { font-size: 1.5rem; }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+            margin: 16px 0 0 0;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
+            gap: 12px;
         }
-        ul {
-            padding-left: 20px;
+
+        .feature-list li {
+            position: relative;
+            padding-left: 24px;
+            color: var(--text-muted);
         }
-        li {
-            margin-bottom: 8px;
-            color: #cbd5e1;
+
+        .feature-list li::before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: var(--secondary);
         }
+
+        /* Buttons */
+        .actions {
+            text-align: center;
+            margin-top: 40px;
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
         .btn {
-            display: inline-block;
-            background: #38bdf8;
-            color: #0f172a;
-            padding: 12px 24px;
-            border-radius: 6px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #fff;
+            padding: 14px 32px;
+            border-radius: 8px;
             text-decoration: none;
             font-weight: 600;
-            cursor: pointer;
             border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: opacity 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover { opacity: 0.9; }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
+
+        .donation-banner {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: rgba(0, 48, 135, 0.4);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(0, 48, 135, 0.5);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
             transition: all 0.2s;
         }
-        .btn:hover {
-            opacity: 0.9;
+
+        .donation-banner:hover {
+            background: rgba(0, 48, 135, 0.6);
             transform: translateY(-1px);
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
-            <a href="https://www.paypal.com/donate?business=selcuksarikoz%40icloud.com&item_name=selcuk+sarikoz+-+gitorbit-vscode+extension&currency_code=USD" style="background: #003087; color: white; padding: 8px 16px; border-radius: 20px; text-decoration: none; font-weight: bold; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 8px;">
-                <span>Donate with PayPal</span>
-            </a>
-        </div>
-        <h1>GitOrbit</h1>
-        <p class="subtitle">Your Ultimate Git Manager & AI Companion. Manage your repository effortlessly and benefit from optional AI features using your own API keys.</p>
+    <div class="container">
+        <!-- Banner removed -->
 
-        <div class="card">
-            <h2>✨ AI Assistance</h2>
-            <p style="margin-bottom: 20px; color: #94a3b8; font-size: 0.9em;">Use your own API keys (OpenRouter, Google Gemini, OpenAI, etc.) - completely free to use without extra subscriptions!</p>
-            <div class="features-grid">
-                <div>
-                    <h3>💬 Conversational AI</h3>
-                    <p>Ask about your changes or specific commits. Get helpful explanations for complex logic or diffs.</p>
-                </div>
-                <div>
-                    <h3>🔍 Simple Code Smell Detection</h3>
-                    <p>Scan your changes for potential improvements and technical debt before you commit.</p>
-                </div>
-                <div>
-                    <h3>✍️ Smart Commit Messages</h3>
-                    <p>Generate clean, professional commit messages based on your staged changes with a single click.</p>
-                </div>
+        <header>
+            <h1>GitOrbit</h1>
+            <p class="subtitle">Your ultimate Git companion. Now faster, smarter, and sleeker.</p>
+
+            <div class="actions" style="margin-top: 24px;">
+                 <button class="btn btn-secondary" onclick="donate()">
+                    <span>💙 Support Development</span>
+                </button>
+                <button class="btn btn-secondary" onclick="openSettings()">
+                    <span>⚙️ Configure GitOrbit</span>
+                </button>
+                <button class="btn" onclick="login()">
+                    <img src="${logoUri}" style="width: 20px; height: 20px; border-radius: 4px; vertical-align: middle;"> Login with Kuulto
+                </button>
             </div>
-        </div>
+        </header>
 
-        <div class="card">
-            <h2>🛠️ Powerful Git Manager</h2>
-            <div class="features-grid">
-                <div>
-                    <h3>🌳 Simplified Workflow</h3>
-                    <p>Manage branches, history, and staging through a clean, intuitive interface that removes the clutter.</p>
-                </div>
-                <div>
-                    <h3>⚡️ Multi-Provider Support</h3>
-                    <p>Works with your favorite AI: OpenRouter, Gemini, OpenAI, Anthropic, or xGrok.</p>
-                </div>
-                <div>
-                    <h3>👁️ Inline & File Blame</h3>
-                    <p>Instantly see who changed what with unobtrusive inline text or a detailed vertical blame view.</p>
-                </div>
+        <div class="grid">
+            <!-- Hero Feature -->
+            <div class="card card-full">
+                <h2><img src="${logoUri}" style="width: 32px; height: 32px; border-radius: 8px; vertical-align: middle; margin-right: 8px;"> The AI Advantage <span class="tag">Beta</span></h2>
+                <p>Experience the future of version control with <strong>Smart Commit Generation</strong>, <strong>Commit Improvements</strong>, and <strong>Code Smell Detection</strong>. Accelerate your workflow with <strong>Kuulto Terminal</strong> (coming soon). Powered by <a href="https://kuulto.app" style="color: var(--primary); text-decoration: none;">kuulto.app</a>.</p>
             </div>
-        </div>
 
-        <div class="features-grid">
-            <div class="card">
-                <h2>⚡️ Core Features</h2>
-                <ul>
-                    <li><strong>Commit Graph:</strong> Interactive Visual Graph to explore repository history.</li>
-                    <li><strong>Branch Manager:</strong> Organize and interact with local/remote branches.</li>
-                    <li><strong>Stash Explorer:</strong> View and apply stashes with diff previews.</li>
-                    <li><strong>Inline & File Blame:</strong> Author information directly in your editor.</li>
-                    <li><strong>CodeLens:</strong> Quick insights at the top of functions.</li>
+            <!-- New Features -->
+            <div class="card card-half">
+                <h2><span class="icon">🚀</span> Power Features</h2>
+                <ul class="feature-list">
+                    <li><strong>Interactive Rebase (Beta):</strong> Visually manage history rewrites.</li>
+                    <li><strong>Git Flow Support:</strong> Built-in workflows for serious teams.</li>
+                    <li><strong>High-Performance Diff:</strong> View 100+ file diffs instantly.</li>
                 </ul>
             </div>
 
-            <div class="card">
-                <h2>⚙️ Get Started</h2>
-                <p>Tailor GitOrbit to your needs. Toggle inline blame, set commit limits, or configure auto-sync intervals.</p>
-                <br>
-                <button class="btn" onclick="openSettings()">Open Settings</button>
+            <div class="card card-half">
+                <h2><span class="icon">❤️</span> Developer Experience</h2>
+                <ul class="feature-list">
+                    <li><strong>Enhanced Blame:</strong> Our best-in-class inline & file blame.</li>
+                    <li><strong>Cleaner Git Graph:</strong> Beautiful, clutter-free history visualization.</li>
+                    <li><strong>Contributors & Tags:</strong> Dedicated views for project stats.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card card-third">
+                <h2>💬 Chat</h2>
+                <p>Discuss diffs and history deeply with context-aware AI.</p>
+            </div>
+            <div class="card card-third">
+                <h2>💡 Analyze</h2>
+                <p>Get instant feedback on code smells and potential bugs.</p>
+            </div>
+             <div class="card card-third">
+                <h2>⚡️ Speed</h2>
+                <p>Optimized for large repositories with thousands of files.</p>
             </div>
         </div>
+
+        <!-- Actions removed, moved to header -->
+        <!--
+        <div class="actions">
+            <button class="btn" onclick="openSettings()">
+                <span>⚙️ Configure GitOrbit</span>
+            </button>
+            <a href="https://github.com/selcuksarikoz/git-orbit" class="btn btn-secondary">
+                <span>⭐ Star on GitHub</span>
+            </a>
+        </div>
+        -->
     </div>
 
     <script>
         const vscode = acquireVsCodeApi();
         function openSettings() {
-            vscode.postMessage({ command: 'openSettings' }); // Handled in WelcomeView.ts or extension.ts
+            vscode.postMessage({ command: 'openSettings' });
+        }
+        function login() {
+            vscode.postMessage({ command: 'login' });
+        }
+        function donate() {
+            vscode.postMessage({ command: 'donate' });
         }
     </script>
 </body>

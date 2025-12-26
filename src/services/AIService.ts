@@ -19,8 +19,8 @@ export class AIService {
   }
 
   private get apiUrl() {
-    // return 'https://kuulto.app/api/chat/git';
-    return 'http://localhost:3000/api/chat/git';
+    return 'https://kuulto.app/api/chat/git';
+    // return 'http://localhost:3000/api/chat/git';
   }
 
   private async ensureAuthenticatedToken(): Promise<string> {
@@ -45,7 +45,7 @@ export class AIService {
   /**
    * Streams chat completion from the centralized API.
    */
-  public async streamChat(messages: Message[], abortSignal?: AbortSignal) {
+  public async streamChat(messages: Message[], systemPrompt: string, abortSignal?: AbortSignal) {
     const token = await this.ensureAuthenticatedToken();
 
     const response = await fetch(this.apiUrl, {
@@ -55,7 +55,12 @@ export class AIService {
         Authorization: `Bearer ${token}`,
         'x-api-key': process.env.X_API_KEY!,
       },
-      body: JSON.stringify({ messages, stream: true, type: 'chat' }),
+      body: JSON.stringify({
+        messages,
+        system_prompt: systemPrompt,
+        stream: true,
+        type: 'chat',
+      }),
       signal: abortSignal,
     });
 

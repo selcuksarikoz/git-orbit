@@ -27,7 +27,7 @@ export class SelectionCodeLensProvider implements vscode.CodeLensProvider {
     // Place the CodeLens at the start of the selection
     const range = new vscode.Range(selection.start.line, 0, selection.start.line, 0);
     const command: vscode.Command = {
-      title: '$(sparkle) Improve this with GitOrbit AI',
+      title: '$(sparkle) Improve this with Kuulto AI',
       command: 'gitorbit.chatWithSelection',
       tooltip: 'Send this selection to AI for improvement suggestions',
     };

@@ -12,7 +12,7 @@
 
 ## What is GitOrbit?
 
-<strong>GitOrbit</strong> is your ultimate Git management tool, designed to streamline your development workflow. While it serves as a powerful Git client, it also enhances your productivity with optional AI-powered features for smarter commits, code analysis, and interactive assistance.
+<strong>GitOrbit</strong> is your ultimate Git management tool, designed to streamline your development workflow. While it serves as a powerful Git client, it also enhances your productivity with **integrated Kuulto AI (Beta)** features for smarter commits, deepest code analysis, and interactive assistance.
 
 I built GitOrbit because, frankly, VS Code's native Git features just weren't cutting it for me anymore.
 
@@ -22,32 +22,29 @@ So, I built GitOrbit to fill that gap between basic terminal commands and bloate
 
 ## The AI Advantage 🤖
 
-Supercharge your workflow with optional AI features. Crucially, GitOrbit adds no surcharge—you only connect and pay your AI provider directly (if applicable). BYO keys for providers like **OpenRouter, Google Gemini, OpenAI, Anthropic, or xGrok**.
+Supercharge your workflow with **[Kuulto AI (Beta)](https://kuulto.app)**. GitOrbit now integrates a powerful, specialized AI engine designed specifically for developer workflows. **No complex configuration required—simply sign in and start coding smarter.**
 
-- **💬 Conversational AI:** Chat with your codebase context. Don't understand a complex diff? Just ask the AI to explain specific commits or changes instantly.
-- **✨ Smart Commit Messages:** Stop writing "fixes thing". Generate professional, descriptive commit messages from your staged changes in one click.
-- **🔍 Proactive Code Smell Detection:** Identify potential issues and technical debt in your staged changes before you commit.
+- **💬 Contextual Conversational AI:** Engage in deep discussions about your codebase. Ask for explanations of complex diffs, specific commits, or historical changes.
+- **✨ Smart Commit Messages:** Generate professional, schema-compliant commit messages from your staged changes with a single click.
+- **🔍 Intelligent Code Analysis:** Proactively identify bugs, code smells, and technical debt in your changes before they reach the repository.
 
 ## A Solid Git Foundation 🛠️
 
 AI aside, it’s first and foremost a comprehensive Git manager:
 
-- **👤 Inline Blame:** Instantly see who changed what and when (author, date, and commit message) right next to your code line.
-- **📄 File Blame (Sidebar):** Toggle a detailed vertical blame view showing full author details and timestamps for the entire file.
-- **📂 Modern Changes Panel:** Precision staging/unstaging. Includes essential "Discard All" and "Undo Last Commit" actions.
-- **🌱 Advanced Branch Management:** Easily manage Local and Remote branches. Sync, push, pull, and organize with folder grouping support.
-- **📦 Stash Explorer:** Inspect stash contents quickly with Multi-file Diff support.
-- **📜 Deep History Views:** Automatic active file history tracking and an interactive **Visual Git Graph** to explore repository branching and commit history.
-- **🚀 Gitflow Shortcuts:** Quickly start features and hotfixes with standard naming conventions.
+- **Interactive Rebase Manager (Beta):** Simplify complex history rewrites with a visual, interactive rebase tool.
+- **✨ Smart Commit Message Generation:** Automatically generate context-aware commit messages using simple prompts or changes.
+- **🚀 Git Flow Support:** Seamlessly integrated Git Flow support for managing features, releases, and hotfixes.
+- **❤️ Enhanced Inline/File Blame:** Our best-in-class blame view. See author details with a clean, unobtrusive UI that developers love.
+- **📈 Cleaner Git Graph:** A completely redesigned, crystal-clear visualization of your commit history.
+- **🏷️ Tags & 👥 Contributors:** Dedicated sections to manage tags and view project contributors effortlessly.
+- **⚡ High-Performance Branch Diff:** Instantly view diffs between branches, capable of handling hundreds of files simultaneously without lag.
 
 <details>
 <summary>Configuration</summary>
 
 Customize your experience in VS Code Settings:
 
-- `gitorbit.ai.provider`: Choose your AI provider (OpenRouter, Google Gemini, OpenAI, Anthropic, xGrok).
-- `gitorbit.ai.model`: Select the specific model (e.g., `openai/gpt-4o-mini`).
-- `gitorbit.ai.apiKey`: Unified API key for the chosen provider.
 - `gitorbit.blame.inline.enabled`: Toggle inline blame ghost text (author information at the end of the line).
 - `gitorbit.blame.gutter.enabled`: Toggle gutter blame heatmap (color indicators on the edge of the editor).
 - `gitorbit.blame.file.enabled`: Toggle vertical file blame view support.

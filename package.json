@@ -798,6 +798,12 @@
     "configuration": {
       "title": "GitOrbit",
       "properties": {
+        "gitorbit.ai.authInfo": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Log in to access Kuulto AI features. [Login with Kuulto AI](command:gitorbit.login) | [Logout](command:gitorbit.logout)",
+          "order": 0
+        },
         "gitorbit.blame.inline.enabled": {
           "type": "boolean",
           "default": true,
