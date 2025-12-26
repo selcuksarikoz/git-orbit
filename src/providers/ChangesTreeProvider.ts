@@ -202,12 +202,11 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
         items.push(new BranchStatusItem(branches.current, status.isGone));
       }
 
-      if (this._staged.length > 0) {
+      if (this._staged.length) {
         items.push(new GroupItem('Staged Changes', this._staged.length, 'stagedGroup'));
       }
-      if (this._unstaged.length > 0) {
-        items.push(new GroupItem('Changes', this._unstaged.length, 'changesGroup'));
-      }
+
+      items.push(new GroupItem('Changes', this._unstaged.length, 'changesGroup'));
       return items;
     }
 
