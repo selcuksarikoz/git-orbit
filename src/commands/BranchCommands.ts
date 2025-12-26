@@ -200,10 +200,10 @@ export class BranchCommands {
         'Cancel'
       );
       if (confirm === 'Delete Remote') {
-        // For remote, force flag might be relevant if user wants to bypass checks, but usually --delete is enough.
-        // We'll pass force if API supports it, or just normal delete.
-        // GitService deleteRemoteBranch takes (remote, branchName, force)
         await this.gitService.deleteRemoteBranch(remote, branchName, force);
+        vscode.window.showInformationMessage(
+          `Remote branch '${branchName}' ${force ? 'FORCE ' : ''}deleted from '${remote}'.`
+        );
         this.refreshCallback();
       }
       return;
@@ -232,6 +232,7 @@ export class BranchCommands {
     }
 
     await this.gitService.deleteBranch(name, force);
+    vscode.window.showInformationMessage(`Branch '${name}' deleted successfully.`);
     this.refreshCallback();
   }
 
@@ -254,6 +255,9 @@ export class BranchCommands {
       );
       if (confirm === 'Force Delete') {
         await this.gitService.deleteRemoteBranch(remote, branchName, true);
+        vscode.window.showInformationMessage(
+          `Remote branch '${branchName}' FORCE deleted from '${remote}'.`
+        );
         this.refreshCallback();
       }
       return;
@@ -268,9 +272,15 @@ export class BranchCommands {
 
     if (selection === 'Delete') {
       await this.gitService.deleteRemoteBranch(remote, branchName, false);
+      vscode.window.showInformationMessage(
+        `Remote branch '${branchName}' deleted from '${remote}'.`
+      );
       this.refreshCallback();
     } else if (selection === 'Force Delete') {
       await this.gitService.deleteRemoteBranch(remote, branchName, true);
+      vscode.window.showInformationMessage(
+        `Remote branch '${branchName}' FORCE deleted from '${remote}'.`
+      );
       this.refreshCallback();
     }
   }
@@ -330,6 +340,9 @@ export class BranchCommands {
       );
       if (confirm === 'Delete Remote') {
         await this.gitService.deleteRemoteBranch('origin', branchName, false);
+        vscode.window.showInformationMessage(
+          `Remote branch '${branchName}' deleted from 'origin'.`
+        );
         this.refreshCallback();
       }
     } else if (selection.label === 'Force Delete Remote Branch') {
@@ -339,9 +352,10 @@ export class BranchCommands {
         'Cancel'
       );
       if (confirm === 'Force Delete Remote') {
-        // Technically git push origin --delete is the same, but maybe user treats it mentally different.
-        // We serve the same command.
         await this.gitService.deleteRemoteBranch('origin', branchName, true);
+        vscode.window.showInformationMessage(
+          `Remote branch '${branchName}' FORCE deleted from 'origin'.`
+        );
         this.refreshCallback();
       }
     }
