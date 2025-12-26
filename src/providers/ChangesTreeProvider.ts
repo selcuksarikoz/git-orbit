@@ -165,6 +165,18 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     this._staged = status.filter((s) => s.stagedStatus !== ' ' && s.stagedStatus !== '?');
     this._unstaged = status.filter((s) => s.workingTreeStatus !== ' ' || s.stagedStatus === '?');
 
+    // Update context keys for UI buttons
+    vscode.commands.executeCommand(
+      'setContext',
+      'gitorbit.hasUnstagedChanges',
+      this._unstaged.length > 0
+    );
+    vscode.commands.executeCommand(
+      'setContext',
+      'gitorbit.hasStagedChanges',
+      this._staged.length > 0
+    );
+
     this._onDidChangeTreeData.fire();
   }
 
@@ -206,7 +218,13 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
         items.push(new GroupItem('Staged Changes', this._staged.length, 'stagedGroup'));
       }
 
-      items.push(new GroupItem('Changes', this._unstaged.length, 'changesGroup'));
+      items.push(
+        new GroupItem(
+          'Changes',
+          this._unstaged.length,
+          this._unstaged.length > 0 ? 'changesGroup' : 'changesGroupEmpty'
+        )
+      );
       return items;
     }
 

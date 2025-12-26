@@ -518,17 +518,17 @@
         },
         {
           "command": "gitorbit.changes.stageAll",
-          "when": "view == gitorbit.views.changes",
+          "when": "view == gitorbit.views.changes && gitorbit.hasUnstagedChanges",
           "group": "gitorbit_1_actions@3"
         },
         {
           "command": "gitorbit.changes.unstageAll",
-          "when": "view == gitorbit.views.changes",
+          "when": "view == gitorbit.views.changes && gitorbit.hasStagedChanges",
           "group": "gitorbit_1_actions@4"
         },
         {
           "command": "gitorbit.changes.discardAll",
-          "when": "view == gitorbit.views.changes",
+          "when": "view == gitorbit.views.changes && gitorbit.hasUnstagedChanges",
           "group": "gitorbit_1_actions@5"
         },
         {
