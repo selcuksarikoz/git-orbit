@@ -4,6 +4,8 @@ import { AIService } from './services/AIService';
 import { GitflowService } from './services/GitflowService';
 import { IconService } from './services/IconService';
 import { WelcomeView } from './webviews/WelcomeView';
+import { AuthService } from './services/AuthService';
+import { URLSearchParams } from 'url';
 
 import { BranchTreeProvider } from './providers/BranchTreeProvider';
 import { CommitTreeProvider } from './providers/CommitTreeProvider';
@@ -62,6 +64,48 @@ export function activate(context: vscode.ExtensionContext) {
           'https://www.paypal.com/donate?business=selcuksarikoz%40icloud.com&item_name=selcuk+sarikoz+-+gitorbit-vscode+extension&currency_code=USD'
         )
       );
+    })
+  );
+
+  // Authentication Commands
+  AuthService.getInstance().init(context);
+  AuthService.getInstance()
+    .isLoggedIn()
+    .then((loggedIn) => {
+      vscode.commands.executeCommand('setContext', 'gitorbit.isLoggedIn', loggedIn);
+    });
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.login', () => {
+      const appName = vscode.env.uriScheme;
+      vscode.env.openExternal(
+        vscode.Uri.parse(`https://kuulto.app/signin?gitorbit=true&appname=${appName}`)
+      );
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.logout', async () => {
+      await AuthService.getInstance().logout();
+      vscode.window.showInformationMessage('Logged out from Kuulto AI.');
+    })
+  );
+
+  // URI Handler for auth-callback
+  context.subscriptions.push(
+    vscode.window.registerUriHandler({
+      handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
+        if (uri.path === '/auth-callback') {
+          const params = new URLSearchParams(uri.query);
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+
+          if (accessToken && refreshToken) {
+            AuthService.getInstance().storeTokens(accessToken, refreshToken);
+            vscode.window.showInformationMessage('Successfully logged into Kuulto AI!');
+          }
+        }
+      },
     })
   );
 

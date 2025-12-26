@@ -34,7 +34,8 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "workspaceContains:.git"
+    "workspaceContains:.git",
+    "onUri"
   ],
   "main": "./dist/extension.js",
   "scripts": {
@@ -464,6 +465,16 @@
         "title": "Interactive Rebase",
         "category": "GitOrbit",
         "icon": "$(git-rebase)"
+      },
+      {
+        "command": "gitorbit.login",
+        "title": "Login with Kuulto AI",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.logout",
+        "title": "Logout from Kuulto AI",
+        "category": "GitOrbit"
       }
     ],
     "menus": {
