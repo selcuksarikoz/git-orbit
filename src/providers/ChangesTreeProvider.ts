@@ -47,6 +47,22 @@ class ChangeItem extends vscode.TreeItem {
   }
 }
 
+class BranchStatusItem extends vscode.TreeItem {
+  constructor(label: string, isGone: boolean) {
+    const finalLabel = isGone ? ChangeItem.toStrikethrough(label) : label;
+    super(finalLabel, vscode.TreeItemCollapsibleState.None);
+
+    this.iconPath = new vscode.ThemeIcon(
+      'git-branch',
+      isGone ? new vscode.ThemeColor('charts.red') : new vscode.ThemeColor('charts.green')
+    );
+
+    this.description = isGone ? 'gone on remote' : '(current)';
+    this.tooltip = isGone ? `${label} (Deleted from remote)` : `${label} (Current branch)`;
+    this.contextValue = 'branchStatus';
+  }
+}
+
 class GroupItem extends vscode.TreeItem {
   constructor(label: string, count: number, contextValue: string) {
     super(label, vscode.TreeItemCollapsibleState.Expanded);
@@ -177,7 +193,15 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       StatusDecorationProvider.updateStatus(allStatus);
       new StatusDecorationProvider().fireUpdate();
 
-      const items: GroupItem[] = [];
+      const items: vscode.TreeItem[] = [];
+
+      // Add Current Branch Status
+      const branches = await gitService.getBranches();
+      if (branches.current) {
+        const status = await gitService.getBranchStatus(branches.current);
+        items.push(new BranchStatusItem(branches.current, status.isGone));
+      }
+
       if (this._staged.length > 0) {
         items.push(new GroupItem('Staged Changes', this._staged.length, 'stagedGroup'));
       }

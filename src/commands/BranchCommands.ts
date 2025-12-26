@@ -49,6 +49,9 @@ export class BranchCommands {
         'gitorbit.deleteRemoteBranch',
         this.deleteRemoteBranch.bind(this)
       ),
+      vscode.commands.registerCommand('gitorbit.forceDeleteRemoteBranch', (item) =>
+        this.deleteRemoteBranch(item, true)
+      ),
       vscode.commands.registerCommand('gitorbit.deleteBranchMenu', this.deleteBranchMenu.bind(this))
     );
   }
@@ -235,19 +238,39 @@ export class BranchCommands {
   /**
    * Deletes a remote branch.
    * @param item - The tree item representing the remote branch.
+   * @param force - Whether to force delete.
    */
-  private async deleteRemoteBranch(item: any) {
+  private async deleteRemoteBranch(item: any, force: boolean = false) {
     const fullName = item.branchName || item.label; // e.g. origin/feature/x
     const parts = fullName.split('/');
     const remote = parts[0];
     const branchName = parts.slice(1).join('/');
-    const confirm = await vscode.window.showWarningMessage(
-      `Delete remote branch ${branchName} from ${remote}?`,
-      'Delete Remote',
+
+    if (force) {
+      const confirm = await vscode.window.showWarningMessage(
+        `Are you sure you want to FORCE delete remote branch '${branchName}' from '${remote}'?`,
+        { modal: true },
+        'Force Delete'
+      );
+      if (confirm === 'Force Delete') {
+        await this.gitService.deleteRemoteBranch(remote, branchName, true);
+        this.refreshCallback();
+      }
+      return;
+    }
+
+    const selection = await vscode.window.showWarningMessage(
+      `Delete remote branch '${branchName}' from '${remote}'?`,
+      'Delete',
+      'Force Delete',
       'Cancel'
     );
-    if (confirm === 'Delete Remote') {
+
+    if (selection === 'Delete') {
       await this.gitService.deleteRemoteBranch(remote, branchName, false);
+      this.refreshCallback();
+    } else if (selection === 'Force Delete') {
+      await this.gitService.deleteRemoteBranch(remote, branchName, true);
       this.refreshCallback();
     }
   }

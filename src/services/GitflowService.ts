@@ -18,54 +18,82 @@ export class GitflowService {
 
   /**
    * Prompts user for a source branch and new branch name, then creates and pushes it.
+   * @param defaultSource - Optional default source branch to pre-select.
    */
-  public async startRemoteBranch() {
+  public async startRemoteBranch(defaultSource?: string) {
     const branches = await this.gitService.getBranches();
-    const source = await vscode.window.showQuickPick(branches.all, {
-      placeHolder: 'Select source branch to branch from',
-    });
+
+    let source = defaultSource;
+    if (!source) {
+      source = await vscode.window.showQuickPick(branches.all, {
+        placeHolder: 'Select source branch to branch from',
+      });
+    }
 
     if (!source) return;
 
+    // Ensure we have a clean branch name (e.g. remove "remotes/origin/" if it was selected)
+    const cleanSource = source.startsWith('remotes/')
+      ? source.split('/').slice(2).join('/')
+      : source;
+
     const name = await vscode.window.showInputBox({
-      prompt: 'Enter branch name to create and push',
+      prompt: `Enter branch name to create on remote (branching from '${cleanSource}')`,
       placeHolder: 'my-remote-feature',
     });
 
     if (name) {
-      await this.createAndPush(name, source);
+      // Use atomic push to create on remote without local checkout
+      await this.createRemoteOnly(name, cleanSource);
     }
   }
 
   /**
-   * Internal helper to create a branch and push it to origin immediately.
-   * @param branchName - The new branch name.
-   * @param source - The source branch name.
+   * Atomic remote branch creation. Creates branch on origin from source
+   * without creating a local branch or checking it out.
    */
-  private async createAndPush(branchName: string, source?: string) {
+  private async createRemoteOnly(branchName: string, source: string) {
     try {
-      await this.gitService.createBranch(branchName, source);
-      await this.gitService.push('origin', branchName);
-      vscode.window.showInformationMessage(`Started and pushed branch: ${branchName}`);
-      vscode.commands.executeCommand('gitorbit.refreshViews');
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Creating remote branch ${branchName}...`,
+          cancellable: false,
+        },
+        async () => {
+          // git push origin <source>:refs/heads/<new_branch>
+          // Using full refname for destination to prevent ambiguity
+          await this.gitService.push('origin', `${source}:refs/heads/${branchName}`);
+          await this.gitService.fetch('origin');
+          vscode.window.showInformationMessage(
+            `Remote branch '${branchName}' created successfully.`
+          );
+          vscode.commands.executeCommand('gitorbit.refreshViews');
+        }
+      );
     } catch (error: any) {
-      vscode.window.showErrorMessage(`Failed to create/push branch: ${error.message}`);
+      vscode.window.showErrorMessage(`Failed to create remote branch: ${error.message}`);
     }
   }
 
   /**
    * Prompts user for source and name, then creates a local branch.
+   * @param defaultSource - Optional default source branch to pre-select.
    */
-  public async startBranch() {
+  public async startBranch(defaultSource?: string) {
     const branches = await this.gitService.getBranches();
-    const source = await vscode.window.showQuickPick(branches.all, {
-      placeHolder: 'Select source branch to branch from',
-    });
+
+    let source = defaultSource;
+    if (!source) {
+      source = await vscode.window.showQuickPick(branches.all, {
+        placeHolder: 'Select source branch to branch from',
+      });
+    }
 
     if (!source) return;
 
     const name = await vscode.window.showInputBox({
-      prompt: 'Enter branch name',
+      prompt: `Enter branch name (branching from '${source}')`,
       placeHolder: 'my-new-branch',
     });
 
@@ -109,10 +137,6 @@ export class GitflowService {
         label: '$(plus) Start Release',
         description: `Create a branch with prefix '${this.configService.releasePrefix}'`,
       },
-      {
-        label: '$(cloud-upload) Create Remote Branch',
-        description: 'Create a branch and push it to origin',
-      },
     ];
 
     const selected = await vscode.window.showQuickPick(items, {
@@ -128,8 +152,6 @@ export class GitflowService {
         await this.startGitflowBranch('bugfix');
       } else if (selected.label.includes('Release')) {
         await this.startGitflowBranch('release');
-      } else if (selected.label.includes('Remote')) {
-        await this.startRemoteBranch();
       } else if (selected.label.includes('Create Branch')) {
         await this.startBranch();
       }
@@ -137,10 +159,63 @@ export class GitflowService {
   }
 
   /**
+   * Shows a QuickPick menu for remote branch creation options.
+   */
+  public async showRemoteMenu(defaultSource?: string) {
+    const items: vscode.QuickPickItem[] = [
+      {
+        label: '$(cloud-upload) Create Remote Branch',
+        description: 'Simple branch without prefix',
+      },
+      {
+        label: '$(cloud-upload) Start Remote Feature',
+        description: `Remote branch with prefix '${this.configService.featurePrefix}'`,
+      },
+      {
+        label: '$(cloud-upload) Start Remote Hotfix',
+        description: `Remote branch with prefix '${this.configService.hotfixPrefix}'`,
+      },
+      {
+        label: '$(cloud-upload) Start Remote Bugfix',
+        description: `Remote branch with prefix '${this.configService.bugfixPrefix}'`,
+      },
+      {
+        label: '$(cloud-upload) Start Remote Release',
+        description: `Remote branch with prefix '${this.configService.releasePrefix}'`,
+      },
+    ];
+
+    const selected = await vscode.window.showQuickPick(items, {
+      placeHolder: 'Select Remote Git Action',
+    });
+
+    if (selected) {
+      if (selected.label.includes('Feature')) {
+        await this.startGitflowBranch('feature', defaultSource, true);
+      } else if (selected.label.includes('Hotfix')) {
+        await this.startGitflowBranch('hotfix', defaultSource, true);
+      } else if (selected.label.includes('Bugfix')) {
+        await this.startGitflowBranch('bugfix', defaultSource, true);
+      } else if (selected.label.includes('Release')) {
+        await this.startGitflowBranch('release', defaultSource, true);
+      } else if (selected.label.includes('Create Remote Branch')) {
+        await this.startRemoteBranch(defaultSource);
+      }
+    }
+  }
+
+  /**
    * Starts a new Gitflow branch (feature, hotfix, bugfix, or release).
    * Automatically uses the base branch from settings if configured.
+   * @param type - Gitflow branch type.
+   * @param defaultSource - Optional default source branch.
+   * @param remoteOnly - Whether to only create on remote.
    */
-  public async startGitflowBranch(type: 'feature' | 'hotfix' | 'bugfix' | 'release') {
+  public async startGitflowBranch(
+    type: 'feature' | 'hotfix' | 'bugfix' | 'release',
+    defaultSource?: string,
+    remoteOnly: boolean = false
+  ) {
     let prefix = '';
     let baseBranch = '';
     let placeholder = '';
@@ -168,27 +243,40 @@ export class GitflowService {
         break;
     }
 
-    let source = baseBranch;
+    let source = defaultSource || baseBranch;
 
     // If base branch isn't set or doesn't exist, ask the user
     const branches = await this.gitService.getBranches();
     if (!source || !branches.all.includes(source)) {
       source =
         (await vscode.window.showQuickPick(branches.all, {
-          placeHolder: `Select source branch to branch from for ${type} (Config: '${baseBranch}' not found)`,
+          placeHolder: `Select source branch for ${
+            remoteOnly ? 'remote ' : ''
+          }${type} (Source: '${source}' not found)`,
         })) || '';
     }
 
     if (!source) return;
 
+    // Clean source for remote creation
+    const cleanSource = source.startsWith('remotes/')
+      ? source.split('/').slice(2).join('/')
+      : source;
+
     const name = await vscode.window.showInputBox({
-      prompt: `Enter ${type} name (branching from '${source}', prefix '${prefix}' will be added)`,
+      prompt: `Enter ${type} name (${
+        remoteOnly ? 'Remote creation' : 'Branching'
+      } from '${cleanSource}', prefix '${prefix}' will be added)`,
       placeHolder: placeholder,
     });
 
     if (name) {
       const branchName = `${prefix}${name}`;
-      await this.createAndCheckout(branchName, source);
+      if (remoteOnly) {
+        await this.createRemoteOnly(branchName, cleanSource);
+      } else {
+        await this.createAndCheckout(branchName, source);
+      }
     }
   }
 

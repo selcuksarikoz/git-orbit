@@ -15,9 +15,11 @@ export class BranchItem extends vscode.TreeItem {
     public readonly isRemote: boolean = false,
     public readonly subItems?: any,
     public readonly isCurrent: boolean = false,
-    public readonly status?: { ahead: number; behind: number }
+    public readonly status?: { ahead: number; behind: number; isGone: boolean }
   ) {
-    super(label, collapsibleState);
+    const isGone = status?.isGone;
+    const finalLabel = isGone ? BranchItem.toStrikethrough(label) : label;
+    super(finalLabel, collapsibleState);
     this.contextValue =
       type === 'branch'
         ? isRemote
@@ -30,7 +32,11 @@ export class BranchItem extends vscode.TreeItem {
     if (type === 'branch') {
       this.iconPath = new vscode.ThemeIcon(
         'git-branch',
-        isCurrent ? new vscode.ThemeColor('charts.green') : undefined
+        isGone
+          ? new vscode.ThemeColor('charts.red')
+          : isCurrent
+            ? new vscode.ThemeColor('charts.green')
+            : undefined
       );
 
       const parts = [];
@@ -44,9 +50,18 @@ export class BranchItem extends vscode.TreeItem {
       this.description = parts.join(' ');
 
       if (status) {
-        this.tooltip = `Ahead: ${status.ahead}, Behind: ${status.behind}`;
+        this.tooltip = `Ahead: ${status.ahead}, Behind: ${status.behind}${
+          isGone ? ' (Gone on Remote)' : ''
+        }`;
       }
     }
+  }
+
+  static toStrikethrough(text: string): string {
+    return text
+      .split('')
+      .map((char) => char + '\u0336')
+      .join('');
   }
 }
 

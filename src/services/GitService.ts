@@ -390,10 +390,13 @@ export class GitService {
     return result.stdout;
   }
 
-  public async push(remote: string = 'origin', branch?: string) {
+  public async push(remote: string = 'origin', branch?: string, setUpstream: boolean = false) {
     await this._ensureInitialized();
     if (!this.executor) return;
     const args = ['push', remote];
+    if (setUpstream) {
+      args.push('-u');
+    }
     if (branch) {
       args.push(branch);
     }
@@ -435,28 +438,40 @@ export class GitService {
   }
 
   @memoize
-  public async getBranchStatus(branchName: string): Promise<{ ahead: number; behind: number }> {
+  public async getBranchStatus(
+    branchName: string
+  ): Promise<{ ahead: number; behind: number; isGone: boolean }> {
     await this._ensureInitialized();
-    if (!this.executor) return { ahead: 0, behind: 0 };
+    if (!this.executor) return { ahead: 0, behind: 0, isGone: false };
     try {
+      // Use branch --format to get upstream and track status (including [gone])
+      const result = await this.executor.exec([
+        'branch',
+        '--list',
+        branchName,
+        '--format=%(upstream:track)',
+      ]);
+      const output = result.stdout.trim();
+      const isGone = output.includes('[gone]');
+
       const upstreamResult = await this.executor.exec([
         'rev-parse',
         '--abbrev-ref',
         `${branchName}@{u}`,
       ]);
       const upstream = upstreamResult.stdout.trim();
-      if (!upstream) return { ahead: 0, behind: 0 };
+      if (!upstream) return { ahead: 0, behind: 0, isGone };
 
-      const result = await this.executor.exec([
+      const listResult = await this.executor.exec([
         'rev-list',
         '--left-right',
         '--count',
         `${branchName}...${upstream}`,
       ]);
-      const counts = result.stdout.trim().split(/\s+/).map(Number);
-      return { ahead: counts[0] || 0, behind: counts[1] || 0 };
+      const counts = listResult.stdout.trim().split(/\s+/).map(Number);
+      return { ahead: counts[0] || 0, behind: counts[1] || 0, isGone };
     } catch {
-      return { ahead: 0, behind: 0 };
+      return { ahead: 0, behind: 0, isGone: false };
     }
   }
 

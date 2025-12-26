@@ -515,8 +515,9 @@ export function activate(context: vscode.ExtensionContext) {
   StashCommands.getInstance(refreshAll).register(context);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitorbit.startRemoteBranch', () => {
-      GitflowService.getInstance().startRemoteBranch();
+    vscode.commands.registerCommand('gitorbit.startRemoteBranch', (node?: any) => {
+      const defaultSource = node ? node.branchName || node.label : undefined;
+      GitflowService.getInstance().showRemoteMenu(defaultSource);
     })
   );
 
@@ -551,8 +552,9 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitorbit.startBranch', () => {
-      GitflowService.getInstance().startBranch();
+    vscode.commands.registerCommand('gitorbit.startBranch', (node?: any) => {
+      const defaultSource = node ? node.branchName || node.label : undefined;
+      GitflowService.getInstance().startBranch(defaultSource);
     })
   );
 

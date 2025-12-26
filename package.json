@@ -140,7 +140,14 @@
       {
         "command": "gitorbit.deleteRemoteBranch",
         "title": "Delete Remote Branch",
-        "category": "GitOrbit"
+        "category": "GitOrbit",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "gitorbit.forceDeleteRemoteBranch",
+        "title": "Force Delete Remote Branch",
+        "category": "GitOrbit",
+        "icon": "$(trash)"
       },
       {
         "command": "gitorbit.cherryPick",
@@ -546,7 +553,7 @@
         },
         {
           "command": "gitorbit.gitflow.menu",
-          "when": "view == gitorbit.views.localBranches || view == gitorbit.views.remoteBranches",
+          "when": "view == gitorbit.views.localBranches",
           "group": "navigation@3"
         },
         {
@@ -605,6 +612,11 @@
           "group": "navigation@0"
         },
         {
+          "command": "gitorbit.startRemoteBranch",
+          "when": "view == gitorbit.views.remoteBranches",
+          "group": "navigation@3"
+        },
+        {
           "command": "gitorbit.refreshViews",
           "when": "view == gitorbit.views.localBranches || view == gitorbit.views.remoteBranches || view == gitorbit.views.stashes || view == gitorbit.views.tags || view == gitorbit.views.contributors || view == gitorbit.views.graph",
           "group": "navigation"
@@ -659,7 +671,11 @@
         {
           "command": "gitorbit.deleteRemoteBranch",
           "when": "view == gitorbit.views.remoteBranches && viewItem == remoteBranch",
-          "group": "branchActions@1"
+          "group": "inline"
+        },
+        {
+          "command": "gitorbit.forceDeleteRemoteBranch",
+          "when": "view == gitorbit.views.remoteBranches && viewItem == remoteBranch"
         },
         {
           "command": "gitorbit.chatWithCommit",
@@ -705,6 +721,16 @@
           "command": "gitorbit.checkoutBranch",
           "when": "view == gitorbit.views.remoteBranches && viewItem == remoteBranch",
           "group": "inline@1"
+        },
+        {
+          "command": "gitorbit.startBranch",
+          "when": "view == gitorbit.views.localBranches && (viewItem == localBranchCurrent || viewItem == localBranchNotCurrent)",
+          "group": "branchActions@1"
+        },
+        {
+          "command": "gitorbit.startRemoteBranch",
+          "when": "view == gitorbit.views.remoteBranches && viewItem == remoteBranch",
+          "group": "branchActions@1"
         },
         {
           "command": "gitorbit.openCommitDiffs",
