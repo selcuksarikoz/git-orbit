@@ -790,12 +790,6 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitorbit.interactiveRebase', () => {
-      RebasePanel.createOrShow(context.extensionUri);
-    })
-  );
-
-  context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.contributors.openProfile', async (item: any) => {
       if (item && (item.email || item.name)) {
         const gitService = GitService.getInstance();

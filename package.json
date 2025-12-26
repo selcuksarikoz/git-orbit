@@ -2,7 +2,7 @@
   "name": "gitorbit",
   "displayName": "GitOrbit",
   "description": "Simplify your Git management with AI assistance. Features include smart commit messages, code smell detection, and conversational AI to help you manage your workflow effortlessly.",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "publisher": "selcuksarikoz",
   "icon": "assets/icons/logo.png",
   "repository": {
@@ -471,7 +471,7 @@
         "command": "gitorbit.interactiveRebase",
         "title": "Interactive Rebase",
         "category": "GitOrbit",
-        "icon": "$(git-rebase)"
+        "icon": "$(history)"
       },
       {
         "command": "gitorbit.login",
@@ -619,8 +619,13 @@
         },
         {
           "command": "gitorbit.interactiveRebase",
+          "when": "view == gitorbit.views.changes",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitorbit.interactiveRebase",
           "when": "view == gitorbit.views.commits || view == gitorbit.views.graph",
-          "group": "navigation@0"
+          "group": "navigation"
         },
         {
           "command": "gitorbit.startRemoteBranch",
@@ -797,6 +802,11 @@
           "command": "gitorbit.graph.revert",
           "when": "view == gitorbit.views.graph && viewItem == commit",
           "group": "3_git_actions@2"
+        },
+        {
+          "command": "gitorbit.interactiveRebase",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph) && viewItem == commit",
+          "group": "inline"
         },
         {
           "command": "gitorbit.graph.reset",
