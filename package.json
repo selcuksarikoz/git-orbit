@@ -512,7 +512,7 @@
         {
           "command": "gitorbit.changes.smartCommit",
           "when": "view == gitorbit.views.changes",
-          "group": "gitorbit_1_actions@1"
+          "group": "navigation@2"
         },
         {
           "command": "gitorbit.changes.pull",
@@ -547,7 +547,7 @@
         {
           "command": "gitorbit.openSettings",
           "when": "view == gitorbit.views.changes",
-          "group": "gitorbit_2_extras@2"
+          "group": "gitorbit_3_settings@1"
         },
         {
           "command": "gitorbit.refreshChanges",
