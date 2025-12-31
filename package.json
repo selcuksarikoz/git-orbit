@@ -565,14 +565,14 @@
           "group": "navigation@2"
         },
         {
+          "command": "gitorbit.showGitGraph",
+          "when": "view == gitorbit.views.localBranches",
+          "group": "navigation@1"
+        },
+        {
           "command": "gitorbit.gitflow.menu",
           "when": "view == gitorbit.views.localBranches",
           "group": "navigation@3"
-        },
-        {
-          "command": "gitorbit.showGitGraph",
-          "when": "view == gitorbit.views.localBranches",
-          "group": "navigation@4"
         },
         {
           "command": "gitorbit.saveStash",
@@ -636,7 +636,12 @@
         },
         {
           "command": "gitorbit.refreshViews",
-          "when": "view == gitorbit.views.localBranches || view == gitorbit.views.remoteBranches || view == gitorbit.views.stashes || view == gitorbit.views.tags || view == gitorbit.views.contributors || view == gitorbit.views.graph",
+          "when": "view == gitorbit.views.localBranches",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitorbit.refreshViews",
+          "when": "view == gitorbit.views.remoteBranches || view == gitorbit.views.stashes || view == gitorbit.views.tags || view == gitorbit.views.contributors || view == gitorbit.views.graph",
           "group": "navigation"
         }
       ],
