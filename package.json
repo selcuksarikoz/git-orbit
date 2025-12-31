@@ -2,7 +2,7 @@
   "name": "gitorbit",
   "displayName": "GitOrbit",
   "description": "Simplify your Git management with AI assistance. Features include smart commit messages, code smell detection, and conversational AI to help you manage your workflow effortlessly.",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "publisher": "selcuksarikoz",
   "icon": "assets/icons/logo.png",
   "repository": {
@@ -66,43 +66,50 @@
           "id": "gitorbit.views.graph",
           "name": "Graph",
           "icon": "$(graph)",
-          "when": "config.gitorbit.views.showGraph"
+          "when": "config.gitorbit.views.showGraph",
+          "visibility": "collapsed"
         },
         {
           "id": "gitorbit.views.commits",
           "name": "Commits history",
           "icon": "$(git-commit)",
-          "when": "config.gitorbit.views.showCommits"
+          "when": "config.gitorbit.views.showCommits",
+          "visibility": "collapsed"
         },
         {
           "id": "gitorbit.views.fileHistory",
           "name": "File history",
           "icon": "$(history)",
-          "when": "config.gitorbit.views.showFileHistory"
+          "when": "config.gitorbit.views.showFileHistory",
+          "visibility": "collapsed"
         },
         {
           "id": "gitorbit.views.remoteBranches",
           "name": "Remote Branches",
           "icon": "$(git-branch)",
-          "when": "config.gitorbit.views.showRemoteBranches"
+          "when": "config.gitorbit.views.showRemoteBranches",
+          "visibility": "collapsed"
         },
         {
           "id": "gitorbit.views.stashes",
           "name": "Stashes",
           "icon": "$(archive)",
-          "when": "config.gitorbit.views.showStashes"
+          "when": "config.gitorbit.views.showStashes",
+          "visibility": "collapsed"
         },
         {
           "id": "gitorbit.views.tags",
           "name": "Tags",
           "icon": "$(tag)",
-          "when": "config.gitorbit.views.showTags"
+          "when": "config.gitorbit.views.showTags",
+          "visibility": "collapsed"
         },
         {
           "id": "gitorbit.views.contributors",
           "name": "Contributors",
           "icon": "$(person)",
-          "when": "config.gitorbit.views.showContributors"
+          "when": "config.gitorbit.views.showContributors",
+          "visibility": "collapsed"
         }
       ]
     },
