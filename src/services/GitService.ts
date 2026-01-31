@@ -689,9 +689,7 @@ export class GitService {
   public async discardAllChanges() {
     await this._ensureInitialized();
     if (!this.executor) return;
-    // Discard staged (unstage them first)
-    await this.executor.exec(['restore', '--staged', '.']);
-    // Discard unstaged changes
+    // Discard unstaged changes only (keep staged intact)
     await this.executor.exec(['checkout', '--', '.']);
     // Remove untracked files and directories
     await this.executor.exec(['clean', '-fd']);

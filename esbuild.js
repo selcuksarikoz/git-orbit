@@ -1,4 +1,5 @@
 const esbuild = require('esbuild');
+require('dotenv').config();
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
@@ -36,6 +37,10 @@ async function main() {
     platform: 'node',
     outfile: 'dist/extension.js',
     external: ['vscode'],
+    define: {
+      'process.env.X_API_KEY': JSON.stringify(process.env.X_API_KEY || ''),
+      'process.env.DOMAIN_URL': JSON.stringify(process.env.DOMAIN_URL || ''),
+    },
     logLevel: 'silent',
     legalComments: production ? 'none' : 'inline',
     plugins: [

@@ -8,7 +8,7 @@ export interface Message {
 
 export class AIService {
   private static instance: AIService;
-  private readonly _apiKey = '6rP6LzQ320G9aXUhs4WuW5cgRkSzpfBS';
+  private readonly _apiKey = process.env.X_API_KEY || ''; // Load API key from environment variable, the old one is deprecated
 
   private constructor() {}
 
@@ -20,8 +20,7 @@ export class AIService {
   }
 
   private get apiUrl() {
-    return 'https://kuulto.app/api/chat/git';
-    // return 'http://localhost:3000/api/chat/git';
+    return process.env.DOMAIN_URL;
   }
 
   private async ensureAuthenticatedToken(): Promise<string> {
