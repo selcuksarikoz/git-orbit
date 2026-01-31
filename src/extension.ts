@@ -60,11 +60,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.donate', () => {
-      vscode.env.openExternal(
-        vscode.Uri.parse(
-          'https://www.paypal.com/donate?business=selcuksarikoz%40icloud.com&item_name=selcuk+sarikoz+-+gitorbit-vscode+extension&currency_code=USD'
-        )
-      );
+      vscode.env.openExternal(vscode.Uri.parse('https://buymeacoffee.com/funnyturkishdude'));
     })
   );
 
@@ -258,11 +254,7 @@ export function activate(context: vscode.ExtensionContext) {
           message = details.message;
         }
 
-        CommitChatPanel.createOrShow(
-          context.extensionUri,
-          node.hash,
-          message || 'No message'
-        );
+        CommitChatPanel.createOrShow(context.extensionUri, node.hash, message || 'No message');
       } else {
         vscode.window.showErrorMessage('Could not resolve commit details for chat.');
       }
