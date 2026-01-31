@@ -11,7 +11,7 @@
   },
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
-    "vscode": "^1.108.0"
+    "vscode": "^1.100.0"
   },
   "categories": [
     "SCM Providers",
@@ -978,7 +978,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.19.30",
-    "@types/vscode": "^1.108.1",
+    "@types/vscode": "^1.100.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "@vscode/test-electron": "^2.5.2",
