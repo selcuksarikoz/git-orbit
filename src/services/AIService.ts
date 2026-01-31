@@ -45,7 +45,7 @@ export class AIService {
   /**
    * Streams chat completion from the centralized API.
    */
-  public async streamChat(messages: Message[], systemPrompt: string, abortSignal?: AbortSignal) {
+  public async streamChat(messages: Message[], abortSignal?: AbortSignal) {
     const token = await this.ensureAuthenticatedToken();
 
     const response = await fetch(this.apiUrl!, {
@@ -57,7 +57,6 @@ export class AIService {
       },
       body: JSON.stringify({
         messages,
-        system_prompt: systemPrompt,
         stream: true,
         type: 'chat',
       }),

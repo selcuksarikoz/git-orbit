@@ -247,23 +247,20 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('gitorbit.chatWithCommit', async (node: any) => {
       if (node && node.hash) {
         // Handle both CommitItem and GraphItem properties
-        let author = node.author || node.authorName || node.commit?.author;
         let message = node.label || node.message || node.commit?.message;
 
         if (typeof message !== 'string' && message?.label) {
           message = message.label;
         }
 
-        if (!author || author === 'Unknown' || !message || message === 'No message') {
+        if (!message || message === 'No message') {
           const details = await GitService.getInstance().getCommitDetails(node.hash);
-          author = details.author;
           message = details.message;
         }
 
         CommitChatPanel.createOrShow(
           context.extensionUri,
           node.hash,
-          author || 'Unknown',
           message || 'No message'
         );
       } else {
@@ -303,7 +300,6 @@ export function activate(context: vscode.ExtensionContext) {
           await CommitChatPanel.createOrShow(
             context.extensionUri,
             'current-changes',
-            'You',
             'Workspace Changes',
             combinedDiff,
             'Please check these changes for any code smells, potential bugs, or improvements. Provide a detailed analysis.'
@@ -707,7 +703,6 @@ export function activate(context: vscode.ExtensionContext) {
       CommitChatPanel.createOrShow(
         context.extensionUri,
         'selected-code',
-        'You',
         `Analysis of selected code in ${filename}`,
         selectedText,
         'How can I improve this code? Please analyze it for code smells, performance issues, and readability.'

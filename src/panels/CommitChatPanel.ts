@@ -16,8 +16,7 @@ export class CommitChatPanel {
     panel: vscode.WebviewPanel,
     extensionUri: vscode.Uri,
     commitHash: string,
-    author: string,
-    message: string,
+    commitMessage: string,
     diff: string,
     userData: { name: string; avatarUrl: string },
     initialPrompt?: string
@@ -26,45 +25,21 @@ export class CommitChatPanel {
     this._extensionUri = extensionUri;
     this._commitHash = commitHash;
 
-    // Set the webview's initial html content
-    this._update(author, message, userData, initialPrompt);
-
-    // Initial system prompt setup
+    // Build context message for AI
     const isWorkspaceChanges = commitHash === 'current-changes';
     const isSelection = commitHash === 'selected-code';
+    const truncatedDiff = diff.length > 25000 ? diff.substring(0, 25000) + '\n...(truncated)' : diff;
 
-    const contextType = isSelection
-      ? 'selected code snippet'
+    let contextContent = isSelection
+      ? `[Selected Code]\n${truncatedDiff}`
       : isWorkspaceChanges
-        ? 'current workspace changes'
-        : 'a specific git commit';
+        ? `[Workspace Changes]\n${truncatedDiff}`
+        : `[Commit ${commitHash.substring(0, 7)}] ${commitMessage}\n${truncatedDiff}`;
 
-    const systemPrompt = `You are a highly experienced Staff Software Engineer.
-Your goal: Provide immediate, world-class technical results. Focus on SOLID, DRY, and high-performance patterns.
+    this._messages.push({ role: 'user', content: contextContent });
 
-**Context**: ${contextType}
-${
-  !isWorkspaceChanges && !isSelection
-    ? `**Commit**: ${commitHash.substring(0, 7)} | **Author**: ${author} | **Msg**: ${message}`
-    : ''
-}
-
-**Input Content**:
-${diff.substring(0, 25000)} ${diff.length > 25000 ? '...(truncated)' : ''}
-
-**Operational Guidelines**:
-1. **Direct Action**: Do not explain *that* you are analyzing. Provide the analysis and refactored code IMMEDIATELY.
-2. **Gold Standard**: For any code improvement, provide the "Gold Standard" refactored version using triple backticks (\` \` \`) and language ID.
-3. **Brutally Pragmatic**: Identify code smells (Primitive Obsession, nesting, etc.) and performance issues (leaks, complexity) directly.
-4. **No Fluff**: Skip polite introductions or descriptive preambles. Start with the solution or the critique.
-
-**Task**: ${
-      isSelection
-        ? 'Refactor this code to production-grade quality. Show the improved version first, then brief bullet points on why.'
-        : isWorkspaceChanges
-          ? 'Identify bugs, architecture flaws, or smells in these changes. Provide fixes.'
-          : 'Summarize the impact of this commit and critique the implementation quality.'
-    }`;
+    // Set the webview's initial html content
+    this._update(commitMessage, userData, initialPrompt);
 
     // Listen for messages from the webview
     this._panel.webview.onDidReceiveMessage(
@@ -83,7 +58,6 @@ ${diff.substring(0, 25000)} ${diff.length > 25000 ? '...(truncated)' : ''}
             try {
               const stream = await AIService.getInstance().streamChat(
                 this._messages,
-                systemPrompt,
                 this._currentAbortController.signal
               );
 
@@ -136,7 +110,6 @@ ${diff.substring(0, 25000)} ${diff.length > 25000 ? '...(truncated)' : ''}
   public static async createOrShow(
     extensionUri: vscode.Uri,
     commitHash: string,
-    author: string,
     message: string,
     customDiff?: string,
     initialPrompt?: string
@@ -185,7 +158,6 @@ ${diff.substring(0, 25000)} ${diff.length > 25000 ? '...(truncated)' : ''}
       panel,
       extensionUri,
       commitHash,
-      author,
       message,
       diff,
       { name: userInfo.name, avatarUrl },
@@ -205,7 +177,6 @@ ${diff.substring(0, 25000)} ${diff.length > 25000 ? '...(truncated)' : ''}
   }
 
   private _update(
-    author: string,
     message: string,
     userData: { name: string; avatarUrl: string },
     initialPrompt?: string
@@ -214,11 +185,10 @@ ${diff.substring(0, 25000)} ${diff.length > 25000 ? '...(truncated)' : ''}
       this._commitHash === 'current-changes'
         ? 'Review Changes'
         : `Chat: ${this._commitHash.substring(0, 7)}`;
-    this._panel.webview.html = this._getHtmlForWebview(author, message, userData, initialPrompt);
+    this._panel.webview.html = this._getHtmlForWebview(message, userData, initialPrompt);
   }
 
   private _getHtmlForWebview(
-    author: string,
     message: string,
     userData: { name: string; avatarUrl: string },
     initialPrompt?: string
