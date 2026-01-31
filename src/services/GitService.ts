@@ -626,6 +626,73 @@ export class GitService {
     return result.stdout;
   }
 
+  /**
+   * Get a truncated diff suitable for AI commit message generation.
+   * Includes stat summary and limited diff content per file.
+   */
+  public async getTruncatedDiff(staged: boolean, maxChars: number = 4000): Promise<string> {
+    await this._ensureInitialized();
+    if (!this.executor) return '';
+
+    const diffArg = staged ? ['diff', '--staged'] : ['diff'];
+
+    // Get stat summary first
+    const statResult = await this.executor.exec([...diffArg, '--stat']);
+    const stat = statResult.stdout;
+
+    // Get full diff
+    const diffResult = await this.executor.exec(diffArg);
+    let diff = diffResult.stdout;
+
+    // If diff is small enough, return as-is with stat
+    if (diff.length <= maxChars) {
+      return diff;
+    }
+
+    // Truncate intelligently: keep file headers and limit content per file
+    const lines = diff.split('\n');
+    const truncatedLines: string[] = [];
+    let currentFileLines = 0;
+    const maxLinesPerFile = 30;
+    let totalChars = 0;
+
+    for (const line of lines) {
+      // File header - always include
+      if (
+        line.startsWith('diff --git') ||
+        line.startsWith('index ') ||
+        line.startsWith('---') ||
+        line.startsWith('+++')
+      ) {
+        truncatedLines.push(line);
+        currentFileLines = 0;
+        totalChars += line.length + 1;
+        continue;
+      }
+
+      // Hunk header - always include
+      if (line.startsWith('@@')) {
+        truncatedLines.push(line);
+        currentFileLines = 0;
+        totalChars += line.length + 1;
+        continue;
+      }
+
+      // Content lines - limit per file
+      if (currentFileLines < maxLinesPerFile && totalChars < maxChars) {
+        truncatedLines.push(line);
+        currentFileLines++;
+        totalChars += line.length + 1;
+      } else if (currentFileLines === maxLinesPerFile) {
+        truncatedLines.push('... (truncated)');
+        currentFileLines++;
+        totalChars += 20;
+      }
+    }
+
+    return `${stat}\n${truncatedLines.join('\n')}`;
+  }
+
   public async getUntrackedDiff(): Promise<string> {
     await this._ensureInitialized();
     if (!this.executor) return '';
@@ -764,6 +831,67 @@ export class GitService {
     const result = await this.executor.exec(['show', commitHash]);
     return result.stdout;
   }
+
+  /**
+   * Get a truncated commit diff suitable for AI analysis.
+   */
+  public async getTruncatedCommitDiff(commitHash: string, maxChars: number = 12000): Promise<string> {
+    await this._ensureInitialized();
+    if (!this.executor) return '';
+
+    // Get stat summary
+    const statResult = await this.executor.exec(['show', '--stat', '--format=', commitHash]);
+    const stat = statResult.stdout;
+
+    // Get diff only (no commit message)
+    const diffResult = await this.executor.exec(['show', '--format=', commitHash]);
+    const diff = diffResult.stdout;
+
+    if (diff.length <= maxChars) {
+      return `${stat}\n${diff}`;
+    }
+
+    // Truncate intelligently
+    const lines = diff.split('\n');
+    const truncatedLines: string[] = [];
+    let currentFileLines = 0;
+    const maxLinesPerFile = 60;
+    let totalChars = 0;
+
+    for (const line of lines) {
+      if (
+        line.startsWith('diff --git') ||
+        line.startsWith('index ') ||
+        line.startsWith('---') ||
+        line.startsWith('+++')
+      ) {
+        truncatedLines.push(line);
+        currentFileLines = 0;
+        totalChars += line.length + 1;
+        continue;
+      }
+
+      if (line.startsWith('@@')) {
+        truncatedLines.push(line);
+        currentFileLines = 0;
+        totalChars += line.length + 1;
+        continue;
+      }
+
+      if (currentFileLines < maxLinesPerFile && totalChars < maxChars) {
+        truncatedLines.push(line);
+        currentFileLines++;
+        totalChars += line.length + 1;
+      } else if (currentFileLines === maxLinesPerFile) {
+        truncatedLines.push('... (truncated)');
+        currentFileLines++;
+        totalChars += 20;
+      }
+    }
+
+    return `${stat}\n${truncatedLines.join('\n')}`;
+  }
+
   public async getCommitDetails(commitHash: string): Promise<{ author: string; message: string }> {
     await this._ensureInitialized();
     if (!this.executor) return { author: 'Unknown', message: 'Unknown' };

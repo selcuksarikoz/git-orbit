@@ -48,7 +48,7 @@ export class AIService {
   public async streamChat(messages: Message[], systemPrompt: string, abortSignal?: AbortSignal) {
     const token = await this.ensureAuthenticatedToken();
 
-    const response = await fetch(this.apiUrl, {
+    const response = await fetch(this.apiUrl!, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -102,13 +102,13 @@ export class AIService {
       }
 
       const data = await response.json();
-      const text = data.text || '';
+      const text = (data.text || '').trim();
 
       return text
         .split('\n')
         .map((line: string) => line.trim())
         .filter((line: string) => line.length > 0 && !line.startsWith('#'))
-        .map((line: string) => line.replace(/^[\d\-\*\.]+\s*/, '').replace(/^[`"']|[`"']$/g, '')) // Remove leading numbering/bullets/quotes
+        .map((line: string) => line.replace(/^[\d\-\*\.]+\s*/, '').replace(/^[`"']|[`"']$/g, ''))
         .filter((line: string) => line.length > 0);
     } catch (error: any) {
       console.error('AI Generation failed:', error);

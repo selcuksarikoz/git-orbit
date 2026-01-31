@@ -597,18 +597,18 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     let diff = '';
 
     if (hasStagedChanges) {
-      // Get staged diff
-      diff = await gitService.getStagedDiff();
+      // Get truncated staged diff for AI
+      diff = await gitService.getTruncatedDiff(true);
     } else {
       // Nothing staged, try regular diff of all tracked changes
-      diff = await gitService.getWorkingDiff();
+      diff = await gitService.getTruncatedDiff(false);
 
       // If still nothing, maybe untracked files?
       if (!diff) {
         // Auto-stage all to get a diff?
         vscode.window.showInformationMessage('Staging all changes to generate commit message...');
         await gitService.stageAll();
-        diff = await gitService.getStagedDiff();
+        diff = await gitService.getTruncatedDiff(true);
         hasStagedChanges = true;
       }
     }
@@ -629,19 +629,10 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
           cancellable: false,
         },
         async () => {
-          const prompt = `
-            You are an expert developer. Generate 5 conventional commit messages for the following git diff.
-            Rules:
-            - Return ONLY the raw commit messages.
-            - One message per line.
-            - No numbering (1., 2., etc).
-            - No markdown formatting (no backticks, no bullets).
-            - Use Conventional Commits format (feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert).
-            - Keep concise (under 72 chars).
+          const prompt = `Generate 1-2 commit messages. Format: <type>: <desc>
+Types: feat|fix|refactor|perf|style|docs|test|chore. One per line, max 72 chars.
 
-            Diff:
-            ${diff}
-            `;
+${diff}`;
 
           const commitRecommendations = await aiService.generateCommitMessages([
             { role: 'user', content: prompt },

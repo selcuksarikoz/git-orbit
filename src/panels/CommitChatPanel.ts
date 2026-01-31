@@ -145,11 +145,11 @@ ${diff.substring(0, 25000)} ${diff.length > 25000 ? '...(truncated)' : ''}
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
 
-    // Fetch diff for context
+    // Fetch diff for context (truncated for AI efficiency)
     let diff = customDiff || '';
     if (!diff) {
       try {
-        diff = await GitService.getInstance().getCommitDiff(commitHash);
+        diff = await GitService.getInstance().getTruncatedCommitDiff(commitHash);
       } catch (e) {
         diff = 'Could not fetch diff.';
       }
