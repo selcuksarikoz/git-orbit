@@ -432,11 +432,50 @@ export class GitService {
   public async updateLocalBranchFromRemote(branch: string, remote: string = 'origin') {
     await this._ensureInitialized();
     if (!this.executor) return;
+
+    // Fetch into FETCH_HEAD
     await this.executor.exec(['fetch', remote, branch]);
+
     try {
-      await this.executor.exec(['fetch', remote, `${branch}:${branch}`]);
-    } catch (e) {
-      throw new Error('Cannot update branch safely (non-fast-forward). Please checkout and pull.');
+      // Check relationship between local branch and FETCH_HEAD
+      const result = await this.executor.exec([
+        'rev-list',
+        '--left-right',
+        '--count',
+        `${branch}...FETCH_HEAD`,
+      ]);
+
+      const counts = result.stdout.trim().split(/\s+/).map(Number);
+      const ahead = counts[0] || 0; // Local commits not in remote
+      const behind = counts[1] || 0; // Remote commits not in local
+
+      if (ahead > 0 && behind > 0) {
+        throw new Error('Branch has diverged. Please checkout and pull to merge.');
+      }
+
+      if (ahead > 0) {
+        // We are ahead, so we don't want to update local pointer to match remote (would lose commits).
+        // We do nothing here, assuming the caller will Push next.
+        return;
+      }
+
+      if (behind > 0) {
+        // We are behind (fast-forwardable). Update local branch to match remote.
+        await this.executor.exec(['fetch', remote, `${branch}:${branch}`]);
+      }
+
+      // If ahead=0, behind=0, we are even. Do nothing.
+    } catch (e: any) {
+      if (e.message.includes('diverged')) {
+        throw e;
+      }
+
+      // Check if the error is because the branch doesn't exist locally (shouldn't happen here usually)
+      if (e.message.includes('unknown revision')) {
+         throw new Error(`Branch '${branch}' not found locally or remote information unavailable.`);
+      }
+
+      throw new Error(`Cannot update branch safely: ${e.message}`);
     }
     this.clearCache();
   }

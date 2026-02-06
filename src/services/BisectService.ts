@@ -37,7 +37,10 @@ export class BisectService {
     this.statusBarItem.dispose();
   }
 
-  private async updateStatus() {
+   private async updateStatus() {
+    // Update context key for menu visibility
+    await vscode.commands.executeCommand('setContext', 'gitorbit.ctx.bisectActive', this.state === BisectState.Active);
+
     if (this.state === BisectState.Idle) {
       this.statusBarItem.hide();
       return;
@@ -52,19 +55,22 @@ export class BisectService {
     this.statusBarItem.show();
   }
 
-  public async start() {
+  public async start(item?: any) {
     if (this.state === BisectState.Active) {
       vscode.window.showInformationMessage('Bisect is already active.');
       return;
     }
 
     try {
-      // Prompt for Bad/Good commits
+      // Pre-fill if item provided (from context menu)
+      const initialBad = item?.hash || 'HEAD';
 
+      // Prompt for Bad/Good commits
       const badCommit = await vscode.window.showInputBox({
         title: 'Bisect Start',
-        prompt: 'Enter the "Bad" commit hash (containing the bug)',
-        placeHolder: 'HEAD',
+        prompt: 'Enter the "Bad" commit hash, branch, or tag',
+        value: initialBad,
+        placeHolder: 'HEAD, main, v1.0, <hash>',
         ignoreFocusOut: true
       });
 
@@ -72,7 +78,7 @@ export class BisectService {
 
       const goodCommit = await vscode.window.showInputBox({
         title: 'Bisect Start',
-        prompt: 'Enter a "Good" commit hash (where it worked)',
+        prompt: 'Enter a "Good" commit hash, branch, or tag (where it worked)',
         ignoreFocusOut: true
       });
 
@@ -97,30 +103,40 @@ export class BisectService {
     }
   }
 
-  public async markGood() {
-    if (this.state !== BisectState.Active) return;
+  public async markGood(item?: any) {
+    if (this.state !== BisectState.Active) {
+        // Optional: Allow implicit start? For now, just warn.
+        vscode.window.showWarningMessage('Bisect is not active. Please start a bisect session first.');
+        return;
+    }
     try {
-        const result = await this.runBisectCommand('good');
+        const hash = item?.hash; // Get hash from tree item if available
+        const result = await this.runBisectCommand('good', hash);
         this.handleBisectResult(result);
     } catch(e: any) {
         vscode.window.showErrorMessage(`Error: ${e.message}`);
     }
   }
 
-  public async markBad() {
-    if (this.state !== BisectState.Active) return;
+  public async markBad(item?: any) {
+    if (this.state !== BisectState.Active) {
+        vscode.window.showWarningMessage('Bisect is not active. Please start a bisect session first.');
+        return;
+    }
     try {
-        const result = await this.runBisectCommand('bad');
+        const hash = item?.hash;
+        const result = await this.runBisectCommand('bad', hash);
         this.handleBisectResult(result);
     } catch(e: any) {
         vscode.window.showErrorMessage(`Error: ${e.message}`);
     }
   }
 
-  public async skip() {
+  public async skip(item?: any) {
     if (this.state !== BisectState.Active) return;
     try {
-        await this.runBisectCommand('skip');
+        const hash = item?.hash;
+        await this.runBisectCommand('skip', hash);
         vscode.window.showInformationMessage('Commit skipped.');
     } catch(e: any) {
         vscode.window.showErrorMessage(`Error: ${e.message}`);
@@ -142,11 +158,16 @@ export class BisectService {
     }
   }
 
-  private async runBisectCommand(cmd: 'good' | 'bad' | 'skip'): Promise<string> {
+  private async runBisectCommand(cmd: 'good' | 'bad' | 'skip', hash?: string): Promise<string> {
     const git = this.gitService.executor;
     if (!git) throw new Error('Git not initialized');
 
-    const result = await git.exec(['bisect', cmd]);
+    const args = ['bisect', cmd];
+    if (hash) {
+        args.push(hash);
+    }
+
+    const result = await git.exec(args);
     vscode.commands.executeCommand('gitorbit.refreshViews');
     return result.stdout;
   }

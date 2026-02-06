@@ -902,6 +902,26 @@
           "command": "gitorbit.contributors.openProfile",
           "when": "view == gitorbit.views.contributors && viewItem == contributor",
           "group": "inline"
+        },
+        {
+          "command": "gitorbit.bisect.start",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph) && viewItem == commit && !gitorbit.ctx.bisectActive",
+          "group": "gitorbit_bisect@1"
+        },
+        {
+          "command": "gitorbit.bisect.markGood",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph) && viewItem == commit && gitorbit.ctx.bisectActive",
+          "group": "gitorbit_bisect@1"
+        },
+        {
+          "command": "gitorbit.bisect.markBad",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph) && viewItem == commit && gitorbit.ctx.bisectActive",
+          "group": "gitorbit_bisect@2"
+        },
+        {
+          "command": "gitorbit.bisect.reset",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph) && viewItem == commit && gitorbit.ctx.bisectActive",
+          "group": "gitorbit_bisect@3"
         }
       ],
       "editor/title": [
