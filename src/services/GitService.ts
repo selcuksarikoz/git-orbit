@@ -393,9 +393,24 @@ export class GitService {
     if (branch) {
       args.push(branch);
     }
-    const result = await this.executor.exec(args);
-    this.clearCache();
-    return result;
+
+    try {
+        const result = await this.executor.exec(args);
+        this.clearCache();
+        return result;
+    } catch (error: any) {
+        // Check for "no upstream branch" error and handle it gracefully
+        if (error.message.includes('has no upstream branch') || error.stdout?.includes('has no upstream branch') || error.stderr?.includes('has no upstream branch')) {
+            const currentBranch = branch || (await this.getBranches()).current;
+            if (currentBranch) {
+                const retryArgs = ['push', '--set-upstream', remote, currentBranch];
+                const result = await this.executor.exec(retryArgs);
+                this.clearCache();
+                return result;
+            }
+        }
+        throw error;
+    }
   }
 
   public async pull(remote: string = 'origin', branch?: string) {
