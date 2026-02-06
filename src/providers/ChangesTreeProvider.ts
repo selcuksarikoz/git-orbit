@@ -29,7 +29,7 @@ class ChangeItem extends vscode.TreeItem {
       arguments: [this],
     };
 
-    // Use Context Value for inline actions (Stage/Unstage)
+    // Set context for inline actions
     if (isStaged) {
       this.contextValue = 'stagedChange';
     } else {
@@ -99,22 +99,22 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       if (this._refreshTimer) clearTimeout(this._refreshTimer);
       this._refreshTimer = setTimeout(() => {
         this.refresh();
-      }, 500); // Increased debounce to 500ms
+      }, 500); // 500ms debounce
     };
 
-    // Note: .git/index changes are handled by the global watcher in extension.ts calling refresh()
+    // Info: .git/index handled globally
 
-    // Watch for workspace file changes (Unstaged changes)
+    // Watch workspace files
     const workspaceWatcher = vscode.workspace.createFileSystemWatcher('**/*');
 
     const shouldRefresh = (uri: vscode.Uri) => {
       const path = uri.fsPath;
 
-      // Hardcoded exclusions (always critical)
+      // Critical exclusions
       if (path.includes('/.git/') || path.includes('\\.git\\')) return false;
       if (path.includes('/node_modules/') || path.includes('\\node_modules\\')) return false;
 
-      // Check vscode settings for exclusions
+      // Check VSCode exclusions
       const config = vscode.workspace.getConfiguration();
       const filesExclude = config.get<{ [key: string]: boolean }>('files.exclude') || {};
       const searchExclude = config.get<{ [key: string]: boolean }>('search.exclude') || {};
@@ -122,11 +122,11 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
 
       for (const [pattern, enabled] of Object.entries(allExcludes)) {
         if (enabled) {
-          // Simple Glob Matching:
-          // 1. Remove leading/trailing syntax for simple checks
+          // Glob matching
+          // Remove syntax fix
           const cleanPattern = pattern.replace(/^\*\*\//, '').replace(/\/$/, '');
 
-          // Directory match inside path
+          // Directory match
           if (pattern.endsWith('/') || pattern.includes('/')) {
             if (path.includes(cleanPattern)) return false;
           }
@@ -134,7 +134,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
           else if (pattern.startsWith('*.')) {
             if (path.endsWith(pattern.substring(1))) return false;
           }
-          // Exact name match (file or folder)
+          // Exact match
           else {
             if (path.includes(`/${cleanPattern}`) || path.includes(`\\${cleanPattern}`))
               return false;
@@ -161,12 +161,12 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     const gitService = GitService.getInstance();
     gitService.clearCache();
 
-    // Pre-calculate counts for badge and UI
+    // Calculate counts
     const status = await gitService.getStatus();
     this._staged = status.filter((s) => s.stagedStatus !== ' ' && s.stagedStatus !== '?');
     this._unstaged = status.filter((s) => s.workingTreeStatus !== ' ' || s.stagedStatus === '?');
 
-    // Update context keys for UI buttons
+    // Update context keys
     vscode.commands.executeCommand(
       'setContext',
       'gitorbit.hasUnstagedChanges',
@@ -189,8 +189,8 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     const gitService = GitService.getInstance();
 
     if (!element) {
-      // Root: Groups
-      // Update Decorations
+      // Root groups
+      // Update decorations
       const allStatus = [
         ...this._staged.map((s) => ({
           path: s.path,
@@ -208,7 +208,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
 
       const items: vscode.TreeItem[] = [];
 
-      // Add Current Branch Status
+      // Add branch status
       const branches = await gitService.getBranches();
       if (branches.current) {
         const status = await gitService.getBranchStatus(branches.current);
@@ -255,20 +255,19 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
   public async commit(amend: boolean = false) {
     const gitService = GitService.getInstance();
 
-    // Check if anything is staged
+    // Check staged status
     const status = await gitService.getStatus();
     const staged = status.filter((s) => s.stagedStatus !== ' ' && s.stagedStatus !== '?');
     const unstaged = status.filter((s) => s.workingTreeStatus !== ' ' || s.stagedStatus === '?');
 
-    // Auto-stage logic if nothing staged
+    // Auto-stage logic
     if (staged.length === 0 && !amend) {
       if (unstaged.length === 0) {
         vscode.window.showInformationMessage('No changes to commit.');
         return;
       }
 
-      // Auto-stage: If nothing is staged, stage everything automatically without asking
-      // This matches the user request "direk staged icine alsin"
+      // Auto-stage if empty
       await gitService.stageAll();
     }
 
@@ -307,10 +306,9 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
         gitService.rootDir
       );
 
-      // Special handling for working tree deletion:
-      // If deleted in working tree (and not staged removal yet?), we might want to just open the index version
+      // Handle deletions
       if (!item.isStaged && item.status === 'D') {
-        // Special handling for working tree deletion to just show the file
+        // Show deleted file
         const indexUri = GitContentProvider.getUri('INDEX', item.path);
         await vscode.commands.executeCommand('vscode.open', indexUri, {
           preview: true,
@@ -323,7 +321,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
         const title = `${item.path} (${item.isStaged ? 'Staged' : 'Changes'})`;
         await vscode.commands.executeCommand('vscode.diff', original, modified, title);
       } else {
-        // Fallback for some reason, or ignore if original is missing
+        // Fallback
       }
     } catch (e) {
       vscode.window.showErrorMessage('Could not open diff: ' + e);
@@ -351,7 +349,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
   }
 
   public async commitStaged() {
-    // Logic same as commit but ensure something is staged
+    // Commit staged only
     const gitService = GitService.getInstance();
     const status = await gitService.getStatus();
     const staged = status.filter((s) => s.stagedStatus !== ' ' && s.stagedStatus !== '?');
@@ -555,7 +553,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     const gitService = GitService.getInstance();
     const aiService = AIService.getInstance();
 
-    // 1. Determine what to diff
+    // Determine diff target
     const status = await gitService.getStatus();
     const staged = status.filter((s) => s.stagedStatus !== ' ' && s.stagedStatus !== '?');
 
@@ -563,15 +561,15 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     let diff = '';
 
     if (hasStagedChanges) {
-      // Get truncated staged diff for AI
+      // Get staged diff
       diff = await gitService.getTruncatedDiff(true);
     } else {
-      // Nothing staged, try regular diff of all tracked changes
+      // Diff all tracked
       diff = await gitService.getTruncatedDiff(false);
 
-      // If still nothing, maybe untracked files?
+      // Diff untracked?
       if (!diff) {
-        // Auto-stage all to get a diff?
+        // Auto-stage for diff
         vscode.window.showInformationMessage('Staging all changes to generate commit message...');
         await gitService.stageAll();
         diff = await gitService.getTruncatedDiff(true);
@@ -584,7 +582,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       return;
     }
 
-    // 2. Call AI
+    // Call AI
     if (!aiService.validateConfig()) return;
 
     try {
@@ -604,14 +602,14 @@ ${diff}`;
             { role: 'user', content: prompt },
           ]);
 
-          // 3. Show Quick Pick
+          // Show options
           const selected = await vscode.window.showQuickPick(commitRecommendations, {
             placeHolder: 'Select a commit message...',
             title: 'Smart Commit Recommendations',
           });
 
           if (selected) {
-            // 4. Allow editing the message
+            // Edit message
             const editedMessage = await vscode.window.showInputBox({
               value: selected,
               placeHolder: 'Commit message',
@@ -626,8 +624,8 @@ ${diff}`;
               return;
             }
 
-            // 5. Commit
-            // If we generated message from working diff (unstaged), we must stage now
+            // Commit
+            // Stage if needed
             if (!hasStagedChanges) {
               await gitService.stageAll();
             }

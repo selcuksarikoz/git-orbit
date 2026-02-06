@@ -499,6 +499,12 @@
         "icon": "$(sign-in)"
       },
       {
+        "command": "gitorbit.pullRequests.create",
+        "title": "Create Pull Request",
+        "category": "GitOrbit",
+        "icon": "$(add)"
+      },
+      {
         "command": "gitorbit.login",
         "title": "Login with Kuulto AI",
         "category": "GitOrbit"
@@ -678,6 +684,11 @@
         },
         {
           "command": "gitorbit.pullRequests.refresh",
+          "when": "view == gitorbit.views.pullRequests",
+          "group": "navigation"
+        },
+        {
+          "command": "gitorbit.pullRequests.create",
           "when": "view == gitorbit.views.pullRequests",
           "group": "navigation"
         },

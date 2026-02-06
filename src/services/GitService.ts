@@ -14,8 +14,7 @@ export interface CommitInfo {
 }
 
 /**
- * Singleton service class that handles all low-level Git operations.
- * Uses GitExecutor to run commands and Memoize to cache expensive calls.
+ * Singleton Git service.
  */
 export class GitService {
   private static instance: GitService;
@@ -24,8 +23,7 @@ export class GitService {
   private _initializePromise: Promise<void> | undefined;
 
   /**
-   * Clears the memoized cache for this instance.
-   * Useful after operations that modify the git state (push, pull, commit, etc.).
+   * Clear cache.
    */
   public clearCache() {
     clearMemoizedCache(this);
@@ -36,7 +34,7 @@ export class GitService {
   }
 
   /**
-   * Returns the singleton instance of GitService.
+   * Get instance.
    */
   public static getInstance(): GitService {
     if (!GitService.instance) {
@@ -94,9 +92,7 @@ export class GitService {
   }
 
   /**
-   * Retrieves all local and remote branches.
-   * Also identifies the current branch and its upstream status.
-   * @returns Object containing all branches list, current branch name, and current upstream name.
+   * Get branches.
    */
   @memoize
   public async getBranches() {
@@ -160,7 +156,7 @@ export class GitService {
   }
 
   /**
-   * Retrieves the commit log.
+   * Get log.
    */
   @memoize
   public async getLog(limit: number = 20, filePath?: string) {
@@ -177,7 +173,7 @@ export class GitService {
   }
 
   /**
-   * Retrieves the current commit list for the explorer.
+   * Get commits.
    */
   @memoize
   public async getCommits(limit: number = 50) {
@@ -190,7 +186,7 @@ export class GitService {
   }
 
   /**
-   * Retrieves the list of stash entries.
+   * Get stashes.
    */
   @memoize
   public async getStashes() {
@@ -399,7 +395,7 @@ export class GitService {
         this.clearCache();
         return result;
     } catch (error: any) {
-        // Check for "no upstream branch" error and handle it gracefully
+        // Handle missing upstream
         if (error.message.includes('has no upstream branch') || error.stdout?.includes('has no upstream branch') || error.stderr?.includes('has no upstream branch')) {
             const currentBranch = branch || (await this.getBranches()).current;
             if (currentBranch) {
@@ -520,9 +516,7 @@ export class GitService {
     ];
 
     const result = await this.executor.exec(args);
-    // getAllLog has an extra field 'refs', but parseLogOutput handles the 6th line gracefully as standard Log doesn't have it.
-    // However, the standard format in getLog is 5 lines + END.
-    // getAllLog format is 6 lines + END.
+    // Parse extended log format
     return { all: this.parseLogOutput(result.stdout) };
   }
 
@@ -623,8 +617,7 @@ export class GitService {
   }
 
   /**
-   * Get a truncated diff suitable for AI commit message generation.
-   * Includes stat summary and limited diff content per file.
+   * Get truncated diff for AI.
    */
   public async getTruncatedDiff(staged: boolean, maxChars: number = 4000): Promise<string> {
     await this._ensureInitialized();
@@ -632,20 +625,20 @@ export class GitService {
 
     const diffArg = staged ? ['diff', '--staged'] : ['diff'];
 
-    // Get stat summary first
+    // Get stat
     const statResult = await this.executor.exec([...diffArg, '--stat']);
     const stat = statResult.stdout;
 
-    // Get full diff
+    // Get diff
     const diffResult = await this.executor.exec(diffArg);
     let diff = diffResult.stdout;
 
-    // If diff is small enough, return as-is with stat
+    // Return if small
     if (diff.length <= maxChars) {
       return diff;
     }
 
-    // Truncate intelligently: keep file headers and limit content per file
+    // Truncate
     const lines = diff.split('\n');
     const truncatedLines: string[] = [];
     let currentFileLines = 0;
@@ -653,7 +646,7 @@ export class GitService {
     let totalChars = 0;
 
     for (const line of lines) {
-      // File header - always include
+      // Include header
       if (
         line.startsWith('diff --git') ||
         line.startsWith('index ') ||
@@ -666,7 +659,7 @@ export class GitService {
         continue;
       }
 
-      // Hunk header - always include
+      // Include hunk
       if (line.startsWith('@@')) {
         truncatedLines.push(line);
         currentFileLines = 0;
@@ -674,7 +667,7 @@ export class GitService {
         continue;
       }
 
-      // Content lines - limit per file
+      // Limit content
       if (currentFileLines < maxLinesPerFile && totalChars < maxChars) {
         truncatedLines.push(line);
         currentFileLines++;
@@ -763,12 +756,10 @@ export class GitService {
     await this._ensureInitialized();
     if (!this.executor) return;
     try {
-      // Unstage first just in case?
-      // No, "Discard Changes" usually targets working tree.
-      // If user wants to discard staged, they unstage first.
+      // Restore file
       await this.executor.exec(['restore', this.getRelativePath(filePath)]);
     } catch (e) {
-      // Fallback for older git or other issues
+      // Fallback
       await this.executor.exec(['checkout', '--', this.getRelativePath(filePath)]);
     }
     this.clearCache();

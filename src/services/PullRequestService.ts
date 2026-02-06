@@ -34,10 +34,10 @@ export class PullRequestService {
   public async getPullRequests(): Promise<PullRequest[]> {
     const prs: PullRequest[] = [];
 
-    // 1. Detect Remotes
-    const remotes = await this.getRemotes(); // Need to implement getRemotes properly or parse config
+    // Detect remotes
+    // TODO: Implement proper remote detection
 
-    // For MVP, just try GitHub upstream/origin
+    // MVP: GitHub only
     const remoteUrl = await this.gitService.getRemoteUrl();
     if (!remoteUrl) return [];
 
@@ -45,8 +45,7 @@ export class PullRequestService {
       const githubPRs = await this.getGitHubPRs(remoteUrl);
       prs.push(...githubPRs);
     }
-    // GitLab support can be added similarly with PAT
-    // else if (remoteUrl.includes('gitlab.com')) { ... }
+    // Future: GitLab support
 
     return prs;
   }
@@ -55,12 +54,11 @@ export class PullRequestService {
     try {
       const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: false });
       if (!session) {
-        // Silent failure or show "Sign in" item in tree
+        // Silent failure if no session
         return [];
       }
 
-      // Parse owner/repo from URL
-      // https://github.com/owner/repo.git or git@github.com:owner/repo.git
+      // Parse owner/repo
       const match = remoteUrl.match(/github\.com[:\/]([^\/]+)\/([^\.]+)/);
       if (!match) return [];
 
@@ -102,8 +100,55 @@ export class PullRequestService {
     }
   }
 
+  public async createPullRequest(title: string, body: string, head: string, base: string): Promise<string | undefined> {
+    const remoteUrl = await this.gitService.getRemoteUrl();
+    if (!remoteUrl) return undefined;
+
+    // GitHub only
+    if (remoteUrl.includes('github.com')) {
+        return this.createGitHubPR(remoteUrl, title, body, head, base);
+    }
+    return undefined;
+  }
+
+  private async createGitHubPR(remoteUrl: string, title: string, body: string, head: string, base: string): Promise<string | undefined> {
+      try {
+        const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: true });
+        if (!session) return undefined;
+
+        const match = remoteUrl.match(/github\.com[:\/]([^\/]+)\/([^\.]+)/);
+        if (!match) return undefined;
+
+        const owner = match[1];
+        const repo = match[2];
+
+        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${session.accessToken}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json',
+                'User-Agent': 'GitOrbit-VSCode'
+            },
+            body: JSON.stringify({ title, body, head, base })
+        });
+
+        if (!response.ok) {
+            const error = await response.json() as any;
+            throw new Error(error.message || response.statusText);
+        }
+
+        const data = await response.json() as any;
+        return data.html_url;
+
+      } catch (e: any) {
+          vscode.window.showErrorMessage(`Failed to create PR: ${e.message}`);
+          return undefined;
+      }
+  }
+
   private async getRemotes() {
-    // Placeholder, using main git service to get primary remote for now
+    // Placeholder
     return [];
   }
 }

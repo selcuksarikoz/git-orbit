@@ -90,7 +90,7 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // URI Handler for auth-callback
+  // Handle auth callback
   context.subscriptions.push(
     vscode.window.registerUriHandler({
       handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
@@ -153,7 +153,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Move refreshAll up so it's available for providers
   const refreshAll = () => {
-    GitService.getInstance().clearCache(); // Ensure we fetch fresh data
+    GitService.getInstance().clearCache(); // Refresh cache
     localBranchProvider.refresh();
     remoteBranchProvider.refresh();
     commitProvider.refresh();
@@ -413,7 +413,7 @@ export function activate(context: vscode.ExtensionContext) {
         let filePath = item.filePath;
 
         if (!filePath) {
-          // Global Commit History: Find which files changed
+          // Global history
           const changedFiles = await GitService.getInstance().getChangedFiles(item.hash);
           if (changedFiles.length === 0) {
             vscode.window.showInformationMessage('No files changed in this commit.');
@@ -453,7 +453,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('gitorbit.openCommitDiffs', async (item: any) => {
       if (!item.hash) return;
 
-      // Multi-diff editor was introduced in 1.86
+      // Requires VS Code 1.86+
       const versionParts = vscode.version.split('.');
       const major = parseInt(versionParts[0]);
       const minor = parseInt(versionParts[1]);
@@ -581,7 +581,7 @@ export function activate(context: vscode.ExtensionContext) {
       prompt: 'Enter text to filter by message, hash, or author',
     });
 
-    if (filter === undefined) return; // User cancelled
+    if (filter === undefined) return; // Cancelled
     setFilterWithContext(provider, viewKey, filter);
   };
 
@@ -904,6 +904,9 @@ export function activate(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(
       vscode.commands.registerCommand('gitorbit.pullRequests.login', () => prProvider.login())
+  );
+  context.subscriptions.push(
+      vscode.commands.registerCommand('gitorbit.pullRequests.create', () => prProvider.createPR())
   );
 
   // Refresh PRs periodically or on view visibility (not implemented yet, pure manual refresh for now)

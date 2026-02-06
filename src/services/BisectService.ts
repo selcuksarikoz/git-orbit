@@ -43,8 +43,7 @@ export class BisectService {
       return;
     }
 
-    // Get current bisect status/step
-    // We can parse 'git bisect log' or just show generic "Bisecting..."
+    // Show generic status
     this.statusBarItem.text = '$(debug-step-into) Git Bisect Active';
     this.statusBarItem.tooltip = 'Click to manage Bisect session';
     this.statusBarItem.backgroundColor = new vscode.ThemeColor(
@@ -60,8 +59,7 @@ export class BisectService {
     }
 
     try {
-      // 1. Prompt for Bad Commit (default HEAD)
-      // 2. Prompt for Good Commit
+      // Prompt for Bad/Good commits
 
       const badCommit = await vscode.window.showInputBox({
         title: 'Bisect Start',
@@ -136,7 +134,7 @@ export class BisectService {
         await git.exec(['bisect', 'reset']);
       }
     } catch (e) {
-      // ignore if not bisecting
+      // Ignore if inactive
     } finally {
       this.state = BisectState.Idle;
       this.updateStatus();
@@ -159,7 +157,7 @@ export class BisectService {
         this.updateStatus();
 
         // Extract commit info
-        // Format roughly: "hash is the first bad commit\ncommit message..."
+        // Format: hash is the first bad commit...
         const lines = stdout.split('\n');
         const firstLine = lines[0];
         const hash = firstLine.split(' ')[0];
@@ -176,8 +174,7 @@ export class BisectService {
             }
         });
     } else {
-        // Still steps remaining
-        // Git output usually says: "Bisecting: X revisions left..."
+        // Continue if ongoing
         vscode.window.showInformationMessage('Marked. Moving to next commit...');
     }
   }
@@ -191,7 +188,7 @@ export class BisectService {
     ];
 
     if (this.state === BisectState.Idle) {
-         // Should not happen if triggered from status bar, but maybe command palette
+         // Start if idle
          this.start();
          return;
     }
