@@ -1,6 +1,6 @@
 {
   "name": "gitorbit",
-  "displayName": "GitOrbit",
+  "displayName": "Git Manager",
   "description": "Simplify your Git management with AI assistance. Features include smart commit messages, code smell detection, and conversational AI to help you manage your workflow effortlessly.",
   "version": "1.0.14",
   "publisher": "selcuksarikoz",
@@ -440,7 +440,7 @@
       },
       {
         "command": "gitorbit.donate",
-        "title": "Donate (PayPal)",
+        "title": "Donate/Support",
         "category": "GitOrbit",
         "icon": "$(heart)"
       },

@@ -12,8 +12,6 @@ class ChangeItem extends vscode.TreeItem {
     public readonly isStaged: boolean,
     public readonly rootPath: string
   ) {
-    // No more StatusDecorationProvider.getUri calls
-
     const label = path.split('/').pop() || path;
     super(status === 'D' ? ChangeItem.toStrikethrough(label) : label);
 
@@ -300,59 +298,39 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
 
   public async openDiff(item: ChangeItem) {
     const gitService = GitService.getInstance();
-    const relativePath = item.path;
-    const uri = vscode.Uri.file(
-      vscode.Uri.joinPath(vscode.Uri.file(gitService.rootDir), relativePath).fsPath
-    );
 
     try {
-      if (item.isStaged) {
-        // HEAD vs INDEX
-        let headUri = GitContentProvider.getUri('HEAD', relativePath);
-        let indexUri = GitContentProvider.getUri('INDEX', relativePath);
+      const { original, modified } = GitContentProvider.getDiffUris(
+        item.status,
+        item.path,
+        item.isStaged,
+        gitService.rootDir
+      );
 
-        if (item.status === 'A') {
-          headUri = GitContentProvider.getUri('EMPTY', relativePath);
-        } else if (item.status === 'D') {
-          indexUri = GitContentProvider.getUri('EMPTY', relativePath);
-        }
-
-        await vscode.commands.executeCommand(
-          'vscode.diff',
-          headUri,
-          indexUri,
-          `${relativePath} (Staged)`
-        );
-      } else {
-        // INDEX vs Working Tree
-        if (item.status === 'D') {
-          // Deleted: Just open original
-          const indexUri = GitContentProvider.getUri('INDEX', relativePath);
-          await vscode.commands.executeCommand('vscode.open', indexUri, {
+      // Special handling for working tree deletion:
+      // If deleted in working tree (and not staged removal yet?), we might want to just open the index version
+      if (!item.isStaged && item.status === 'D') {
+         // Special handling for working tree deletion to just show the file
+         const indexUri = GitContentProvider.getUri('INDEX', item.path);
+         await vscode.commands.executeCommand('vscode.open', indexUri, {
             preview: true,
-            label: `${relativePath} (Deleted)`,
-          });
-          return;
-        }
-
-        let indexUri = GitContentProvider.getUri('INDEX', relativePath);
-        let workingUri = uri;
-
-        if (item.status === '?' || item.status === 'U') {
-          // Untracked: EMPTY vs Working Tree
-          indexUri = GitContentProvider.getUri('EMPTY', relativePath);
-        } else if (item.status === 'A') {
-          // Treat as Untracked
-          indexUri = GitContentProvider.getUri('EMPTY', relativePath);
-        }
-
-        await vscode.commands.executeCommand(
-          'vscode.diff',
-          indexUri,
-          workingUri,
-          `${relativePath} (Changes)`
-        );
+            label: `${item.path} (Deleted)`,
+         });
+         return;
       }
+
+      if (original) {
+          const title = `${item.path} (${item.isStaged ? 'Staged' : 'Changes'})`;
+          await vscode.commands.executeCommand(
+            'vscode.diff',
+            original,
+            modified,
+            title
+          );
+      } else {
+        // Fallback for some reason, or ignore if original is missing
+      }
+
     } catch (e) {
       vscode.window.showErrorMessage('Could not open diff: ' + e);
     }
@@ -516,16 +494,11 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     if (staged.length === 0) return;
 
     const resources = staged.map((s) => {
-      // Original: HEAD (unless it's new 'A')
-      const originalUri =
-        s.stagedStatus === 'A' ? undefined : GitContentProvider.getUri('HEAD', s.path);
-      // Modified: INDEX (unless it's deleted 'D')
-      const modifiedUri =
-        s.stagedStatus === 'D' ? undefined : GitContentProvider.getUri('INDEX', s.path);
+      const { original, modified } = GitContentProvider.getDiffUris(s.stagedStatus, s.path, true, gitService.rootDir);
 
       return {
-        originalUri,
-        modifiedUri,
+        originalUri: original,
+        modifiedUri: modified,
         name: s.path,
         title: s.path,
       };
@@ -545,22 +518,11 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     if (unstaged.length === 0) return;
 
     const resources = unstaged.map((s) => {
-      // Original: INDEX (unless it's Untracked '?' or Added in working tree 'A'?? '?' usually means untracked)
-      // If untracked, original is undefined.
-      // If modified, original is INDEX.
-      // If deleted, original is INDEX.
-      const isUntracked = s.stagedStatus === '?' || s.workingTreeStatus === '?';
-      const originalUri = isUntracked ? undefined : GitContentProvider.getUri('INDEX', s.path);
-
-      // Modified: Working Tree (file://) - unless deleted
-      const isDeleted = s.workingTreeStatus === 'D';
-      const modifiedUri = isDeleted
-        ? undefined
-        : vscode.Uri.file(path.join(gitService.rootDir, s.path));
+        const { original, modified } = GitContentProvider.getDiffUris(s.workingTreeStatus, s.path, false, gitService.rootDir);
 
       return {
-        originalUri,
-        modifiedUri,
+        originalUri: original,
+        modifiedUri: modified,
         name: s.path,
         title: s.path,
       };

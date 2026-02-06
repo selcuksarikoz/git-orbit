@@ -471,11 +471,8 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         const multiDiffResources = files.map((file) => {
-          const originalUri =
-            file.status === 'A' ? undefined : GitContentProvider.getUri(`${item.hash}^`, file.path);
-
-          const modifiedUri =
-            file.status === 'D' ? undefined : GitContentProvider.getUri(item.hash, file.path);
+          const { original: originalUri, modified: modifiedUri } =
+            GitContentProvider.getCommitDiffUris(item.hash, file.path, file.status);
 
           return {
             originalUri: originalUri,
@@ -852,20 +849,44 @@ export function activate(context: vscode.ExtensionContext) {
   WelcomeView.show(context);
 
   // Real-time Update: Watch .git/HEAD to detect external changes
-  // Real-time Update: Watch .git internals to detect external changes
-  const watcher = vscode.workspace.createFileSystemWatcher(
-    '**/.git/{HEAD,index,refs/heads/**,refs/remotes/**}'
-  );
-
   let refreshTimeout: NodeJS.Timeout | undefined;
   const triggerRefresh = () => {
     if (refreshTimeout) clearTimeout(refreshTimeout);
-    refreshTimeout = setTimeout(() => refreshAll(), 1500);
+    refreshTimeout = setTimeout(() => refreshAll(), 1000);
   };
 
+  // 1. Manual File Watcher (Fallback for environments without built-in Git extension)
+  const watcher = vscode.workspace.createFileSystemWatcher(
+    '**/.git/{HEAD,index,refs/heads/**,refs/remotes/**}'
+  );
   watcher.onDidChange(triggerRefresh);
   watcher.onDidCreate(triggerRefresh);
   watcher.onDidDelete(triggerRefresh);
+
+  // 2. Native VS Code Git API Integration (Primary for Cursor/Antigravity/VSCode)
+  try {
+    const gitExtension = vscode.extensions.getExtension('vscode.git');
+    if (gitExtension) {
+      const initGitApi = (api: any) => {
+        api.onDidOpenRepository((repo: any) => {
+          repo.state.onDidChange(() => triggerRefresh());
+        });
+        api.repositories.forEach((repo: any) => {
+          repo.state.onDidChange(() => triggerRefresh());
+        });
+      };
+
+      if (gitExtension.isActive) {
+        initGitApi(gitExtension.exports.getAPI(1));
+      } else {
+        gitExtension.activate().then((api) => {
+          initGitApi(api.getAPI(1));
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('GitOrbit: Failed to hook into native Git extension', e);
+  }
 
   // First Run Experience: Focus main views to ensure they are expanded
   const hasRun = context.globalState.get<boolean>('gitorbit.hasRun');
