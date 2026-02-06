@@ -28,7 +28,8 @@ export class CommitChatPanel {
     // Build context message for AI
     const isWorkspaceChanges = commitHash === 'current-changes';
     const isSelection = commitHash === 'selected-code';
-    const truncatedDiff = diff.length > 25000 ? diff.substring(0, 25000) + '\n...(truncated)' : diff;
+    const truncatedDiff =
+      diff.length > 25000 ? diff.substring(0, 25000) + '\n...(truncated)' : diff;
 
     let contextContent = isSelection
       ? `[Selected Code]\n${truncatedDiff}`

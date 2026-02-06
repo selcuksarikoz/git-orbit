@@ -2,9 +2,11 @@ import { URLSearchParams } from 'url';
 import * as vscode from 'vscode';
 import { AIService } from './services/AIService';
 import { AuthService } from './services/AuthService';
+import { BisectService } from './services/BisectService';
 import { GitflowService } from './services/GitflowService';
 import { GitService } from './services/GitService';
 import { IconService } from './services/IconService';
+import { PullRequestTreeProvider } from './providers/PullRequestTreeProvider';
 import { WelcomeView } from './webviews/WelcomeView';
 import { FeedbackView } from './webviews/FeedbackView';
 
@@ -12,6 +14,7 @@ import { BlameCommands } from './commands/BlameCommands';
 import { BranchCommands } from './commands/BranchCommands';
 import { CherryPickCommand } from './commands/CherryPickCommand';
 import { StashCommands } from './commands/StashCommands';
+import { CopyCommands } from './commands/CopyCommands';
 import { FileBlameDecorator } from './decorators/FileBlameDecorator';
 import { GutterBlameDecorator } from './decorators/GutterBlameDecorator';
 import { InlineBlameDecorator } from './decorators/InlineBlameDecorator';
@@ -88,7 +91,7 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // URI Handler for auth-callback
+  // Handle auth callback
   context.subscriptions.push(
     vscode.window.registerUriHandler({
       handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
@@ -151,7 +154,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Move refreshAll up so it's available for providers
   const refreshAll = () => {
-    GitService.getInstance().clearCache(); // Ensure we fetch fresh data
+    GitService.getInstance().clearCache(); // Refresh cache
     localBranchProvider.refresh();
     remoteBranchProvider.refresh();
     commitProvider.refresh();
@@ -411,7 +414,7 @@ export function activate(context: vscode.ExtensionContext) {
         let filePath = item.filePath;
 
         if (!filePath) {
-          // Global Commit History: Find which files changed
+          // Global history
           const changedFiles = await GitService.getInstance().getChangedFiles(item.hash);
           if (changedFiles.length === 0) {
             vscode.window.showInformationMessage('No files changed in this commit.');
@@ -451,7 +454,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('gitorbit.openCommitDiffs', async (item: any) => {
       if (!item.hash) return;
 
-      // Multi-diff editor was introduced in 1.86
+      // Requires VS Code 1.86+
       const versionParts = vscode.version.split('.');
       const major = parseInt(versionParts[0]);
       const minor = parseInt(versionParts[1]);
@@ -471,11 +474,8 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         const multiDiffResources = files.map((file) => {
-          const originalUri =
-            file.status === 'A' ? undefined : GitContentProvider.getUri(`${item.hash}^`, file.path);
-
-          const modifiedUri =
-            file.status === 'D' ? undefined : GitContentProvider.getUri(item.hash, file.path);
+          const { original: originalUri, modified: modifiedUri } =
+            GitContentProvider.getCommitDiffUris(item.hash, file.path, file.status);
 
           return {
             originalUri: originalUri,
@@ -499,6 +499,27 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.openPR', async (pr: any) => {
+      if (!pr) return;
+
+      // Try using the GitHub Pull Request extension if available
+      try {
+            // First check if the GH PR extension is active or can be activated
+            // Then try to use its command 'pr.openPullRequest' which accepts a URL.
+
+
+             await vscode.commands.executeCommand('pr.openPullRequest', pr.url);
+             return;
+      } catch (e) {
+          // Fallback to browser if extension command fails
+      }
+
+      // Fallback: Open in browser
+      vscode.env.openExternal(vscode.Uri.parse(pr.url));
+    })
+  );
+
   // Commands
   const cherryPickCmd = new CherryPickCommand();
   // Centralized Refresh Function
@@ -506,6 +527,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Register Centralized Command Classes (Branch & Stash)
   BranchCommands.getInstance(refreshAll).register(context);
   StashCommands.getInstance(refreshAll).register(context);
+  CopyCommands.getInstance().register(context);
 
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.startRemoteBranch', (node?: any) => {
@@ -582,7 +604,7 @@ export function activate(context: vscode.ExtensionContext) {
       prompt: 'Enter text to filter by message, hash, or author',
     });
 
-    if (filter === undefined) return; // User cancelled
+    if (filter === undefined) return; // Cancelled
     setFilterWithContext(provider, viewKey, filter);
   };
 
@@ -852,20 +874,85 @@ export function activate(context: vscode.ExtensionContext) {
   WelcomeView.show(context);
 
   // Real-time Update: Watch .git/HEAD to detect external changes
-  // Real-time Update: Watch .git internals to detect external changes
-  const watcher = vscode.workspace.createFileSystemWatcher(
-    '**/.git/{HEAD,index,refs/heads/**,refs/remotes/**}'
-  );
-
   let refreshTimeout: NodeJS.Timeout | undefined;
   const triggerRefresh = () => {
     if (refreshTimeout) clearTimeout(refreshTimeout);
-    refreshTimeout = setTimeout(() => refreshAll(), 1500);
+    refreshTimeout = setTimeout(() => refreshAll(), 1000);
   };
 
+  // 1. Manual File Watcher (Fallback for environments without built-in Git extension)
+  const watcher = vscode.workspace.createFileSystemWatcher(
+    '**/.git/{HEAD,index,refs/heads/**,refs/remotes/**}'
+  );
   watcher.onDidChange(triggerRefresh);
   watcher.onDidCreate(triggerRefresh);
   watcher.onDidDelete(triggerRefresh);
+
+  // 2. Native VS Code Git API Integration (Primary for Cursor/Antigravity/VSCode)
+  try {
+    const gitExtension = vscode.extensions.getExtension('vscode.git');
+    if (gitExtension) {
+      const initGitApi = (api: any) => {
+        api.onDidOpenRepository((repo: any) => {
+          repo.state.onDidChange(() => triggerRefresh());
+        });
+        api.repositories.forEach((repo: any) => {
+          repo.state.onDidChange(() => triggerRefresh());
+        });
+      };
+
+      if (gitExtension.isActive) {
+        initGitApi(gitExtension.exports.getAPI(1));
+      } else {
+        gitExtension.activate().then((api) => {
+          initGitApi(api.getAPI(1));
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('GitOrbit: Failed to hook into native Git extension', e);
+  }
+
+  // Bisect Commands
+  const bisectService = BisectService.getInstance();
+  context.subscriptions.push(bisectService);
+
+  // ... (previous bisect commands) ...
+
+  // Pull Requests
+  const prProvider = new PullRequestTreeProvider();
+  vscode.window.registerTreeDataProvider('gitorbit.views.pullRequests', prProvider);
+  context.subscriptions.push(
+      vscode.commands.registerCommand('gitorbit.pullRequests.refresh', () => prProvider.refresh())
+  );
+  context.subscriptions.push(
+      vscode.commands.registerCommand('gitorbit.pullRequests.login', () => prProvider.login())
+  );
+  context.subscriptions.push(
+      vscode.commands.registerCommand('gitorbit.pullRequests.create', () => prProvider.createPR())
+  );
+
+  // Refresh PRs periodically or on view visibility (not implemented yet, pure manual refresh for now)
+
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.bisect.start', () => bisectService.start())
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.bisect.markGood', () => bisectService.markGood())
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.bisect.markBad', () => bisectService.markBad())
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.bisect.reset', () => bisectService.reset())
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.bisect.skip', () => bisectService.skip())
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.bisect.showMenu', () => bisectService.showMenu())
+  );
 
   // First Run Experience: Focus main views to ensure they are expanded
   const hasRun = context.globalState.get<boolean>('gitorbit.hasRun');

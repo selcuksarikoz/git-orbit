@@ -1,8 +1,8 @@
 {
   "name": "gitorbit",
-  "displayName": "GitOrbit",
-  "description": "Simplify your Git management with AI assistance. Features include smart commit messages, code smell detection, and conversational AI to help you manage your workflow effortlessly.",
-  "version": "1.0.14",
+  "displayName": "GitOrbit - Git Bisect, Graph & Workflow Manager",
+  "description": "Complete Git toolkit for VS Code. Visual git graph, bisect wizard, interactive rebase, blame annotations, PR management, stash, cherry-pick, and optional AI commit suggestions.",
+  "version": "1.0.15",
   "publisher": "selcuksarikoz",
   "icon": "assets/icons/logo.png",
   "repository": {
@@ -11,7 +11,7 @@
   },
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
-    "vscode": "^1.100.0"
+    "vscode": "^1.107.0"
   },
   "categories": [
     "SCM Providers",
@@ -30,7 +30,14 @@
     "gemini",
     "anthropic",
     "code-review",
-    "annotation"
+    "annotation",
+    "bisect",
+    "git-bisect",
+    "rebase",
+    "git-graph",
+    "pull-request",
+    "stash",
+    "cherry-pick"
   ],
   "activationEvents": [
     "onStartupFinished",
@@ -110,6 +117,12 @@
           "icon": "$(person)",
           "when": "config.gitorbit.views.showContributors",
           "visibility": "collapsed"
+        },
+        {
+          "id": "gitorbit.views.pullRequests",
+          "name": "Pull Requests",
+          "icon": "$(git-pull-request)",
+          "when": "config.gitorbit.views.showPullRequests"
         }
       ]
     },
@@ -440,7 +453,7 @@
       },
       {
         "command": "gitorbit.donate",
-        "title": "Donate (PayPal)",
+        "title": "Donate/Support",
         "category": "GitOrbit",
         "icon": "$(heart)"
       },
@@ -481,6 +494,24 @@
         "icon": "$(history)"
       },
       {
+        "command": "gitorbit.pullRequests.refresh",
+        "title": "Refresh PRs",
+        "category": "GitOrbit",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gitorbit.pullRequests.login",
+        "title": "Sign in to GitHub",
+        "category": "GitOrbit",
+        "icon": "$(sign-in)"
+      },
+      {
+        "command": "gitorbit.pullRequests.create",
+        "title": "Create Pull Request",
+        "category": "GitOrbit",
+        "icon": "$(add)"
+      },
+      {
         "command": "gitorbit.login",
         "title": "Login with Kuulto AI",
         "category": "GitOrbit"
@@ -489,6 +520,66 @@
         "command": "gitorbit.logout",
         "title": "Logout from Kuulto AI",
         "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.bisect.start",
+        "title": "Start Bisect Wizard...",
+        "category": "GitOrbit",
+        "icon": "$(debug-step-into)"
+      },
+      {
+        "command": "gitorbit.bisect.markGood",
+        "title": "Bisect: Mark Good",
+        "category": "GitOrbit",
+        "icon": "$(check)"
+      },
+      {
+        "command": "gitorbit.bisect.markBad",
+        "title": "Bisect: Mark Bad",
+        "category": "GitOrbit",
+        "icon": "$(x)"
+      },
+      {
+        "command": "gitorbit.bisect.reset",
+        "title": "Bisect: Reset/Stop",
+        "category": "GitOrbit",
+        "icon": "$(stop)"
+      },
+      {
+        "command": "gitorbit.copy.hash",
+        "title": "Copy Commit Hash",
+        "category": "GitOrbit",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "gitorbit.copy.message",
+        "title": "Copy Commit Message",
+        "category": "GitOrbit",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "gitorbit.copy.author",
+        "title": "Copy Author Name",
+        "category": "GitOrbit",
+        "icon": "$(person)"
+      },
+      {
+        "command": "gitorbit.copy.email",
+        "title": "Copy Author Email",
+        "category": "GitOrbit",
+        "icon": "$(mail)"
+      },
+      {
+        "command": "gitorbit.copy.date",
+        "title": "Copy Commit Date",
+        "category": "GitOrbit",
+        "icon": "$(calendar)"
+      },
+      {
+        "command": "gitorbit.copy.url",
+        "title": "Copy GitHub/Remote URL",
+        "category": "GitOrbit",
+        "icon": "$(link)"
       },
       {
         "command": "gitorbit.feedback",
@@ -508,6 +599,26 @@
           "command": "gitorbit.checkCodeSmells",
           "when": "view == gitorbit.views.changes",
           "group": "gitorbit_2_extras@1"
+        },
+        {
+          "command": "gitorbit.bisect.start",
+          "when": "view == gitorbit.views.changes && !gitorbit.ctx.bisectActive",
+          "group": "gitorbit_2_extras@2"
+        },
+        {
+          "command": "gitorbit.bisect.markGood",
+          "when": "view == gitorbit.views.changes && gitorbit.ctx.bisectActive",
+          "group": "gitorbit_2_extras@2"
+        },
+        {
+          "command": "gitorbit.bisect.markBad",
+          "when": "view == gitorbit.views.changes && gitorbit.ctx.bisectActive",
+          "group": "gitorbit_2_extras@3"
+        },
+        {
+          "command": "gitorbit.bisect.reset",
+          "when": "view == gitorbit.views.changes && gitorbit.ctx.bisectActive",
+          "group": "gitorbit_2_extras@4"
         },
         {
           "command": "gitorbit.changes.smartCommit",
@@ -627,6 +738,21 @@
         {
           "command": "gitorbit.interactiveRebase",
           "when": "view == gitorbit.views.commits || view == gitorbit.views.graph",
+          "group": "navigation"
+        },
+        {
+          "command": "gitorbit.contributors.refresh",
+          "when": "view == gitorbit.views.contributors",
+          "group": "navigation"
+        },
+        {
+          "command": "gitorbit.pullRequests.refresh",
+          "when": "view == gitorbit.views.pullRequests",
+          "group": "navigation"
+        },
+        {
+          "command": "gitorbit.pullRequests.create",
+          "when": "view == gitorbit.views.pullRequests",
           "group": "navigation"
         },
         {
@@ -839,6 +965,56 @@
           "command": "gitorbit.contributors.openProfile",
           "when": "view == gitorbit.views.contributors && viewItem == contributor",
           "group": "inline"
+        },
+        {
+          "command": "gitorbit.bisect.start",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph) && viewItem == commit && !gitorbit.ctx.bisectActive",
+          "group": "gitorbit_bisect@1"
+        },
+        {
+          "command": "gitorbit.bisect.markGood",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph) && viewItem == commit && gitorbit.ctx.bisectActive",
+          "group": "gitorbit_bisect@1"
+        },
+        {
+          "command": "gitorbit.bisect.markBad",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph) && viewItem == commit && gitorbit.ctx.bisectActive",
+          "group": "gitorbit_bisect@2"
+        },
+        {
+          "command": "gitorbit.bisect.reset",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph) && viewItem == commit && gitorbit.ctx.bisectActive",
+          "group": "gitorbit_bisect@3"
+        },
+        {
+          "command": "gitorbit.copy.hash",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph || view == gitorbit.views.fileHistory) && viewItem == commit",
+          "group": "5_copy@1"
+        },
+        {
+          "command": "gitorbit.copy.message",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph || view == gitorbit.views.fileHistory) && viewItem == commit",
+          "group": "5_copy@2"
+        },
+        {
+          "command": "gitorbit.copy.url",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph || view == gitorbit.views.fileHistory) && viewItem == commit",
+          "group": "5_copy@3"
+        },
+        {
+          "command": "gitorbit.copy.author",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph || view == gitorbit.views.fileHistory) && viewItem == commit",
+          "group": "5_copy@4"
+        },
+        {
+          "command": "gitorbit.copy.email",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph || view == gitorbit.views.fileHistory) && viewItem == commit",
+          "group": "5_copy@5"
+        },
+        {
+          "command": "gitorbit.copy.date",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph || view == gitorbit.views.fileHistory) && viewItem == commit",
+          "group": "5_copy@6"
         }
       ],
       "editor/title": [
@@ -923,6 +1099,11 @@
           "default": true,
           "description": "Show/Hide Contributors."
         },
+        "gitorbit.views.showPullRequests": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show/Hide Pull Requests."
+        },
         "gitorbit.gitflow.featurePrefix": {
           "type": "string",
           "default": "feature/",
@@ -977,8 +1158,8 @@
     }
   },
   "devDependencies": {
-    "@types/node": "^20.19.30",
-    "@types/vscode": "^1.100.0",
+    "@types/node": "^25.2.1",
+    "@types/vscode": "^1.107.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "@vscode/test-electron": "^2.5.2",
@@ -987,6 +1168,6 @@
     "esbuild": "^0.27.2",
     "eslint": "^8.57.1",
     "prettier": "^3.8.1",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.0-dev.20260206"
   }
 }

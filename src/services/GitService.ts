@@ -4,19 +4,26 @@ import * as path from 'path';
 import { GitExecutor } from '../utils/GitExecutor';
 import { clearMemoizedCache, memoize } from '../utils/Memoize';
 
+export interface CommitInfo {
+  hash: string;
+  author_name: string;
+  author_email: string;
+  date: string;
+  message: string;
+  refs?: string;
+}
+
 /**
- * Singleton service class that handles all low-level Git operations.
- * Uses GitExecutor to run commands and Memoize to cache expensive calls.
+ * Singleton Git service.
  */
 export class GitService {
   private static instance: GitService;
   public rootDir: string = '';
-  private executor: GitExecutor | undefined;
+  public executor: GitExecutor | undefined;
   private _initializePromise: Promise<void> | undefined;
 
   /**
-   * Clears the memoized cache for this instance.
-   * Useful after operations that modify the git state (push, pull, commit, etc.).
+   * Clear cache.
    */
   public clearCache() {
     clearMemoizedCache(this);
@@ -27,7 +34,7 @@ export class GitService {
   }
 
   /**
-   * Returns the singleton instance of GitService.
+   * Get instance.
    */
   public static getInstance(): GitService {
     if (!GitService.instance) {
@@ -85,9 +92,7 @@ export class GitService {
   }
 
   /**
-   * Retrieves all local and remote branches.
-   * Also identifies the current branch and its upstream status.
-   * @returns Object containing all branches list, current branch name, and current upstream name.
+   * Get branches.
    */
   @memoize
   public async getBranches() {
@@ -133,8 +138,25 @@ export class GitService {
     return branches.all.length > 0 ? branches.all[0] : '';
   }
 
+  private parseLogOutput(output: string): CommitInfo[] {
+    return output
+      .split('--END--\n')
+      .filter(Boolean)
+      .map((block) => {
+        const lines = block.trim().split('\n');
+        return {
+          hash: lines[0],
+          author_name: lines[1],
+          author_email: lines[2],
+          date: lines[3],
+          message: lines[4],
+          refs: lines[5] || '',
+        };
+      });
+  }
+
   /**
-   * Retrieves the commit log.
+   * Get log.
    */
   @memoize
   public async getLog(limit: number = 20, filePath?: string) {
@@ -147,25 +169,11 @@ export class GitService {
     }
 
     const result = await this.executor.exec(args);
-    const commits = result.stdout
-      .split('--END--\n')
-      .filter(Boolean)
-      .map((block) => {
-        const lines = block.trim().split('\n');
-        return {
-          hash: lines[0],
-          author_name: lines[1],
-          author_email: lines[2],
-          date: lines[3],
-          message: lines[4],
-        };
-      });
-
-    return { all: commits };
+    return { all: this.parseLogOutput(result.stdout) };
   }
 
   /**
-   * Retrieves the current commit list for the explorer.
+   * Get commits.
    */
   @memoize
   public async getCommits(limit: number = 50) {
@@ -173,27 +181,12 @@ export class GitService {
     if (!this.executor) return { all: [] };
 
     const args = ['log', `-n${limit}`, '--pretty=format:%H%n%an%n%ae%n%ad%n%s%n--END--'];
-
     const result = await this.executor.exec(args);
-    const commits = result.stdout
-      .split('--END--\n')
-      .filter(Boolean)
-      .map((block) => {
-        const lines = block.trim().split('\n');
-        return {
-          hash: lines[0],
-          author_name: lines[1],
-          author_email: lines[2],
-          date: lines[3],
-          message: lines[4],
-        };
-      });
-
-    return { all: commits };
+    return { all: this.parseLogOutput(result.stdout) };
   }
 
   /**
-   * Retrieves the list of stash entries.
+   * Get stashes.
    */
   @memoize
   public async getStashes() {
@@ -233,28 +226,24 @@ export class GitService {
     return result;
   }
 
-  public async stashApply(index: number) {
+  private async execStashCommand(command: 'apply' | 'drop' | 'pop', index: number) {
     await this._ensureInitialized();
     if (!this.executor) return;
-    const result = await this.executor.exec(['stash', 'apply', `stash@{${index}}`]);
+    const result = await this.executor.exec(['stash', command, `stash@{${index}}`]);
     this.clearCache();
     return result;
+  }
+
+  public async stashApply(index: number) {
+    return this.execStashCommand('apply', index);
   }
 
   public async stashDrop(index: number) {
-    await this._ensureInitialized();
-    if (!this.executor) return;
-    const result = await this.executor.exec(['stash', 'drop', `stash@{${index}}`]);
-    this.clearCache();
-    return result;
+    return this.execStashCommand('drop', index);
   }
 
   public async stashPop(index: number) {
-    await this._ensureInitialized();
-    if (!this.executor) return;
-    const result = await this.executor.exec(['stash', 'pop', `stash@{${index}}`]);
-    this.clearCache();
-    return result;
+    return this.execStashCommand('pop', index);
   }
 
   public async checkout(branchName: string) {
@@ -400,9 +389,24 @@ export class GitService {
     if (branch) {
       args.push(branch);
     }
-    const result = await this.executor.exec(args);
-    this.clearCache();
-    return result;
+
+    try {
+        const result = await this.executor.exec(args);
+        this.clearCache();
+        return result;
+    } catch (error: any) {
+        // Handle missing upstream
+        if (error.message.includes('has no upstream branch') || error.stdout?.includes('has no upstream branch') || error.stderr?.includes('has no upstream branch')) {
+            const currentBranch = branch || (await this.getBranches()).current;
+            if (currentBranch) {
+                const retryArgs = ['push', '--set-upstream', remote, currentBranch];
+                const result = await this.executor.exec(retryArgs);
+                this.clearCache();
+                return result;
+            }
+        }
+        throw error;
+    }
   }
 
   public async pull(remote: string = 'origin', branch?: string) {
@@ -428,11 +432,50 @@ export class GitService {
   public async updateLocalBranchFromRemote(branch: string, remote: string = 'origin') {
     await this._ensureInitialized();
     if (!this.executor) return;
+
+    // Fetch into FETCH_HEAD
     await this.executor.exec(['fetch', remote, branch]);
+
     try {
-      await this.executor.exec(['fetch', remote, `${branch}:${branch}`]);
-    } catch (e) {
-      throw new Error('Cannot update branch safely (non-fast-forward). Please checkout and pull.');
+      // Check relationship between local branch and FETCH_HEAD
+      const result = await this.executor.exec([
+        'rev-list',
+        '--left-right',
+        '--count',
+        `${branch}...FETCH_HEAD`,
+      ]);
+
+      const counts = result.stdout.trim().split(/\s+/).map(Number);
+      const ahead = counts[0] || 0; // Local commits not in remote
+      const behind = counts[1] || 0; // Remote commits not in local
+
+      if (ahead > 0 && behind > 0) {
+        throw new Error('Branch has diverged. Please checkout and pull to merge.');
+      }
+
+      if (ahead > 0) {
+        // We are ahead, so we don't want to update local pointer to match remote (would lose commits).
+        // We do nothing here, assuming the caller will Push next.
+        return;
+      }
+
+      if (behind > 0) {
+        // We are behind (fast-forwardable). Update local branch to match remote.
+        await this.executor.exec(['fetch', remote, `${branch}:${branch}`]);
+      }
+
+      // If ahead=0, behind=0, we are even. Do nothing.
+    } catch (e: any) {
+      if (e.message.includes('diverged')) {
+        throw e;
+      }
+
+      // Check if the error is because the branch doesn't exist locally (shouldn't happen here usually)
+      if (e.message.includes('unknown revision')) {
+         throw new Error(`Branch '${branch}' not found locally or remote information unavailable.`);
+      }
+
+      throw new Error(`Cannot update branch safely: ${e.message}`);
     }
     this.clearCache();
   }
@@ -512,22 +555,8 @@ export class GitService {
     ];
 
     const result = await this.executor.exec(args);
-    const commits = result.stdout
-      .split('--END--\n')
-      .filter(Boolean)
-      .map((block) => {
-        const lines = block.trim().split('\n');
-        return {
-          hash: lines[0],
-          author_name: lines[1],
-          author_email: lines[2],
-          date: lines[3],
-          message: lines[4],
-          refs: lines[5] || '',
-        };
-      });
-
-    return { all: commits };
+    // Parse extended log format
+    return { all: this.parseLogOutput(result.stdout) };
   }
 
   @memoize
@@ -627,8 +656,7 @@ export class GitService {
   }
 
   /**
-   * Get a truncated diff suitable for AI commit message generation.
-   * Includes stat summary and limited diff content per file.
+   * Get truncated diff for AI.
    */
   public async getTruncatedDiff(staged: boolean, maxChars: number = 4000): Promise<string> {
     await this._ensureInitialized();
@@ -636,20 +664,20 @@ export class GitService {
 
     const diffArg = staged ? ['diff', '--staged'] : ['diff'];
 
-    // Get stat summary first
+    // Get stat
     const statResult = await this.executor.exec([...diffArg, '--stat']);
     const stat = statResult.stdout;
 
-    // Get full diff
+    // Get diff
     const diffResult = await this.executor.exec(diffArg);
     let diff = diffResult.stdout;
 
-    // If diff is small enough, return as-is with stat
+    // Return if small
     if (diff.length <= maxChars) {
       return diff;
     }
 
-    // Truncate intelligently: keep file headers and limit content per file
+    // Truncate
     const lines = diff.split('\n');
     const truncatedLines: string[] = [];
     let currentFileLines = 0;
@@ -657,7 +685,7 @@ export class GitService {
     let totalChars = 0;
 
     for (const line of lines) {
-      // File header - always include
+      // Include header
       if (
         line.startsWith('diff --git') ||
         line.startsWith('index ') ||
@@ -670,7 +698,7 @@ export class GitService {
         continue;
       }
 
-      // Hunk header - always include
+      // Include hunk
       if (line.startsWith('@@')) {
         truncatedLines.push(line);
         currentFileLines = 0;
@@ -678,7 +706,7 @@ export class GitService {
         continue;
       }
 
-      // Content lines - limit per file
+      // Limit content
       if (currentFileLines < maxLinesPerFile && totalChars < maxChars) {
         truncatedLines.push(line);
         currentFileLines++;
@@ -767,12 +795,10 @@ export class GitService {
     await this._ensureInitialized();
     if (!this.executor) return;
     try {
-      // Unstage first just in case?
-      // No, "Discard Changes" usually targets working tree.
-      // If user wants to discard staged, they unstage first.
+      // Restore file
       await this.executor.exec(['restore', this.getRelativePath(filePath)]);
     } catch (e) {
-      // Fallback for older git or other issues
+      // Fallback
       await this.executor.exec(['checkout', '--', this.getRelativePath(filePath)]);
     }
     this.clearCache();
@@ -804,194 +830,33 @@ export class GitService {
     return result;
   }
 
-  public async stashFile(filePath: string) {
-    await this._ensureInitialized();
-    if (!this.executor) return;
-    const result = await this.executor.exec([
-      'stash',
-      'push',
-      '-m',
-      `Stashed ${path.basename(filePath)}`,
-      this.getRelativePath(filePath),
-    ]);
-    this.clearCache();
-    return result;
-  }
-  public async deleteRemoteBranch(remote: string, branchName: string, force: boolean = false) {
-    await this._ensureInitialized();
-    if (!this.executor) return;
-    const args = ['push', remote, '--delete', branchName];
-    const result = await this.executor.exec(args);
-    this.clearCache();
-    return result;
-  }
-  public async getCommitDiff(commitHash: string): Promise<string> {
+  public async getRemoteUrl(): Promise<string> {
     await this._ensureInitialized();
     if (!this.executor) return '';
-    const result = await this.executor.exec(['show', commitHash]);
-    return result.stdout;
-  }
-
-  /**
-   * Get a truncated commit diff suitable for AI analysis.
-   */
-  public async getTruncatedCommitDiff(commitHash: string, maxChars: number = 12000): Promise<string> {
-    await this._ensureInitialized();
-    if (!this.executor) return '';
-
-    // Get stat summary
-    const statResult = await this.executor.exec(['show', '--stat', '--format=', commitHash]);
-    const stat = statResult.stdout;
-
-    // Get diff only (no commit message)
-    const diffResult = await this.executor.exec(['show', '--format=', commitHash]);
-    const diff = diffResult.stdout;
-
-    if (diff.length <= maxChars) {
-      return `${stat}\n${diff}`;
-    }
-
-    // Truncate intelligently
-    const lines = diff.split('\n');
-    const truncatedLines: string[] = [];
-    let currentFileLines = 0;
-    const maxLinesPerFile = 60;
-    let totalChars = 0;
-
-    for (const line of lines) {
-      if (
-        line.startsWith('diff --git') ||
-        line.startsWith('index ') ||
-        line.startsWith('---') ||
-        line.startsWith('+++')
-      ) {
-        truncatedLines.push(line);
-        currentFileLines = 0;
-        totalChars += line.length + 1;
-        continue;
-      }
-
-      if (line.startsWith('@@')) {
-        truncatedLines.push(line);
-        currentFileLines = 0;
-        totalChars += line.length + 1;
-        continue;
-      }
-
-      if (currentFileLines < maxLinesPerFile && totalChars < maxChars) {
-        truncatedLines.push(line);
-        currentFileLines++;
-        totalChars += line.length + 1;
-      } else if (currentFileLines === maxLinesPerFile) {
-        truncatedLines.push('... (truncated)');
-        currentFileLines++;
-        totalChars += 20;
-      }
-    }
-
-    return `${stat}\n${truncatedLines.join('\n')}`;
-  }
-
-  public async getCommitDetails(commitHash: string): Promise<{ author: string; message: string }> {
-    await this._ensureInitialized();
-    if (!this.executor) return { author: 'Unknown', message: 'Unknown' };
     try {
-      const result = await this.executor.exec(['show', '-s', '--format=%an|%s', commitHash]);
-      const parts = result.stdout.trim().split('|');
-      const author = parts[0];
-      const message = parts.slice(1).join('|'); // Join back in case message had pipes
-      return { author: author || 'Unknown', message: message || 'Unknown' };
-    } catch {
-      return { author: 'Unknown', message: 'Unknown' };
-    }
-  }
-
-  @memoize
-  public async getTags() {
-    await this._ensureInitialized();
-    if (!this.executor) return [];
-    try {
-      // Get detailed tag info: name|hash|subject|date
-      const result = await this.executor.exec([
-        'tag',
-        '-l',
-        '--format=%(refname:short)|%(objectname)|%(contents:subject)|%(creatordate:relative)',
-      ]);
-      return result.stdout
-        .trim()
-        .split('\n')
-        .filter(Boolean)
-        .map((line) => {
-          const [name, hash, subject, date] = line.split('|');
-          return { name, hash, subject, date };
-        });
-    } catch {
-      return [];
-    }
-  }
-
-  @memoize
-  public async getContributors() {
-    await this._ensureInitialized();
-    if (!this.executor) return [];
-    try {
-      // Get contributors with email: count \t name <email>
-      const result = await this.executor.exec(['shortlog', 'HEAD', '-sne', '--no-merges']);
-      return result.stdout
-        .trim()
-        .split('\n')
-        .filter(Boolean)
-        .map((line) => {
-          const match = line.trim().match(/^(\d+)\s+(.+)\s+<(.+)>$/);
-          return {
-            count: match ? parseInt(match[1]) : 0,
-            name: match ? match[2] : line.trim(),
-            email: match ? match[3] : '',
-          };
-        });
-    } catch {
-      return [];
-    }
-  }
-
-  public async getBranchesForTag(tag: string): Promise<string[]> {
-    await this._ensureInitialized();
-    if (!this.executor) return [];
-    try {
-      const result = await this.executor.exec(['branch', '-a', '--contains', tag]);
-      return result.stdout
-        .trim()
-        .split('\n')
-        .filter(Boolean)
-        .map((b) => b.replace('*', '').trim());
-    } catch {
-      return [];
-    }
-  }
-
-  public async getRemoteUrl(remote: string = 'origin'): Promise<string | undefined> {
-    await this._ensureInitialized();
-    if (!this.executor) return undefined;
-    try {
-      const result = await this.executor.exec(['remote', 'get-url', remote]);
+      const result = await this.executor.exec(['remote', 'get-url', 'origin']);
       return result.stdout.trim();
     } catch {
-      return undefined;
+      return '';
     }
   }
 
-  public async getUserInfo(): Promise<{ name: string; email: string }> {
+  @memoize
+  public async getCommitDetails(hash: string) {
     await this._ensureInitialized();
-    if (!this.executor) return { name: 'You', email: '' };
-    try {
-      const name = await this.executor.exec(['config', 'user.name']);
-      const email = await this.executor.exec(['config', 'user.email']);
-      return {
-        name: name.stdout.trim() || 'You',
-        email: email.stdout.trim() || '',
-      };
-    } catch {
-      return { name: 'You', email: '' };
-    }
+    if (!this.executor) return { message: '', author: '', date: '' };
+    const result = await this.executor.exec([
+      'show',
+      '--format=%an%n%ae%n%ad%n%B',
+      '--no-patch',
+      hash,
+    ]);
+    const lines = result.stdout.split('\n');
+    return {
+      author: lines[0],
+      email: lines[1],
+      date: lines[2],
+      message: lines.slice(3).join('\n').trim(),
+    };
   }
 }
