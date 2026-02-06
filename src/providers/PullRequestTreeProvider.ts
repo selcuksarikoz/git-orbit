@@ -14,9 +14,9 @@ class PRItem extends vscode.TreeItem {
     );
 
     this.command = {
-        command: 'vscode.open',
+        command: 'gitorbit.openPR',
         title: 'Open PR',
-        arguments: [vscode.Uri.parse(pr.url)]
+        arguments: [pr]
     };
   }
 }

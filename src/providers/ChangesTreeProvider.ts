@@ -4,8 +4,39 @@ import { GitService } from '../services/GitService';
 import { GitContentProvider } from './GitContentProvider';
 import { StatusDecorationProvider } from './StatusDecorationProvider';
 import { AIService } from '../services/AIService';
+import { BisectService, BisectState } from '../services/BisectService';
+
+class BisectLogItem extends vscode.TreeItem {
+    constructor(status: 'bad' | 'good' | 'skip', hash: string) {
+        super(`Bisect: ${status.toUpperCase()} - ${hash.substring(0, 7)}`, vscode.TreeItemCollapsibleState.None);
+
+        let icon = 'question';
+        let color = undefined;
+
+        if (status === 'bad') {
+            icon = 'x';
+            color = new vscode.ThemeColor('charts.red');
+        } else if (status === 'good') {
+            icon = 'check';
+            color = new vscode.ThemeColor('charts.green');
+        } else {
+            icon = 'debug-step-over';
+        }
+
+        this.iconPath = new vscode.ThemeIcon(icon, color);
+        this.description = hash;
+        this.contextValue = 'bisectItem';
+
+        this.command = {
+            command: 'gitorbit.copy.hash',
+            title: 'Copy Hash',
+            arguments: [{ hash }]
+        };
+    }
+}
 
 class ChangeItem extends vscode.TreeItem {
+
   constructor(
     public readonly path: string,
     public readonly status: string,
@@ -215,6 +246,15 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
         items.push(new BranchStatusItem(branches.current, status.isGone));
       }
 
+      // Add Bisect Log if active
+      const bisectService = BisectService.getInstance();
+      if (bisectService.currentState !== BisectState.Idle) {
+        const logs = await bisectService.getLog();
+        if (logs.length > 0) {
+          items.push(new GroupItem('Bisect Log', logs.length, 'bisectGroup'));
+        }
+      }
+
       if (this._staged.length) {
         items.push(new GroupItem('Staged Changes', this._staged.length, 'stagedGroup'));
       }
@@ -230,6 +270,10 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     }
 
     if (element instanceof GroupItem) {
+      if (element.label === 'Bisect Log') {
+        const logs = await BisectService.getInstance().getLog();
+        return logs.map(l => new BisectLogItem(l.status, l.hash));
+      }
       if (element.label === 'Staged Changes') {
         return this._staged.map(
           (s) => new ChangeItem(s.path, s.stagedStatus, true, gitService.rootDir)

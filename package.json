@@ -539,6 +539,42 @@
         "icon": "$(stop)"
       },
       {
+        "command": "gitorbit.copy.hash",
+        "title": "Copy Commit Hash",
+        "category": "GitOrbit",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "gitorbit.copy.message",
+        "title": "Copy Commit Message",
+        "category": "GitOrbit",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "gitorbit.copy.author",
+        "title": "Copy Author Name",
+        "category": "GitOrbit",
+        "icon": "$(person)"
+      },
+      {
+        "command": "gitorbit.copy.email",
+        "title": "Copy Author Email",
+        "category": "GitOrbit",
+        "icon": "$(mail)"
+      },
+      {
+        "command": "gitorbit.copy.date",
+        "title": "Copy Commit Date",
+        "category": "GitOrbit",
+        "icon": "$(calendar)"
+      },
+      {
+        "command": "gitorbit.copy.url",
+        "title": "Copy GitHub/Remote URL",
+        "category": "GitOrbit",
+        "icon": "$(link)"
+      },
+      {
         "command": "gitorbit.feedback",
         "title": "Feedback",
         "category": "GitOrbit",
@@ -922,6 +958,36 @@
           "command": "gitorbit.bisect.reset",
           "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph) && viewItem == commit && gitorbit.ctx.bisectActive",
           "group": "gitorbit_bisect@3"
+        },
+        {
+          "command": "gitorbit.copy.hash",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph || view == gitorbit.views.fileHistory) && viewItem == commit",
+          "group": "5_copy@1"
+        },
+        {
+          "command": "gitorbit.copy.message",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph || view == gitorbit.views.fileHistory) && viewItem == commit",
+          "group": "5_copy@2"
+        },
+        {
+          "command": "gitorbit.copy.url",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph || view == gitorbit.views.fileHistory) && viewItem == commit",
+          "group": "5_copy@3"
+        },
+        {
+          "command": "gitorbit.copy.author",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph || view == gitorbit.views.fileHistory) && viewItem == commit",
+          "group": "5_copy@4"
+        },
+        {
+          "command": "gitorbit.copy.email",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph || view == gitorbit.views.fileHistory) && viewItem == commit",
+          "group": "5_copy@5"
+        },
+        {
+          "command": "gitorbit.copy.date",
+          "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph || view == gitorbit.views.fileHistory) && viewItem == commit",
+          "group": "5_copy@6"
         }
       ],
       "editor/title": [

@@ -14,6 +14,7 @@ import { BlameCommands } from './commands/BlameCommands';
 import { BranchCommands } from './commands/BranchCommands';
 import { CherryPickCommand } from './commands/CherryPickCommand';
 import { StashCommands } from './commands/StashCommands';
+import { CopyCommands } from './commands/CopyCommands';
 import { FileBlameDecorator } from './decorators/FileBlameDecorator';
 import { GutterBlameDecorator } from './decorators/GutterBlameDecorator';
 import { InlineBlameDecorator } from './decorators/InlineBlameDecorator';
@@ -498,6 +499,27 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.openPR', async (pr: any) => {
+      if (!pr) return;
+
+      // Try using the GitHub Pull Request extension if available
+      try {
+            // First check if the GH PR extension is active or can be activated
+            // Then try to use its command 'pr.openPullRequest' which accepts a URL.
+
+
+             await vscode.commands.executeCommand('pr.openPullRequest', pr.url);
+             return;
+      } catch (e) {
+          // Fallback to browser if extension command fails
+      }
+
+      // Fallback: Open in browser
+      vscode.env.openExternal(vscode.Uri.parse(pr.url));
+    })
+  );
+
   // Commands
   const cherryPickCmd = new CherryPickCommand();
   // Centralized Refresh Function
@@ -505,6 +527,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Register Centralized Command Classes (Branch & Stash)
   BranchCommands.getInstance(refreshAll).register(context);
   StashCommands.getInstance(refreshAll).register(context);
+  CopyCommands.getInstance().register(context);
 
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.startRemoteBranch', (node?: any) => {

@@ -63,24 +63,16 @@ export class BisectService {
 
     try {
       // Pre-fill if item provided (from context menu)
-      const initialBad = item?.hash || 'HEAD';
+      const initialBad = item?.hash; // undefined if not from context menu
 
-      // Prompt for Bad/Good commits
-      const badCommit = await vscode.window.showInputBox({
-        title: 'Bisect Start',
-        prompt: 'Enter the "Bad" commit hash, branch, or tag',
-        value: initialBad,
-        placeHolder: 'HEAD, main, v1.0, <hash>',
-        ignoreFocusOut: true
-      });
+      let badCommit = initialBad;
+      if (!badCommit) {
+          badCommit = await this.pickCommit('Select "Bad" Commit (Bug Exists)', 'Select the commit/branch where the bug is present');
+      }
 
-      if (badCommit === undefined) return; // Cancelled
+      if (!badCommit) return; // Cancelled
 
-      const goodCommit = await vscode.window.showInputBox({
-        title: 'Bisect Start',
-        prompt: 'Enter a "Good" commit hash, branch, or tag (where it worked)',
-        ignoreFocusOut: true
-      });
+      const goodCommit = await this.pickCommit('Select "Good" Commit (Bug Absent)', 'Select a commit/branch where it worked correctly');
 
       if (!goodCommit) return;
 
@@ -88,9 +80,27 @@ export class BisectService {
       if (!git) return;
 
       // Start bisect
-      await git.exec(['bisect', 'start']);
-      await git.exec(['bisect', 'bad', badCommit || 'HEAD']);
-      await git.exec(['bisect', 'good', goodCommit]);
+
+      // Safety: Reset any pending bisect state
+      try { await git.exec(['bisect', 'reset']); } catch {}
+
+      try {
+        await git.exec(['bisect', 'start']);
+      } catch (e: any) {
+        throw new Error(`Could not initialize bisect: ${e.message}`);
+      }
+
+      try {
+        await git.exec(['bisect', 'bad', badCommit]);
+      } catch (e: any) {
+        throw new Error(`Failed to set bad commit '${badCommit}': ${e.message}`);
+      }
+
+      try {
+        await git.exec(['bisect', 'good', goodCommit]);
+      } catch (e: any) {
+        throw new Error(`Failed to set good commit '${goodCommit}': ${e.message}`);
+      }
 
       this.state = BisectState.Active;
       this.updateStatus();
@@ -98,9 +108,73 @@ export class BisectService {
       vscode.window.showInformationMessage('Bisect started! Check the current version and mark it as Good or Bad.');
 
     } catch (e: any) {
-      vscode.window.showErrorMessage(`Failed to start bisect: ${e.message}`);
+      vscode.window.showErrorMessage(`Bisect Error: ${e.message}`);
       this.reset();
     }
+  }
+
+  private async pickCommit(title: string, placeholder: string): Promise<string | undefined> {
+      try {
+        const branches = await this.gitService.getBranches();
+
+        const items: vscode.QuickPickItem[] = [];
+
+        // Option 1: Manual Input
+        items.push({
+            label: '$(edit) Enter Custom Hash/Ref...',
+            description: 'Type a hash, tag, or reference manually'
+        });
+
+        // Option 2: HEAD
+        items.push({
+            label: 'HEAD',
+            description: 'Current Checked Out Commit'
+        });
+
+        // Option 3: Branches
+        if (branches.all && branches.all.length > 0) {
+            items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
+            branches.all.forEach(b => {
+                const isRemote = b.startsWith('remotes/');
+                const icon = isRemote ? '$(cloud)' : '$(git-branch)';
+                items.push({
+                    label: `${icon} ${b}`,
+                    description: isRemote ? 'Remote Branch' : 'Local Branch',
+                    detail: b // store raw name if needed, but label has icon
+                });
+            });
+        }
+
+        const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: placeholder,
+            title: title,
+            ignoreFocusOut: true
+        });
+
+        if (!selected) return undefined;
+
+        if (selected.label.includes('Enter Custom Hash')) {
+            return await vscode.window.showInputBox({
+                prompt: 'Enter commit hash, tag, or branch name',
+                placeHolder: 'e.g. v1.0, main, <hash>',
+                ignoreFocusOut: true
+            });
+        }
+
+        // Clean label from icon
+        // "HEAD" -> "HEAD"
+        // "$(git-branch) main" -> "main"
+        const cleanRef = selected.label.replace(/\$\([a-z-]+\)\s*/, '').trim();
+        return cleanRef;
+
+      } catch (e) {
+          // Fallback to simpler input if branch fetch fails
+          return await vscode.window.showInputBox({
+              title: title,
+              prompt: placeholder,
+              ignoreFocusOut: true
+          });
+      }
   }
 
   public async markGood(item?: any) {
@@ -156,6 +230,39 @@ export class BisectService {
       this.updateStatus();
       vscode.commands.executeCommand('gitorbit.refreshViews');
     }
+  }
+
+  public async getLog(): Promise<{ status: 'bad' | 'good' | 'skip'; hash: string; subject?: string }[]> {
+      const git = this.gitService.executor;
+      if (!git || (this.state === BisectState.Idle)) return [];
+
+      try {
+          const result = await git.exec(['bisect', 'log']);
+          const lines = result.stdout.split('\n');
+          const entries: { status: 'bad' | 'good' | 'skip'; hash: string; subject?: string }[] = [];
+
+          // Parse 'git bisect (bad|good|skip) <hash>'
+          // Also handle the initial start if needed, but usually we care about the steps.
+          // Example output:
+          // git bisect start
+          // # bad: [hash] msg
+          // git bisect bad hash
+          // # good: [hash] msg
+          // git bisect good hash
+
+          for (const line of lines) {
+              const match = line.match(/^git bisect (bad|good|skip) ([a-f0-9]+)/);
+              if (match) {
+                  entries.push({
+                      status: match[1] as 'bad' | 'good' | 'skip',
+                      hash: match[2]
+                  });
+              }
+          }
+          return entries.reverse(); // Show newest first? Or keeps chronological? Usually logs are chronological. Let's keep as is or reverse based on UI pref. Reverse is better for "Latest actions".
+      } catch (e) {
+          return [];
+      }
   }
 
   private async runBisectCommand(cmd: 'good' | 'bad' | 'skip', hash?: string): Promise<string> {
