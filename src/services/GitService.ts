@@ -20,7 +20,7 @@ export interface CommitInfo {
 export class GitService {
   private static instance: GitService;
   public rootDir: string = '';
-  private executor: GitExecutor | undefined;
+  public executor: GitExecutor | undefined;
   private _initializePromise: Promise<void> | undefined;
 
   /**

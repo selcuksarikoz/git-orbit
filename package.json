@@ -110,6 +110,12 @@
           "icon": "$(person)",
           "when": "config.gitorbit.views.showContributors",
           "visibility": "collapsed"
+        },
+        {
+          "id": "gitorbit.views.pullRequests",
+          "name": "Pull Requests",
+          "icon": "$(git-pull-request)",
+          "when": "config.gitorbit.views.showPullRequests"
         }
       ]
     },
@@ -481,6 +487,18 @@
         "icon": "$(history)"
       },
       {
+        "command": "gitorbit.pullRequests.refresh",
+        "title": "Refresh PRs",
+        "category": "GitOrbit",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gitorbit.pullRequests.login",
+        "title": "Sign in to GitHub",
+        "category": "GitOrbit",
+        "icon": "$(sign-in)"
+      },
+      {
         "command": "gitorbit.login",
         "title": "Login with Kuulto AI",
         "category": "GitOrbit"
@@ -489,6 +507,30 @@
         "command": "gitorbit.logout",
         "title": "Logout from Kuulto AI",
         "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.bisect.start",
+        "title": "Start Bisect Wizard...",
+        "category": "GitOrbit",
+        "icon": "$(debug-step-into)"
+      },
+      {
+        "command": "gitorbit.bisect.markGood",
+        "title": "Bisect: Mark Good",
+        "category": "GitOrbit",
+        "icon": "$(check)"
+      },
+      {
+        "command": "gitorbit.bisect.markBad",
+        "title": "Bisect: Mark Bad",
+        "category": "GitOrbit",
+        "icon": "$(x)"
+      },
+      {
+        "command": "gitorbit.bisect.reset",
+        "title": "Bisect: Reset/Stop",
+        "category": "GitOrbit",
+        "icon": "$(stop)"
       },
       {
         "command": "gitorbit.feedback",
@@ -627,6 +669,16 @@
         {
           "command": "gitorbit.interactiveRebase",
           "when": "view == gitorbit.views.commits || view == gitorbit.views.graph",
+          "group": "navigation"
+        },
+        {
+          "command": "gitorbit.contributors.refresh",
+          "when": "view == gitorbit.views.contributors",
+          "group": "navigation"
+        },
+        {
+          "command": "gitorbit.pullRequests.refresh",
+          "when": "view == gitorbit.views.pullRequests",
           "group": "navigation"
         },
         {
@@ -922,6 +974,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show/Hide Contributors."
+        },
+        "gitorbit.views.showPullRequests": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show/Hide Pull Requests."
         },
         "gitorbit.gitflow.featurePrefix": {
           "type": "string",

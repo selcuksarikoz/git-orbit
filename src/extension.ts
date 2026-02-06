@@ -2,9 +2,11 @@ import { URLSearchParams } from 'url';
 import * as vscode from 'vscode';
 import { AIService } from './services/AIService';
 import { AuthService } from './services/AuthService';
+import { BisectService } from './services/BisectService';
 import { GitflowService } from './services/GitflowService';
 import { GitService } from './services/GitService';
 import { IconService } from './services/IconService';
+import { PullRequestTreeProvider } from './providers/PullRequestTreeProvider';
 import { WelcomeView } from './webviews/WelcomeView';
 import { FeedbackView } from './webviews/FeedbackView';
 
@@ -887,6 +889,44 @@ export function activate(context: vscode.ExtensionContext) {
   } catch (e) {
     console.warn('GitOrbit: Failed to hook into native Git extension', e);
   }
+
+  // Bisect Commands
+  const bisectService = BisectService.getInstance();
+  context.subscriptions.push(bisectService);
+
+  // ... (previous bisect commands) ...
+
+  // Pull Requests
+  const prProvider = new PullRequestTreeProvider();
+  vscode.window.registerTreeDataProvider('gitorbit.views.pullRequests', prProvider);
+  context.subscriptions.push(
+      vscode.commands.registerCommand('gitorbit.pullRequests.refresh', () => prProvider.refresh())
+  );
+  context.subscriptions.push(
+      vscode.commands.registerCommand('gitorbit.pullRequests.login', () => prProvider.login())
+  );
+
+  // Refresh PRs periodically or on view visibility (not implemented yet, pure manual refresh for now)
+
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.bisect.start', () => bisectService.start())
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.bisect.markGood', () => bisectService.markGood())
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.bisect.markBad', () => bisectService.markBad())
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.bisect.reset', () => bisectService.reset())
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.bisect.skip', () => bisectService.skip())
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.bisect.showMenu', () => bisectService.showMenu())
+  );
 
   // First Run Experience: Focus main views to ensure they are expanded
   const hasRun = context.globalState.get<boolean>('gitorbit.hasRun');
