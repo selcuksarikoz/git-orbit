@@ -2,7 +2,7 @@
   "name": "gitorbit",
   "displayName": "Git Manager",
   "description": "Simplify your Git management with AI assistance. Features include smart commit messages, code smell detection, and conversational AI to help you manage your workflow effortlessly.",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "publisher": "selcuksarikoz",
   "icon": "assets/icons/logo.png",
   "repository": {
@@ -11,7 +11,7 @@
   },
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
-    "vscode": "^1.100.0"
+    "vscode": "^1.107.0"
   },
   "categories": [
     "SCM Providers",
@@ -977,8 +977,8 @@
     }
   },
   "devDependencies": {
-    "@types/node": "^20.19.30",
-    "@types/vscode": "^1.100.0",
+    "@types/node": "^25.2.1",
+    "@types/vscode": "^1.107.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "@vscode/test-electron": "^2.5.2",
@@ -987,6 +987,6 @@
     "esbuild": "^0.27.2",
     "eslint": "^8.57.1",
     "prettier": "^3.8.1",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.0-dev.20260206"
   }
 }

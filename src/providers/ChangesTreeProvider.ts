@@ -310,27 +310,21 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       // Special handling for working tree deletion:
       // If deleted in working tree (and not staged removal yet?), we might want to just open the index version
       if (!item.isStaged && item.status === 'D') {
-         // Special handling for working tree deletion to just show the file
-         const indexUri = GitContentProvider.getUri('INDEX', item.path);
-         await vscode.commands.executeCommand('vscode.open', indexUri, {
-            preview: true,
-            label: `${item.path} (Deleted)`,
-         });
-         return;
+        // Special handling for working tree deletion to just show the file
+        const indexUri = GitContentProvider.getUri('INDEX', item.path);
+        await vscode.commands.executeCommand('vscode.open', indexUri, {
+          preview: true,
+          label: `${item.path} (Deleted)`,
+        });
+        return;
       }
 
       if (original) {
-          const title = `${item.path} (${item.isStaged ? 'Staged' : 'Changes'})`;
-          await vscode.commands.executeCommand(
-            'vscode.diff',
-            original,
-            modified,
-            title
-          );
+        const title = `${item.path} (${item.isStaged ? 'Staged' : 'Changes'})`;
+        await vscode.commands.executeCommand('vscode.diff', original, modified, title);
       } else {
         // Fallback for some reason, or ignore if original is missing
       }
-
     } catch (e) {
       vscode.window.showErrorMessage('Could not open diff: ' + e);
     }
@@ -494,7 +488,12 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     if (staged.length === 0) return;
 
     const resources = staged.map((s) => {
-      const { original, modified } = GitContentProvider.getDiffUris(s.stagedStatus, s.path, true, gitService.rootDir);
+      const { original, modified } = GitContentProvider.getDiffUris(
+        s.stagedStatus,
+        s.path,
+        true,
+        gitService.rootDir
+      );
 
       return {
         originalUri: original,
@@ -518,7 +517,12 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     if (unstaged.length === 0) return;
 
     const resources = unstaged.map((s) => {
-        const { original, modified } = GitContentProvider.getDiffUris(s.workingTreeStatus, s.path, false, gitService.rootDir);
+      const { original, modified } = GitContentProvider.getDiffUris(
+        s.workingTreeStatus,
+        s.path,
+        false,
+        gitService.rootDir
+      );
 
       return {
         originalUri: original,

@@ -55,7 +55,9 @@ export class GitContentProvider implements vscode.TextDocumentContentProvider {
     } else {
       // INDEX vs Working Tree
       const isUntracked = status === '?' || status === 'U';
-      const original = isUntracked ? GitContentProvider.getUri('EMPTY', relativePath) : GitContentProvider.getUri('INDEX', relativePath);
+      const original = isUntracked
+        ? GitContentProvider.getUri('EMPTY', relativePath)
+        : GitContentProvider.getUri('INDEX', relativePath);
 
       const isDeleted = status === 'D';
       const modified = isDeleted
@@ -71,10 +73,8 @@ export class GitContentProvider implements vscode.TextDocumentContentProvider {
     path: string,
     status: string
   ): { original: vscode.Uri | undefined; modified: vscode.Uri | undefined } {
-    const original =
-      status === 'A' ? undefined : GitContentProvider.getUri(`${hash}^`, path);
-    const modified =
-      status === 'D' ? undefined : GitContentProvider.getUri(hash, path);
+    const original = status === 'A' ? undefined : GitContentProvider.getUri(`${hash}^`, path);
+    const modified = status === 'D' ? undefined : GitContentProvider.getUri(hash, path);
 
     return { original, modified };
   }
