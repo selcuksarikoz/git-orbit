@@ -79,6 +79,25 @@ export class BisectService {
       const git = this.gitService.executor;
       if (!git) return;
 
+      // Check for uncommitted changes
+      const status = await this.gitService.getStatus();
+      const hasChanges = status.length > 0;
+
+      if (hasChanges) {
+        const choice = await vscode.window.showWarningMessage(
+          'You have uncommitted changes. Bisect requires a clean working tree.',
+          'Stash Changes & Continue',
+          'Cancel'
+        );
+
+        if (choice === 'Stash Changes & Continue') {
+          await git.exec(['stash', 'push', '-m', 'GitOrbit: Auto-stash before bisect']);
+          vscode.window.showInformationMessage('Changes stashed. Will be restored after bisect reset.');
+        } else {
+          return;
+        }
+      }
+
       // Start bisect
 
       // Safety: Reset any pending bisect state
@@ -222,6 +241,20 @@ export class BisectService {
       const git = this.gitService.executor;
       if (git) {
         await git.exec(['bisect', 'reset']);
+
+        // Check for auto-stashed changes
+        const stashList = await git.exec(['stash', 'list']);
+        if (stashList.stdout.includes('GitOrbit: Auto-stash before bisect')) {
+          const restore = await vscode.window.showInformationMessage(
+            'Bisect ended. Restore your stashed changes?',
+            'Restore',
+            'Keep Stashed'
+          );
+          if (restore === 'Restore') {
+            await git.exec(['stash', 'pop']);
+            vscode.window.showInformationMessage('Changes restored.');
+          }
+        }
       }
     } catch (e) {
       // Ignore if inactive
