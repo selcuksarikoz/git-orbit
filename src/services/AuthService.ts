@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 export class AuthService {
   private static instance: AuthService;
   private _secretStorage: vscode.SecretStorage | undefined;
-  private readonly ACCESS_TOKEN_KEY = 'gitorbit.access_token';
+  private readonly ACCESS_TOKEN_KEY = 'gitorbit.token';
   private readonly REFRESH_TOKEN_KEY = 'gitorbit.refresh_token';
 
   private constructor() {}
@@ -43,6 +43,45 @@ export class AuthService {
     }
 
     return token;
+  }
+
+  public async getRefreshToken(): Promise<string | undefined> {
+    return await this._secretStorage?.get(this.REFRESH_TOKEN_KEY);
+  }
+
+  public async refreshAccessToken(): Promise<boolean> {
+    const refreshToken = await this.getRefreshToken();
+    if (!refreshToken) {
+      return false;
+    }
+
+    try {
+      const response = await fetch('https://kuulto.app/api/auth/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const data = await response.json();
+      const newAccessToken = data.access_token;
+      const newRefreshToken = data.refresh_token || refreshToken;
+
+      if (newAccessToken) {
+        await this.storeTokens(newAccessToken, newRefreshToken);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Failed to refresh token:', error);
+      return false;
+    }
   }
 
   public async logout() {

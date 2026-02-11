@@ -24,7 +24,7 @@ export class AIService {
   }
 
   private async ensureAuthenticatedToken(): Promise<string> {
-    const token = await AuthService.getInstance().getAccessToken();
+    let token = await AuthService.getInstance().getAccessToken();
 
     if (!token) {
       vscode.window
@@ -40,6 +40,11 @@ export class AIService {
       throw new Error('Unauthorized: Authentication required.');
     }
     return token;
+  }
+
+  private async refreshTokenIfNeeded(): Promise<boolean> {
+    const refreshed = await AuthService.getInstance().refreshAccessToken();
+    return refreshed;
   }
 
   /**

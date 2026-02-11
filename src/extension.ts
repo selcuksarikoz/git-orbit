@@ -79,7 +79,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('gitorbit.login', () => {
       const appName = vscode.env.uriScheme;
       vscode.env.openExternal(
-        vscode.Uri.parse(`https://kuulto.app/signin?gitorbit=true&appname=${appName}`)
+        vscode.Uri.parse(`https://kuulto.app/signin?app=gitorbit&appname=${appName}`)
       );
     })
   );
@@ -97,11 +97,14 @@ export function activate(context: vscode.ExtensionContext) {
       handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
         if (uri.path === '/auth-callback') {
           const params = new URLSearchParams(uri.query);
-          const accessToken = params.get('access_token');
+          let accessToken = params.get('access_token') || params.get('token');
           const refreshToken = params.get('refresh_token');
 
           if (accessToken && refreshToken) {
             AuthService.getInstance().storeTokens(accessToken, refreshToken);
+            vscode.window.showInformationMessage('Successfully logged into Kuulto AI!');
+          } else if (accessToken) {
+            AuthService.getInstance().storeTokens(accessToken, '');
             vscode.window.showInformationMessage('Successfully logged into Kuulto AI!');
           }
         }
@@ -912,17 +915,16 @@ export function activate(context: vscode.ExtensionContext) {
   const prProvider = new PullRequestTreeProvider();
   vscode.window.registerTreeDataProvider('gitorbit.views.pullRequests', prProvider);
   context.subscriptions.push(
-      vscode.commands.registerCommand('gitorbit.pullRequests.refresh', () => prProvider.refresh())
+    vscode.commands.registerCommand('gitorbit.pullRequests.refresh', () => prProvider.refresh())
   );
   context.subscriptions.push(
-      vscode.commands.registerCommand('gitorbit.pullRequests.login', () => prProvider.login())
+    vscode.commands.registerCommand('gitorbit.pullRequests.login', () => prProvider.login())
   );
   context.subscriptions.push(
-      vscode.commands.registerCommand('gitorbit.pullRequests.create', () => prProvider.createPR())
+    vscode.commands.registerCommand('gitorbit.pullRequests.create', () => prProvider.createPR())
   );
 
   // Refresh PRs periodically or on view visibility (not implemented yet, pure manual refresh for now)
-
 
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.bisect.start', () => bisectService.start())

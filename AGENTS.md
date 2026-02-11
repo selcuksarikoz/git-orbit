@@ -25,3 +25,8 @@
 
 - Prioritize performance. Cache expensive calls (e.g., git commands) using `@memoize`.
 - Debounce file system watchers and UI updates.
+
+## AI Response Guidelines
+
+- **Build**: Only run build once if user explicitly requests it. Do not auto-run builds after every change.
+- **Response Length**: Always keep responses short and concise. Avoid unnecessary explanations.
