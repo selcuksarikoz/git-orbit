@@ -115,5 +115,5 @@ Open an issue on [GitHub](https://github.com/selcuksarikoz/git-orbit).
 ---
 
 <p align="center">
-  <strong>⭐ Enjoying GitOrbit? Leave a rating on the <a href="https://marketplace.visualstudio.com/items?itemName=selcuksarikoz.gitorbit">Marketplace</a>!</strong>
+  <strong>☕ Enjoying GitOrbit? <a href="https://buymeacoffee.com/funnyturkishdude">Buy me a coffee</a> or leave a rating on the <a href="https://marketplace.visualstudio.com/items?itemName=selcuksarikoz.gitorbit">Marketplace</a>!</strong>
 </p>

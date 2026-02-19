@@ -2,7 +2,7 @@
   "name": "gitorbit",
   "displayName": "Git Workflow Manager",
   "description": "Complete Git toolkit for VS Code. Visual git graph, bisect wizard, interactive rebase, blame annotations, PR management, stash, cherry-pick, and optional AI commit suggestions.",
-  "version": "1.1.2",
+  "version": "1.1.4",
   "publisher": "selcuksarikoz",
   "icon": "assets/icons/logo.png",
   "repository": {
@@ -399,6 +399,12 @@
         "title": "Open All Staged Changes",
         "category": "GitOrbit",
         "icon": "$(open-preview)"
+      },
+      {
+        "command": "gitorbit.changes.openDiff",
+        "title": "Open Diff",
+        "category": "GitOrbit",
+        "icon": "$(diff)"
       },
       {
         "command": "gitorbit.graph.reset",
