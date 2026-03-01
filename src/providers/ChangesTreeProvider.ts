@@ -1,47 +1,49 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import { GitService } from '../services/GitService';
+import { GitService, GitRepository } from '../services/GitService';
 import { GitContentProvider } from './GitContentProvider';
 import { StatusDecorationProvider } from './StatusDecorationProvider';
 import { AIService } from '../services/AIService';
 import { BisectService, BisectState } from '../services/BisectService';
 
 class BisectLogItem extends vscode.TreeItem {
-    constructor(status: 'bad' | 'good' | 'skip', hash: string) {
-        super(`Bisect: ${status.toUpperCase()} - ${hash.substring(0, 7)}`, vscode.TreeItemCollapsibleState.None);
+  constructor(status: 'bad' | 'good' | 'skip', hash: string) {
+    super(
+      `Bisect: ${status.toUpperCase()} - ${hash.substring(0, 7)}`,
+      vscode.TreeItemCollapsibleState.None
+    );
 
-        let icon = 'question';
-        let color = undefined;
+    let icon = 'question';
+    let color = undefined;
 
-        if (status === 'bad') {
-            icon = 'x';
-            color = new vscode.ThemeColor('charts.red');
-        } else if (status === 'good') {
-            icon = 'check';
-            color = new vscode.ThemeColor('charts.green');
-        } else {
-            icon = 'debug-step-over';
-        }
-
-        this.iconPath = new vscode.ThemeIcon(icon, color);
-        this.description = hash;
-        this.contextValue = 'bisectItem';
-
-        this.command = {
-            command: 'gitorbit.copy.hash',
-            title: 'Copy Hash',
-            arguments: [{ hash }]
-        };
+    if (status === 'bad') {
+      icon = 'x';
+      color = new vscode.ThemeColor('charts.red');
+    } else if (status === 'good') {
+      icon = 'check';
+      color = new vscode.ThemeColor('charts.green');
+    } else {
+      icon = 'debug-step-over';
     }
+
+    this.iconPath = new vscode.ThemeIcon(icon, color);
+    this.description = hash;
+    this.contextValue = 'bisectItem';
+
+    this.command = {
+      command: 'gitorbit.copy.hash',
+      title: 'Copy Hash',
+      arguments: [{ hash }],
+    };
+  }
 }
 
 class ChangeItem extends vscode.TreeItem {
-
   constructor(
     public readonly path: string,
     public readonly status: string,
     public readonly isStaged: boolean,
-    public readonly rootPath: string
+    public readonly rootPath: string,
+    public readonly repo?: GitRepository
   ) {
     const label = path.split('/').pop() || path;
     super(status === 'D' ? ChangeItem.toStrikethrough(label) : label);
@@ -77,7 +79,11 @@ class ChangeItem extends vscode.TreeItem {
 }
 
 class BranchStatusItem extends vscode.TreeItem {
-  constructor(label: string, isGone: boolean) {
+  constructor(
+    label: string,
+    isGone: boolean,
+    public readonly repo?: GitRepository
+  ) {
     const finalLabel = isGone ? ChangeItem.toStrikethrough(label) : label;
     super(finalLabel, vscode.TreeItemCollapsibleState.None);
 
@@ -93,10 +99,40 @@ class BranchStatusItem extends vscode.TreeItem {
 }
 
 class GroupItem extends vscode.TreeItem {
-  constructor(label: string, count: number, contextValue: string) {
+  constructor(
+    label: string,
+    count: number,
+    contextValue: string,
+    public readonly repo?: GitRepository
+  ) {
     super(label, vscode.TreeItemCollapsibleState.Expanded);
     this.description = `(${count})`;
     this.contextValue = contextValue;
+  }
+}
+
+class RepoHeaderItem extends vscode.TreeItem {
+  constructor(
+    public readonly repo: GitRepository,
+    changeCount: number,
+    isSelected: boolean = false
+  ) {
+    const folderName = repo.rootDir.split(/[/\\]/).pop() || 'Repository';
+    super(folderName, vscode.TreeItemCollapsibleState.Expanded);
+    this.description = changeCount > 0 ? `${changeCount} changes` : 'no changes';
+    this.tooltip = `Repository: ${repo.rootDir}\nChanges: ${changeCount}${isSelected ? '\n(Selected)' : ''}`;
+    this.iconPath = new vscode.ThemeIcon(
+      'repo',
+      isSelected ? new vscode.ThemeColor('charts.green') : new vscode.ThemeColor('foreground')
+    );
+    this.contextValue = isSelected ? 'repoHeaderSelected' : 'repoHeader';
+
+    // Click to select this repo
+    this.command = {
+      command: 'gitorbit.selectRepo',
+      title: 'Select Repository',
+      arguments: [repo],
+    };
   }
 }
 
@@ -106,9 +142,11 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
   readonly onDidChangeTreeData: vscode.Event<vscode.TreeItem | undefined | null | void> =
     this._onDidChangeTreeData.event;
 
-  private _staged: any[] = [];
-  private _unstaged: any[] = [];
-  private _refreshTimer: NodeJS.Timeout | undefined;
+  private _staged: { path: string; status: string; repo: GitRepository }[] = [];
+  private _unstaged: { path: string; status: string; repo: GitRepository }[] = [];
+  private _refreshTimer: ReturnType<typeof setTimeout> | undefined;
+  private _repoStatus: Map<string, { staged: number; unstaged: number; repo: GitRepository }> =
+    new Map();
 
   public get stagedCount(): number {
     return this._staged.length;
@@ -132,8 +170,6 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
         this.refresh();
       }, 500); // 500ms debounce
     };
-
-    // Info: .git/index handled globally
 
     // Watch workspace files
     const workspaceWatcher = vscode.workspace.createFileSystemWatcher('**/*');
@@ -192,10 +228,41 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     const gitService = GitService.getInstance();
     gitService.clearCache();
 
-    // Calculate counts
-    const status = await gitService.getStatus();
-    this._staged = status.filter((s) => s.stagedStatus !== ' ' && s.stagedStatus !== '?');
-    this._unstaged = status.filter((s) => s.workingTreeStatus !== ' ' || s.stagedStatus === '?');
+    // Clear previous status
+    this._staged = [];
+    this._unstaged = [];
+    this._repoStatus.clear();
+
+    // Get status from all repositories
+    const allStatus = await gitService.getAllStatus();
+
+    for (const entry of allStatus) {
+      const isStaged = entry.stagedStatus !== ' ' && entry.stagedStatus !== '?';
+      const isUnstaged = entry.workingTreeStatus !== ' ' || entry.stagedStatus === '?';
+
+      // Track per-repo counts
+      const existing = this._repoStatus.get(entry.repo.rootDir) || {
+        staged: 0,
+        unstaged: 0,
+        repo: entry.repo,
+      };
+
+      if (isStaged) {
+        this._staged.push({ path: entry.path, status: entry.stagedStatus, repo: entry.repo });
+        existing.staged++;
+      }
+
+      if (isUnstaged) {
+        this._unstaged.push({
+          path: entry.path,
+          status: entry.workingTreeStatus !== ' ' ? entry.workingTreeStatus : '?',
+          repo: entry.repo,
+        });
+        existing.unstaged++;
+      }
+
+      this._repoStatus.set(entry.repo.rootDir, existing);
+    }
 
     // Update context keys
     vscode.commands.executeCommand(
@@ -218,75 +285,63 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
 
   async getChildren(element?: vscode.TreeItem): Promise<vscode.TreeItem[]> {
     const gitService = GitService.getInstance();
+    await gitService.ensureInitialized();
+    const repos = gitService.getRepositories();
 
     if (!element) {
-      // Root groups
-      // Update decorations
-      const allStatus = [
-        ...this._staged.map((s) => ({
-          path: s.path,
-          status: s.stagedStatus,
-          rootDir: gitService.rootDir,
-        })),
-        ...this._unstaged.map((s) => ({
-          path: s.path,
-          status: s.workingTreeStatus === ' ' ? '?' : s.workingTreeStatus,
-          rootDir: gitService.rootDir,
-        })),
-      ];
-      StatusDecorationProvider.updateStatus(allStatus);
-      new StatusDecorationProvider().fireUpdate();
+      // Root level - always show repo headers if repos exist
+      if (repos.length >= 1) {
+        const items: vscode.TreeItem[] = [];
 
-      const items: vscode.TreeItem[] = [];
-
-      // Add branch status
-      const branches = await gitService.getBranches();
-      if (branches.current) {
-        const status = await gitService.getBranchStatus(branches.current);
-        items.push(new BranchStatusItem(branches.current, status.isGone));
-      }
-
-      // Add Bisect Log if active
-      const bisectService = BisectService.getInstance();
-      if (bisectService.currentState !== BisectState.Idle) {
-        const logs = await bisectService.getLog();
-        if (logs.length > 0) {
-          items.push(new GroupItem('Bisect Log', logs.length, 'bisectGroup'));
+        // Show all repos (even those without changes)
+        const selectedRepo = gitService.getSelectedRepository();
+        for (const repo of repos) {
+          const repoStaged = this._staged.filter((s) => s.repo.rootDir === repo.rootDir);
+          const repoUnstaged = this._unstaged.filter((s) => s.repo.rootDir === repo.rootDir);
+          const totalChanges = repoStaged.length + repoUnstaged.length;
+          const isSelected = selectedRepo?.rootDir === repo.rootDir;
+          items.push(new RepoHeaderItem(repo, totalChanges, isSelected));
         }
-      }
 
-      if (this._staged.length) {
-        items.push(new GroupItem('Staged Changes', this._staged.length, 'stagedGroup'));
-      }
+        // Add Bisect Log if active (global)
+        const bisectService = BisectService.getInstance();
+        if (bisectService.currentState !== BisectState.Idle) {
+          const logs = await bisectService.getLog();
+          if (logs.length > 0) {
+            items.push(new GroupItem('Bisect Log', logs.length, 'bisectGroup'));
+          }
+        }
 
-      items.push(
-        new GroupItem(
-          'Changes',
-          this._unstaged.length,
-          this._unstaged.length > 0 ? 'changesGroup' : 'changesGroupEmpty'
-        )
-      );
-      return items;
+        return items;
+      } else {
+        // No repos found
+        return [new vscode.TreeItem('No git repositories found')];
+      }
+    }
+
+    if (element instanceof RepoHeaderItem) {
+      // Show repo-specific groups
+      return this.getRepoSpecificChildren(element.repo);
     }
 
     if (element instanceof GroupItem) {
       if (element.label === 'Bisect Log') {
         const logs = await BisectService.getInstance().getLog();
-        return logs.map(l => new BisectLogItem(l.status, l.hash));
+        return logs.map((l) => new BisectLogItem(l.status, l.hash));
       }
       if (element.label === 'Staged Changes') {
-        return this._staged.map(
-          (s) => new ChangeItem(s.path, s.stagedStatus, true, gitService.rootDir)
+        const repoStaged = element.repo
+          ? this._staged.filter((s) => s.repo.rootDir === element.repo!.rootDir)
+          : this._staged;
+        return repoStaged.map(
+          (s) => new ChangeItem(s.path, s.status, true, s.repo.rootDir, s.repo)
         );
-      } else {
-        return this._unstaged.map(
-          (s) =>
-            new ChangeItem(
-              s.path,
-              s.workingTreeStatus !== ' ' ? s.workingTreeStatus : '?',
-              false,
-              gitService.rootDir
-            )
+      } else if (element.label === 'Changes') {
+        const repoUnstaged = element.repo
+          ? this._unstaged.filter((s) => s.repo.rootDir === element.repo!.rootDir)
+          : this._unstaged;
+        return repoUnstaged.map(
+          (s) => new ChangeItem(s.path, s.status, false, s.repo.rootDir, s.repo)
         );
       }
     }
@@ -294,13 +349,119 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     return [];
   }
 
+  private async getSingleRepoChildren(gitService: GitService): Promise<vscode.TreeItem[]> {
+    const items: vscode.TreeItem[] = [];
+
+    // Add branch status
+    const branches = await gitService.getBranches();
+    if (branches.current) {
+      const status = await gitService.getBranchStatus(branches.current);
+      items.push(new BranchStatusItem(branches.current, status.isGone));
+    }
+
+    // Add Bisect Log if active
+    const bisectService = BisectService.getInstance();
+    if (bisectService.currentState !== BisectState.Idle) {
+      const logs = await bisectService.getLog();
+      if (logs.length > 0) {
+        items.push(new GroupItem('Bisect Log', logs.length, 'bisectGroup'));
+      }
+    }
+
+    if (this._staged.length) {
+      items.push(new GroupItem('Staged Changes', this._staged.length, 'stagedGroup'));
+    }
+
+    items.push(
+      new GroupItem(
+        'Changes',
+        this._unstaged.length,
+        this._unstaged.length > 0 ? 'changesGroup' : 'changesGroupEmpty'
+      )
+    );
+
+    // Update decorations
+    const allStatus = [
+      ...this._staged.map((s) => ({
+        path: s.path,
+        status: s.status,
+        rootDir: s.repo.rootDir,
+      })),
+      ...this._unstaged.map((s) => ({
+        path: s.path,
+        status: s.status,
+        rootDir: s.repo.rootDir,
+      })),
+    ];
+    StatusDecorationProvider.updateStatus(allStatus);
+    new StatusDecorationProvider().fireUpdate();
+
+    return items;
+  }
+
+  private async getRepoSpecificChildren(repo: GitRepository): Promise<vscode.TreeItem[]> {
+    const items: vscode.TreeItem[] = [];
+    const gitService = GitService.getInstance();
+
+    // Add branch status for this repo
+    const branches = await gitService.getBranches(repo);
+    if (branches.current) {
+      const status = await gitService.getBranchStatus(branches.current, repo);
+      items.push(new BranchStatusItem(branches.current, status.isGone, repo));
+    }
+
+    const repoStaged = this._staged.filter((s) => s.repo.rootDir === repo.rootDir);
+    const repoUnstaged = this._unstaged.filter((s) => s.repo.rootDir === repo.rootDir);
+
+    if (repoStaged.length) {
+      items.push(new GroupItem('Staged Changes', repoStaged.length, 'stagedGroup', repo));
+    }
+
+    items.push(
+      new GroupItem(
+        'Changes',
+        repoUnstaged.length,
+        repoUnstaged.length > 0 ? 'changesGroup' : 'changesGroupEmpty',
+        repo
+      )
+    );
+
+    return items;
+  }
+
   // --- Commands ---
 
   public async commit(amend: boolean = false) {
     const gitService = GitService.getInstance();
 
-    // Check staged status
-    const status = await gitService.getStatus();
+    // If multiple repos, ask which one to commit
+    const repos = gitService.getRepositories();
+    let targetRepo: GitRepository | undefined;
+
+    if (repos.length > 1) {
+      const repoOptions = repos.map((r) => ({
+        label: r.rootDir.split(/[/\\]/).pop() || r.rootDir,
+        description: r.rootDir,
+        repo: r,
+      }));
+
+      const selected = await vscode.window.showQuickPick(repoOptions, {
+        placeHolder: 'Select repository to commit',
+      });
+
+      if (!selected) return;
+      targetRepo = selected.repo;
+    } else {
+      targetRepo = repos[0];
+    }
+
+    if (!targetRepo) {
+      vscode.window.showErrorMessage('No repository found.');
+      return;
+    }
+
+    // Check staged status for this repo
+    const status = await gitService.getStatus(targetRepo);
     const staged = status.filter((s) => s.stagedStatus !== ' ' && s.stagedStatus !== '?');
     const unstaged = status.filter((s) => s.workingTreeStatus !== ' ' || s.stagedStatus === '?');
 
@@ -312,7 +473,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       }
 
       // Auto-stage if empty
-      await gitService.stageAll();
+      await gitService.stageAll(targetRepo);
     }
 
     const message = await vscode.window.showInputBox({
@@ -331,7 +492,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       const options = message ? ['-m', message] : [];
       if (amend) options.push('--amend');
 
-      await gitService.commit(options);
+      await gitService.commit(options, targetRepo);
       vscode.window.showInformationMessage('Commit successful!');
       this.refresh();
     } catch (e: any) {
@@ -347,7 +508,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
         item.status,
         item.path,
         item.isStaged,
-        gitService.rootDir
+        item.rootPath
       );
 
       // Handle deletions
@@ -364,8 +525,6 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       if (original) {
         const title = `${item.path} (${item.isStaged ? 'Staged' : 'Changes'})`;
         await vscode.commands.executeCommand('vscode.diff', original, modified, title);
-      } else {
-        // Fallback
       }
     } catch (e) {
       vscode.window.showErrorMessage('Could not open diff: ' + e);
@@ -373,41 +532,84 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
   }
 
   public async stage(item: ChangeItem) {
-    await GitService.getInstance().stage(item.path);
+    if (item.repo) {
+      await GitService.getInstance().stage(item.path, item.repo);
+    } else {
+      await GitService.getInstance().stage(item.path);
+    }
     this.refresh();
   }
 
   public async unstage(item: ChangeItem) {
-    await GitService.getInstance().unstage(item.path);
+    if (item.repo) {
+      await GitService.getInstance().unstage(item.path, item.repo);
+    } else {
+      await GitService.getInstance().unstage(item.path);
+    }
     this.refresh();
   }
 
   public async stageAll() {
-    await GitService.getInstance().stageAll();
+    const gitService = GitService.getInstance();
+    const repos = gitService.getRepositories();
+
+    if (repos.length > 1) {
+      // Stage all in all repos
+      for (const repo of repos) {
+        await gitService.stageAll(repo);
+      }
+    } else {
+      await gitService.stageAll();
+    }
     this.refresh();
   }
 
   public async unstageAll() {
-    await GitService.getInstance().unstageAll();
+    const gitService = GitService.getInstance();
+    const repos = gitService.getRepositories();
+
+    if (repos.length > 1) {
+      // Unstage all in all repos
+      for (const repo of repos) {
+        await gitService.unstageAll(repo);
+      }
+    } else {
+      await gitService.unstageAll();
+    }
     this.refresh();
   }
 
   public async commitStaged() {
-    // Commit staged only
-    const gitService = GitService.getInstance();
-    const status = await gitService.getStatus();
-    const staged = status.filter((s) => s.stagedStatus !== ' ' && s.stagedStatus !== '?');
-    if (staged.length === 0) {
-      vscode.window.showInformationMessage('No staged changes to commit.');
-      return;
-    }
+    // Commit staged only - will show repo picker if needed
     this.commit();
   }
 
   public async undoCommit() {
     const gitService = GitService.getInstance();
+    const repos = gitService.getRepositories();
+
+    let targetRepo: GitRepository | undefined;
+    if (repos.length > 1) {
+      const repoOptions = repos.map((r) => ({
+        label: r.rootDir.split(/[/\\]/).pop() || r.rootDir,
+        description: r.rootDir,
+        repo: r,
+      }));
+
+      const selected = await vscode.window.showQuickPick(repoOptions, {
+        placeHolder: 'Select repository to undo commit',
+      });
+
+      if (!selected) return;
+      targetRepo = selected.repo;
+    } else {
+      targetRepo = repos[0];
+    }
+
+    if (!targetRepo) return;
+
     try {
-      await gitService.undoCommit();
+      await gitService.undoCommit(targetRepo);
       vscode.window.showInformationMessage('Last commit undone (soft reset).');
       this.refresh();
     } catch (e: any) {
@@ -417,8 +619,30 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
 
   public async abortRebase() {
     const gitService = GitService.getInstance();
+    const repos = gitService.getRepositories();
+
+    let targetRepo: GitRepository | undefined;
+    if (repos.length > 1) {
+      const repoOptions = repos.map((r) => ({
+        label: r.rootDir.split(/[/\\]/).pop() || r.rootDir,
+        description: r.rootDir,
+        repo: r,
+      }));
+
+      const selected = await vscode.window.showQuickPick(repoOptions, {
+        placeHolder: 'Select repository to abort rebase',
+      });
+
+      if (!selected) return;
+      targetRepo = selected.repo;
+    } else {
+      targetRepo = repos[0];
+    }
+
+    if (!targetRepo) return;
+
     try {
-      await gitService.abortRebase();
+      await gitService.abortRebase(targetRepo);
       vscode.window.showInformationMessage('Rebase aborted.');
       this.refresh();
     } catch (e: any) {
@@ -428,8 +652,30 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
 
   public async abortMerge() {
     const gitService = GitService.getInstance();
+    const repos = gitService.getRepositories();
+
+    let targetRepo: GitRepository | undefined;
+    if (repos.length > 1) {
+      const repoOptions = repos.map((r) => ({
+        label: r.rootDir.split(/[/\\]/).pop() || r.rootDir,
+        description: r.rootDir,
+        repo: r,
+      }));
+
+      const selected = await vscode.window.showQuickPick(repoOptions, {
+        placeHolder: 'Select repository to abort merge',
+      });
+
+      if (!selected) return;
+      targetRepo = selected.repo;
+    } else {
+      targetRepo = repos[0];
+    }
+
+    if (!targetRepo) return;
+
     try {
-      await gitService.abortMerge();
+      await gitService.abortMerge(targetRepo);
       vscode.window.showInformationMessage('Merge aborted.');
       this.refresh();
     } catch (e: any) {
@@ -442,9 +688,9 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       vscode.window.showWarningMessage('File is deleted.');
       return;
     }
-    const gitService = GitService.getInstance();
+
     const uri = vscode.Uri.file(
-      vscode.Uri.joinPath(vscode.Uri.file(gitService.rootDir), item.path).fsPath
+      vscode.Uri.joinPath(vscode.Uri.file(item.rootPath), item.path).fsPath
     );
     try {
       await vscode.commands.executeCommand('vscode.open', uri);
@@ -454,7 +700,6 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
   }
 
   public async discard(item: ChangeItem) {
-    const gitService = GitService.getInstance();
     const confirm = await vscode.window.showWarningMessage(
       `Discard changes in ${item.label}?`,
       { modal: true },
@@ -466,14 +711,18 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     try {
       if (item.status === '?' || item.status === 'U') {
         const uri = vscode.Uri.file(
-          vscode.Uri.joinPath(vscode.Uri.file(gitService.rootDir), item.path).fsPath
+          vscode.Uri.joinPath(vscode.Uri.file(item.rootPath), item.path).fsPath
         );
         await vscode.workspace.fs.delete(uri, {
           recursive: true,
           useTrash: false,
         });
       } else {
-        await gitService.discardChanges(item.path);
+        if (item.repo) {
+          await GitService.getInstance().discardChanges(item.path, item.repo);
+        } else {
+          await GitService.getInstance().discardChanges(item.path);
+        }
       }
       this.refresh();
     } catch (e: any) {
@@ -487,18 +736,36 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       { modal: true },
       'Discard All'
     );
-    if (confirm === 'Discard All') {
-      await GitService.getInstance().discardAllChanges();
-      this.refresh();
+    if (confirm !== 'Discard All') return;
+
+    const gitService = GitService.getInstance();
+    const repos = gitService.getRepositories();
+
+    // Discard in all repos
+    for (const repo of repos) {
+      await gitService.discardAllChanges(repo);
     }
+
+    this.refresh();
   }
 
   public async sync() {
     await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Notification, title: 'Syncing...' },
       async () => {
-        await GitService.getInstance().pull();
-        await GitService.getInstance().push();
+        const gitService = GitService.getInstance();
+        const repos = gitService.getRepositories();
+
+        // Sync all repos
+        for (const repo of repos) {
+          try {
+            await gitService.pull('origin', undefined, repo);
+            await gitService.push('origin', undefined, false, repo);
+          } catch (e: any) {
+            vscode.window.showWarningMessage(`Sync failed for ${repo.rootDir}: ${e.message}`);
+          }
+        }
+
         if (this._onRefreshAll) {
           this._onRefreshAll();
         } else {
@@ -512,7 +779,18 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Notification, title: 'Pushing...' },
       async () => {
-        await GitService.getInstance().push();
+        const gitService = GitService.getInstance();
+        const repos = gitService.getRepositories();
+
+        // Push all repos
+        for (const repo of repos) {
+          try {
+            await gitService.push('origin', undefined, false, repo);
+          } catch (e: any) {
+            vscode.window.showWarningMessage(`Push failed for ${repo.rootDir}: ${e.message}`);
+          }
+        }
+
         if (this._onRefreshAll) {
           this._onRefreshAll();
         } else {
@@ -524,17 +802,18 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
 
   public async openAllStaged() {
     const gitService = GitService.getInstance();
-    const status = await gitService.getStatus();
-    const staged = status.filter((s) => s.stagedStatus !== ' ' && s.stagedStatus !== '?');
 
-    if (staged.length === 0) return;
+    // If multiple repos, aggregate all staged
+    const allStaged = this._staged;
 
-    const resources = staged.map((s) => {
+    if (allStaged.length === 0) return;
+
+    const resources = allStaged.map((s) => {
       const { original, modified } = GitContentProvider.getDiffUris(
-        s.stagedStatus,
+        s.status,
         s.path,
         true,
-        gitService.rootDir
+        s.repo.rootDir
       );
 
       return {
@@ -553,17 +832,18 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
 
   public async openAllChanges() {
     const gitService = GitService.getInstance();
-    const status = await gitService.getStatus();
-    const unstaged = status.filter((s) => s.workingTreeStatus !== ' ' || s.stagedStatus === '?');
 
-    if (unstaged.length === 0) return;
+    // Aggregate all unstaged from all repos
+    const allUnstaged = this._unstaged;
 
-    const resources = unstaged.map((s) => {
+    if (allUnstaged.length === 0) return;
+
+    const resources = allUnstaged.map((s) => {
       const { original, modified } = GitContentProvider.getDiffUris(
-        s.workingTreeStatus,
+        s.status,
         s.path,
         false,
-        gitService.rootDir
+        s.repo.rootDir
       );
 
       return {
@@ -584,7 +864,18 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Notification, title: 'Pulling...' },
       async () => {
-        await GitService.getInstance().pull();
+        const gitService = GitService.getInstance();
+        const repos = gitService.getRepositories();
+
+        // Pull all repos
+        for (const repo of repos) {
+          try {
+            await gitService.pull('origin', undefined, repo);
+          } catch (e: any) {
+            vscode.window.showWarningMessage(`Pull failed for ${repo.rootDir}: ${e.message}`);
+          }
+        }
+
         if (this._onRefreshAll) {
           this._onRefreshAll();
         } else {
@@ -593,12 +884,39 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       }
     );
   }
+
   public async smartCommit() {
     const gitService = GitService.getInstance();
     const aiService = AIService.getInstance();
 
+    // If multiple repos, ask which one to use
+    const repos = gitService.getRepositories();
+    let targetRepo: GitRepository | undefined;
+
+    if (repos.length > 1) {
+      const repoOptions = repos.map((r) => ({
+        label: r.rootDir.split(/[/\\]/).pop() || r.rootDir,
+        description: r.rootDir,
+        repo: r,
+      }));
+
+      const selected = await vscode.window.showQuickPick(repoOptions, {
+        placeHolder: 'Select repository for Smart Commit',
+      });
+
+      if (!selected) return;
+      targetRepo = selected.repo;
+    } else {
+      targetRepo = repos[0];
+    }
+
+    if (!targetRepo) {
+      vscode.window.showErrorMessage('No repository found.');
+      return;
+    }
+
     // Determine diff target
-    const status = await gitService.getStatus();
+    const status = await gitService.getStatus(targetRepo);
     const staged = status.filter((s) => s.stagedStatus !== ' ' && s.stagedStatus !== '?');
 
     let hasStagedChanges = staged.length > 0;
@@ -606,17 +924,17 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
 
     if (hasStagedChanges) {
       // Get staged diff
-      diff = await gitService.getTruncatedDiff(true);
+      diff = await gitService.getTruncatedDiff(true, 4000, targetRepo);
     } else {
       // Diff all tracked
-      diff = await gitService.getTruncatedDiff(false);
+      diff = await gitService.getTruncatedDiff(false, 4000, targetRepo);
 
       // Diff untracked?
       if (!diff) {
         // Auto-stage for diff
         vscode.window.showInformationMessage('Staging all changes to generate commit message...');
-        await gitService.stageAll();
-        diff = await gitService.getTruncatedDiff(true);
+        await gitService.stageAll(targetRepo);
+        diff = await gitService.getTruncatedDiff(true, 4000, targetRepo);
         hasStagedChanges = true;
       }
     }
@@ -671,9 +989,9 @@ ${diff}`;
             // Commit
             // Stage if needed
             if (!hasStagedChanges) {
-              await gitService.stageAll();
+              await gitService.stageAll(targetRepo);
             }
-            await gitService.commit(['-m', editedMessage]);
+            await gitService.commit(['-m', editedMessage], targetRepo);
             vscode.window.showInformationMessage('Smart Commit successful!');
             this.refresh();
           }

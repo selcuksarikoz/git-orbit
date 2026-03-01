@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { GitService } from './GitService';
+import { GitService, GitRepository } from '../services/GitService';
 
 export interface PullRequest {
   id: string;
@@ -14,6 +14,7 @@ export interface PullRequest {
   createdAt: string;
   updatedAt: string;
   source: 'github' | 'gitlab';
+  repo?: GitRepository;
 }
 
 export class PullRequestService {
@@ -34,25 +35,25 @@ export class PullRequestService {
   public async getPullRequests(): Promise<PullRequest[]> {
     const prs: PullRequest[] = [];
 
-    // Detect remotes
-    // TODO: Implement proper remote detection
+    // Get all repositories and their remotes
+    const remoteUrls = await this.gitService.getAllRemoteUrls();
 
-    // MVP: GitHub only
-    const remoteUrl = await this.gitService.getRemoteUrl();
-    if (!remoteUrl) return [];
-
-    if (remoteUrl.includes('github.com')) {
-      const githubPRs = await this.getGitHubPRs(remoteUrl);
-      prs.push(...githubPRs);
+    for (const { repo, remoteUrl } of remoteUrls) {
+      if (remoteUrl.includes('github.com')) {
+        const githubPRs = await this.getGitHubPRs(remoteUrl, repo);
+        prs.push(...githubPRs);
+      }
+      // Future: GitLab support
     }
-    // Future: GitLab support
 
     return prs;
   }
 
-  private async getGitHubPRs(remoteUrl: string): Promise<PullRequest[]> {
+  private async getGitHubPRs(remoteUrl: string, repo: GitRepository): Promise<PullRequest[]> {
     try {
-      const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: false });
+      const session = await vscode.authentication.getSession('github', ['repo'], {
+        createIfNone: false,
+      });
       if (!session) {
         // Silent failure if no session
         return [];
@@ -63,122 +64,162 @@ export class PullRequestService {
       if (!match) return [];
 
       const owner = match[1];
-      const repo = match[2];
+      const repoName = match[2];
 
-      const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls?state=open`, {
-        headers: {
-          'Authorization': `Bearer ${session.accessToken}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'GitOrbit-VSCode'
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repoName}/pulls?state=open`,
+        {
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+            Accept: 'application/vnd.github.v3+json',
+            'User-Agent': 'GitOrbit-VSCode',
+          },
         }
-      });
+      );
 
       if (!response.ok) {
         console.error('Failed to fetch PRs', response.statusText);
         return [];
       }
 
-      const data = await response.json() as any[];
-      return data.map(pr => ({
+      const data = (await response.json()) as any[];
+      return data.map((pr) => ({
         id: pr.id.toString(),
         number: pr.number,
         title: pr.title,
         url: pr.html_url,
         state: pr.state,
         author: {
-            login: pr.user.login,
-            avatarUrl: pr.user.avatar_url
+          login: pr.user.login,
+          avatarUrl: pr.user.avatar_url,
         },
         createdAt: pr.created_at,
         updatedAt: pr.updated_at,
-        source: 'github'
+        source: 'github',
+        repo,
       }));
-
     } catch (e) {
       console.error('Error fetching GitHub PRs:', e);
       return [];
     }
   }
 
-  public async createPullRequest(title: string, body: string, head: string, base: string): Promise<string | undefined> {
-    const remoteUrl = await this.gitService.getRemoteUrl();
+  public async createPullRequest(
+    repo: GitRepository,
+    title: string,
+    body: string,
+    head: string,
+    base: string
+  ): Promise<string | undefined> {
+    const remoteUrl = repo.remoteUrl || (await this.gitService.getRemoteUrl(repo));
     if (!remoteUrl) return undefined;
 
     // GitHub only
     if (remoteUrl.includes('github.com')) {
-        return this.createGitHubPR(remoteUrl, title, body, head, base);
+      return this.createGitHubPR(repo, remoteUrl, title, body, head, base);
     }
     return undefined;
   }
 
-  private async createGitHubPR(remoteUrl: string, title: string, body: string, head: string, base: string): Promise<string | undefined> {
-      try {
-        const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: true });
-        if (!session) return undefined;
+  private async createGitHubPR(
+    repo: GitRepository,
+    remoteUrl: string,
+    title: string,
+    body: string,
+    head: string,
+    base: string
+  ): Promise<string | undefined> {
+    try {
+      const session = await vscode.authentication.getSession('github', ['repo'], {
+        createIfNone: true,
+      });
+      if (!session) return undefined;
 
-        const match = remoteUrl.match(/github\.com[:\/]([^\/]+)\/([^\.]+)/);
-        if (!match) return undefined;
+      const match = remoteUrl.match(/github\.com[:\/]([^\/]+)\/([^\.]+)/);
+      if (!match) return undefined;
 
-        const owner = match[1];
-        const repo = match[2];
+      const owner = match[1];
+      const repoName = match[2];
 
-        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${session.accessToken}`,
-                'Accept': 'application/vnd.github.v3+json',
-                'Content-Type': 'application/json',
-                'User-Agent': 'GitOrbit-VSCode'
-            },
-            body: JSON.stringify({ title, body, head, base })
-        });
+      const response = await fetch(`https://api.github.com/repos/${owner}/${repoName}/pulls`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+          Accept: 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+          'User-Agent': 'GitOrbit-VSCode',
+        },
+        body: JSON.stringify({ title, body, head, base }),
+      });
 
-        if (!response.ok) {
-            const error = await response.json() as any;
-            throw new Error(error.message || response.statusText);
-        }
-
-        const data = await response.json() as any;
-        return data.html_url;
-
-      } catch (e: any) {
-          vscode.window.showErrorMessage(`Failed to create PR: ${e.message}`);
-          return undefined;
+      if (!response.ok) {
+        const error = (await response.json()) as any;
+        throw new Error(error.message || response.statusText);
       }
+
+      const data = (await response.json()) as any;
+      return data.html_url;
+    } catch (e: any) {
+      vscode.window.showErrorMessage(`Failed to create PR: ${e.message}`);
+      return undefined;
+    }
   }
 
-  public async getCollaborators(): Promise<{ login: string; avatarUrl: string }[]> {
+  public async getCollaborators(
+    repo: GitRepository
+  ): Promise<{ login: string; avatarUrl: string }[]> {
     try {
-      const { owner, repo, session } = await this.getGitHubContext();
-      const collaborators = await this.githubFetch(`/repos/${owner}/${repo}/collaborators`, session);
+      const { owner, repoName, session } = await this.getGitHubContext(repo);
+      const collaborators = await this.githubFetch(
+        `/repos/${owner}/${repoName}/collaborators`,
+        session
+      );
       return (collaborators || []).map((c: any) => ({
         login: c.login,
-        avatarUrl: c.avatar_url
+        avatarUrl: c.avatar_url,
       }));
     } catch (e) {
       return [];
     }
   }
 
-  public async updatePRDescription(prNumber: number, body: string): Promise<void> {
-    const { owner, repo, session } = await this.getGitHubContext();
-    await this.githubFetch(`/repos/${owner}/${repo}/pulls/${prNumber}`, session, 'PATCH', { body });
+  public async updatePRDescription(
+    repo: GitRepository,
+    prNumber: number,
+    body: string
+  ): Promise<void> {
+    const { owner, repoName, session } = await this.getGitHubContext(repo);
+    await this.githubFetch(`/repos/${owner}/${repoName}/pulls/${prNumber}`, session, 'PATCH', {
+      body,
+    });
   }
 
-  public async getPRDetails(prNumber: number): Promise<any> {
-    const remoteUrl = await this.gitService.getRemoteUrl();
+  public async getPRDetails(repo: GitRepository, prNumber: number): Promise<any> {
+    const remoteUrl = repo.remoteUrl || (await this.gitService.getRemoteUrl(repo));
     if (!remoteUrl || !remoteUrl.includes('github.com')) {
       throw new Error('Only GitHub is supported');
     }
 
-    const { owner, repo, session } = await this.getGitHubContext();
+    const { owner, repoName, session } = await this.getGitHubContext(repo);
 
     // Fetch PR details
-    const prRes = await this.githubFetch(`/repos/${owner}/${repo}/pulls/${prNumber}`, session);
-    const reviewsRes = await this.githubFetch(`/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, session);
-    const filesRes = await this.githubFetch(`/repos/${owner}/${repo}/pulls/${prNumber}/files`, session);
-    const commentsRes = await this.githubFetch(`/repos/${owner}/${repo}/issues/${prNumber}/comments`, session);
-    const reviewersRes = await this.githubFetch(`/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`, session);
+    const prRes = await this.githubFetch(`/repos/${owner}/${repoName}/pulls/${prNumber}`, session);
+    const reviewsRes = await this.githubFetch(
+      `/repos/${owner}/${repoName}/pulls/${prNumber}/reviews`,
+      session
+    );
+    const filesRes = await this.githubFetch(
+      `/repos/${owner}/${repoName}/pulls/${prNumber}/files`,
+      session
+    );
+    const commentsRes = await this.githubFetch(
+      `/repos/${owner}/${repoName}/issues/${prNumber}/comments`,
+      session
+    );
+    const reviewersRes = await this.githubFetch(
+      `/repos/${owner}/${repoName}/pulls/${prNumber}/requested_reviewers`,
+      session
+    );
 
     const reviewerMap = new Map<string, { login: string; avatarUrl: string; state?: string }>();
 
@@ -190,7 +231,11 @@ export class PullRequestService {
     // Add reviewers with their state
     for (const r of reviewsRes || []) {
       if (r.state !== 'COMMENTED') {
-        reviewerMap.set(r.user.login, { login: r.user.login, avatarUrl: r.user.avatar_url, state: r.state });
+        reviewerMap.set(r.user.login, {
+          login: r.user.login,
+          avatarUrl: r.user.avatar_url,
+          state: r.state,
+        });
       }
     }
 
@@ -216,49 +261,87 @@ export class PullRequestService {
         filename: f.filename,
         status: f.status,
         additions: f.additions,
-        deletions: f.deletions
+        deletions: f.deletions,
       })),
       comments: (commentsRes || []).map((c: any) => ({
         author: c.user.login,
         body: c.body,
-        createdAt: c.created_at
-      }))
+        createdAt: c.created_at,
+      })),
     };
   }
 
-  public async addReviewer(prNumber: number, username: string): Promise<void> {
-    const { owner, repo, session } = await this.getGitHubContext();
-    await this.githubFetch(`/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`, session, 'POST', {
-      reviewers: [username]
-    });
+  public async addReviewer(repo: GitRepository, prNumber: number, username: string): Promise<void> {
+    const { owner, repoName, session } = await this.getGitHubContext(repo);
+    await this.githubFetch(
+      `/repos/${owner}/${repoName}/pulls/${prNumber}/requested_reviewers`,
+      session,
+      'POST',
+      {
+        reviewers: [username],
+      }
+    );
   }
 
-  public async removeReviewer(prNumber: number, username: string): Promise<void> {
-    const { owner, repo, session } = await this.getGitHubContext();
-    await this.githubFetch(`/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`, session, 'DELETE', {
-      reviewers: [username]
-    });
+  public async removeReviewer(
+    repo: GitRepository,
+    prNumber: number,
+    username: string
+  ): Promise<void> {
+    const { owner, repoName, session } = await this.getGitHubContext(repo);
+    await this.githubFetch(
+      `/repos/${owner}/${repoName}/pulls/${prNumber}/requested_reviewers`,
+      session,
+      'DELETE',
+      {
+        reviewers: [username],
+      }
+    );
   }
 
-  public async reviewPR(prNumber: number, event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT', body?: string): Promise<void> {
-    const { owner, repo, session } = await this.getGitHubContext();
-    await this.githubFetch(`/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, session, 'POST', {
-      event,
-      body: body || ''
-    });
+  public async reviewPR(
+    repo: GitRepository,
+    prNumber: number,
+    event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT',
+    body?: string
+  ): Promise<void> {
+    const { owner, repoName, session } = await this.getGitHubContext(repo);
+    await this.githubFetch(
+      `/repos/${owner}/${repoName}/pulls/${prNumber}/reviews`,
+      session,
+      'POST',
+      {
+        event,
+        body: body || '',
+      }
+    );
   }
 
-  public async commentPR(prNumber: number, body: string): Promise<void> {
-    const { owner, repo, session } = await this.getGitHubContext();
-    await this.githubFetch(`/repos/${owner}/${repo}/issues/${prNumber}/comments`, session, 'POST', { body });
+  public async commentPR(repo: GitRepository, prNumber: number, body: string): Promise<void> {
+    const { owner, repoName, session } = await this.getGitHubContext(repo);
+    await this.githubFetch(
+      `/repos/${owner}/${repoName}/issues/${prNumber}/comments`,
+      session,
+      'POST',
+      { body }
+    );
   }
 
-  public async mergePR(prNumber: number, method: 'merge' | 'squash' | 'rebase'): Promise<boolean> {
-    const { owner, repo, session } = await this.getGitHubContext();
+  public async mergePR(
+    repo: GitRepository,
+    prNumber: number,
+    method: 'merge' | 'squash' | 'rebase'
+  ): Promise<boolean> {
+    const { owner, repoName, session } = await this.getGitHubContext(repo);
     try {
-      await this.githubFetch(`/repos/${owner}/${repo}/pulls/${prNumber}/merge`, session, 'PUT', {
-        merge_method: method
-      });
+      await this.githubFetch(
+        `/repos/${owner}/${repoName}/pulls/${prNumber}/merge`,
+        session,
+        'PUT',
+        {
+          merge_method: method,
+        }
+      );
       return true;
     } catch (e: any) {
       vscode.window.showErrorMessage(`Failed to merge: ${e.message}`);
@@ -266,33 +349,42 @@ export class PullRequestService {
     }
   }
 
-  private async getGitHubContext(): Promise<{ owner: string; repo: string; session: vscode.AuthenticationSession }> {
-    const remoteUrl = await this.gitService.getRemoteUrl();
+  private async getGitHubContext(
+    repo: GitRepository
+  ): Promise<{ owner: string; repoName: string; session: vscode.AuthenticationSession }> {
+    const remoteUrl = repo.remoteUrl || (await this.gitService.getRemoteUrl(repo));
     if (!remoteUrl) throw new Error('No remote URL');
 
     const match = remoteUrl.match(/github\.com[:\/]([^\/]+)\/([^\.]+)/);
     if (!match) throw new Error('Invalid GitHub URL');
 
-    const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: true });
+    const session = await vscode.authentication.getSession('github', ['repo'], {
+      createIfNone: true,
+    });
     if (!session) throw new Error('Not authenticated');
 
-    return { owner: match[1], repo: match[2], session };
+    return { owner: match[1], repoName: match[2], session };
   }
 
-  private async githubFetch(endpoint: string, session: vscode.AuthenticationSession, method: string = 'GET', body?: any): Promise<any> {
+  private async githubFetch(
+    endpoint: string,
+    session: vscode.AuthenticationSession,
+    method: string = 'GET',
+    body?: any
+  ): Promise<any> {
     const response = await fetch(`https://api.github.com${endpoint}`, {
       method,
       headers: {
-        'Authorization': `Bearer ${session.accessToken}`,
-        'Accept': 'application/vnd.github.v3+json',
+        Authorization: `Bearer ${session.accessToken}`,
+        Accept: 'application/vnd.github.v3+json',
         'Content-Type': 'application/json',
-        'User-Agent': 'GitOrbit-VSCode'
+        'User-Agent': 'GitOrbit-VSCode',
       },
-      body: body ? JSON.stringify(body) : undefined
+      body: body ? JSON.stringify(body) : undefined,
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({})) as any;
+      const error = (await response.json().catch(() => ({}))) as any;
       throw new Error(error.message || response.statusText);
     }
 

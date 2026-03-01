@@ -836,7 +836,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Sync Commands
 
   // Auto Sync Logic handles periodic fetching
-  let syncInterval: NodeJS.Timeout | undefined;
+  let syncInterval: ReturnType<typeof setInterval> | undefined;
   const setupAutoSync = () => {
     if (syncInterval) clearInterval(syncInterval);
     const intervalMins = ConfigService.getInstance().autoSyncInterval;
@@ -866,7 +866,7 @@ export function activate(context: vscode.ExtensionContext) {
   WelcomeView.show(context);
 
   // Real-time Update: Watch .git/HEAD to detect external changes
-  let refreshTimeout: NodeJS.Timeout | undefined;
+  let refreshTimeout: ReturnType<typeof setTimeout> | undefined;
   const triggerRefresh = () => {
     if (refreshTimeout) clearTimeout(refreshTimeout);
     refreshTimeout = setTimeout(() => refreshAll(), 1000);
@@ -943,6 +943,25 @@ export function activate(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.bisect.showMenu', () => bisectService.showMenu())
+  );
+
+  // Repository Selection - updates all views when selected repo changes
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.selectRepo', (repo: any) => {
+      if (repo && repo.rootDir) {
+        GitService.getInstance().setSelectedRepository(repo);
+        vscode.window.showInformationMessage(
+          `Selected repository: ${repo.rootDir.split(/[/\\]/).pop()}`
+        );
+      }
+    })
+  );
+
+  // Listen for repo selection changes and refresh all views
+  context.subscriptions.push(
+    GitService.getInstance().onDidChangeSelectedRepo(() => {
+      refreshAll();
+    })
   );
 
   // First Run Experience: Focus main views to ensure they are expanded

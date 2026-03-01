@@ -1,8 +1,8 @@
 {
   "name": "gitorbit",
-  "displayName": "Git Workflow Manager",
-  "description": "Complete Git toolkit for VS Code. Visual git graph, bisect wizard, interactive rebase, blame annotations, PR management, stash, cherry-pick, and optional AI commit suggestions.",
-  "version": "1.1.4",
+  "displayName": "Git Workflow Manager — Multi-Repo Support",
+  "description": "Complete Git toolkit for VS Code with full multi-repository support. Work with unlimited nested repos, mono-repos, or multi-root workspaces. Features: visual git graph, bisect wizard, interactive rebase, blame annotations, PR management, stash, cherry-pick, and optional AI commit suggestions.",
+  "version": "1.2.0",
   "publisher": "selcuksarikoz",
   "icon": "assets/icons/logo.png",
   "repository": {
@@ -19,6 +19,11 @@
   ],
   "keywords": [
     "git",
+    "multi-repo",
+    "multi-workspace",
+    "monorepo",
+    "nested-repos",
+    "multi-account",
     "ai",
     "commit",
     "blame",
@@ -206,350 +211,15 @@
         "icon": "$(refresh)"
       },
       {
-        "command": "gitorbit.showWelcome",
-        "title": "Show Welcome Page",
+        "command": "gitorbit.bisect.showMenu",
+        "title": "Show Bisect Menu",
         "category": "GitOrbit"
       },
       {
-        "command": "gitorbit.showGitGraph",
-        "title": "Show Git Graph",
+        "command": "gitorbit.selectRepo",
+        "title": "Select Repository",
         "category": "GitOrbit",
-        "icon": "$(graph)"
-      },
-      {
-        "command": "gitorbit.openSettings",
-        "title": "Open Settings",
-        "category": "GitOrbit",
-        "icon": "$(settings-gear)"
-      },
-      {
-        "command": "gitorbit.pushBranch",
-        "title": "Push",
-        "category": "GitOrbit",
-        "icon": "$(arrow-up)"
-      },
-      {
-        "command": "gitorbit.pullBranch",
-        "title": "Pull",
-        "category": "GitOrbit",
-        "icon": "$(arrow-down)"
-      },
-      {
-        "command": "gitorbit.syncBranch",
-        "title": "Sync",
-        "category": "GitOrbit",
-        "icon": "$(sync)"
-      },
-      {
-        "command": "gitorbit.checkoutBranch",
-        "title": "Checkout",
-        "category": "GitOrbit",
-        "icon": "$(check)"
-      },
-      {
-        "command": "gitorbit.saveStash",
-        "title": "Stash",
-        "category": "GitOrbit",
-        "icon": "$(plus)"
-      },
-      {
-        "command": "gitorbit.stashApply",
-        "title": "Apply Stash",
-        "category": "GitOrbit",
-        "icon": "$(check)"
-      },
-      {
-        "command": "gitorbit.stashPop",
-        "title": "Pop Stash",
-        "category": "GitOrbit",
-        "icon": "$(arrow-up)"
-      },
-      {
-        "command": "gitorbit.openCommitDiffs",
-        "title": "Open Changes",
-        "category": "GitOrbit",
-        "icon": "$(open-preview)"
-      },
-      {
-        "command": "gitorbit.stashDrop",
-        "title": "Delete Stash",
-        "category": "GitOrbit",
-        "icon": "$(trash)"
-      },
-      {
-        "command": "gitorbit.deleteBranchMenu",
-        "title": "Delete...",
-        "category": "GitOrbit",
-        "icon": "$(trash)"
-      },
-      {
-        "command": "gitorbit.filterGraph",
-        "title": "Filter",
-        "category": "GitOrbit",
-        "icon": "$(filter)"
-      },
-      {
-        "command": "gitorbit.clearFilterGraph",
-        "title": "Clear Filter",
-        "category": "GitOrbit",
-        "icon": "$(close)"
-      },
-      {
-        "command": "gitorbit.filterCommits",
-        "title": "Filter",
-        "category": "GitOrbit",
-        "icon": "$(filter)"
-      },
-      {
-        "command": "gitorbit.clearFilterCommits",
-        "title": "Clear Filter",
-        "category": "GitOrbit",
-        "icon": "$(close)"
-      },
-      {
-        "command": "gitorbit.filterFileHistory",
-        "title": "Filter",
-        "category": "GitOrbit",
-        "icon": "$(filter)"
-      },
-      {
-        "command": "gitorbit.clearFilterFileHistory",
-        "title": "Clear Filter",
-        "category": "GitOrbit",
-        "icon": "$(close)"
-      },
-      {
-        "command": "gitorbit.changes.commit",
-        "title": "Commit",
-        "category": "GitOrbit",
-        "icon": "$(check)"
-      },
-      {
-        "command": "gitorbit.changes.commitStaged",
-        "title": "Commit Staged",
-        "category": "GitOrbit"
-      },
-      {
-        "command": "gitorbit.changes.commitAmend",
-        "title": "Commit Amend",
-        "category": "GitOrbit"
-      },
-      {
-        "command": "gitorbit.changes.stageAll",
-        "title": "Stage All",
-        "category": "GitOrbit",
-        "icon": "$(plus)"
-      },
-      {
-        "command": "gitorbit.changes.unstageAll",
-        "title": "Unstage All",
-        "category": "GitOrbit",
-        "icon": "$(dash)"
-      },
-      {
-        "command": "gitorbit.changes.discardAll",
-        "title": "Discard All Changes",
-        "category": "GitOrbit",
-        "icon": "$(discard)"
-      },
-      {
-        "command": "gitorbit.changes.pull",
-        "title": "Pull",
-        "category": "GitOrbit",
-        "icon": "$(arrow-down)"
-      },
-      {
-        "command": "gitorbit.changes.push",
-        "title": "Push",
-        "category": "GitOrbit",
-        "icon": "$(arrow-up)"
-      },
-      {
-        "command": "gitorbit.changes.sync",
-        "title": "Sync",
-        "category": "GitOrbit",
-        "icon": "$(sync)"
-      },
-      {
-        "command": "gitorbit.changes.undoCommit",
-        "title": "Undo Last Commit",
-        "category": "GitOrbit",
-        "icon": "$(reply)"
-      },
-      {
-        "command": "gitorbit.changes.stage",
-        "title": "Stage Class",
-        "category": "GitOrbit",
-        "icon": "$(plus)"
-      },
-      {
-        "command": "gitorbit.changes.unstage",
-        "title": "Unstage Class",
-        "category": "GitOrbit",
-        "icon": "$(dash)"
-      },
-      {
-        "command": "gitorbit.changes.openAllChanges",
-        "title": "Open All Changes",
-        "category": "GitOrbit",
-        "icon": "$(open-preview)"
-      },
-      {
-        "command": "gitorbit.changes.openAllStaged",
-        "title": "Open All Staged Changes",
-        "category": "GitOrbit",
-        "icon": "$(open-preview)"
-      },
-      {
-        "command": "gitorbit.changes.openDiff",
-        "title": "Open Diff",
-        "category": "GitOrbit",
-        "icon": "$(diff)"
-      },
-      {
-        "command": "gitorbit.graph.reset",
-        "title": "Reset Current Branch to Here...",
-        "category": "GitOrbit"
-      },
-      {
-        "command": "gitorbit.graph.revert",
-        "title": "Revert Commit...",
-        "category": "GitOrbit"
-      },
-      {
-        "command": "gitorbit.graph.tag",
-        "title": "Create Tag...",
-        "category": "GitOrbit",
-        "icon": "$(tag)"
-      },
-      {
-        "command": "gitorbit.changes.discard",
-        "title": "Discard Changes",
-        "category": "GitOrbit",
-        "icon": "$(discard)"
-      },
-      {
-        "command": "gitorbit.changes.openFile",
-        "title": "Open File",
-        "category": "GitOrbit",
-        "icon": "$(go-to-file)"
-      },
-      {
-        "command": "gitorbit.changes.stashFile",
-        "title": "Stash File",
-        "category": "GitOrbit"
-      },
-      {
-        "command": "gitorbit.changes.smartCommit",
-        "title": "Smart Commit...",
-        "category": "GitOrbit",
-        "icon": "$(sparkle)"
-      },
-      {
-        "command": "gitorbit.chatWithCommit",
-        "title": "Chat with AI",
-        "category": "GitOrbit",
-        "icon": "$(comment-discussion)"
-      },
-      {
-        "command": "gitorbit.checkCodeSmells",
-        "title": "Check for Code Smells",
-        "category": "GitOrbit",
-        "icon": "$(search-stop)"
-      },
-      {
-        "command": "gitorbit.donate",
-        "title": "Donate/Support",
-        "category": "GitOrbit",
-        "icon": "$(heart)"
-      },
-      {
-        "command": "gitorbit.showBlameAtCursor",
-        "title": "Show Blame Details",
-        "category": "GitOrbit",
-        "icon": "$(info)"
-      },
-      {
-        "command": "gitorbit.toggleFileBlame",
-        "title": "Toggle File Blame (Inline)",
-        "category": "GitOrbit",
-        "icon": "$(list-unordered)"
-      },
-      {
-        "command": "gitorbit.contributors.openProfile",
-        "title": "Open Profile on GitHub",
-        "category": "GitOrbit",
-        "icon": "$(globe)"
-      },
-      {
-        "command": "gitorbit.tags.refresh",
-        "title": "Refresh",
-        "category": "GitOrbit",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "gitorbit.contributors.refresh",
-        "title": "Refresh",
-        "category": "GitOrbit",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "gitorbit.interactiveRebase",
-        "title": "Interactive Rebase",
-        "category": "GitOrbit",
-        "icon": "$(history)"
-      },
-      {
-        "command": "gitorbit.pullRequests.refresh",
-        "title": "Refresh PRs",
-        "category": "GitOrbit",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "gitorbit.pullRequests.login",
-        "title": "Sign in to GitHub",
-        "category": "GitOrbit",
-        "icon": "$(sign-in)"
-      },
-      {
-        "command": "gitorbit.pullRequests.create",
-        "title": "Create Pull Request",
-        "category": "GitOrbit",
-        "icon": "$(add)"
-      },
-      {
-        "command": "gitorbit.login",
-        "title": "Login with Kuulto AI",
-        "category": "GitOrbit"
-      },
-      {
-        "command": "gitorbit.logout",
-        "title": "Logout from Kuulto AI",
-        "category": "GitOrbit"
-      },
-      {
-        "command": "gitorbit.bisect.start",
-        "title": "Start Bisect Wizard...",
-        "category": "GitOrbit",
-        "icon": "$(debug-step-into)"
-      },
-      {
-        "command": "gitorbit.bisect.markGood",
-        "title": "Bisect: Mark Good",
-        "category": "GitOrbit",
-        "icon": "$(check)"
-      },
-      {
-        "command": "gitorbit.bisect.markBad",
-        "title": "Bisect: Mark Bad",
-        "category": "GitOrbit",
-        "icon": "$(x)"
-      },
-      {
-        "command": "gitorbit.bisect.reset",
-        "title": "Bisect: Reset/Stop",
-        "category": "GitOrbit",
-        "icon": "$(stop)"
+        "icon": "$(repo)"
       },
       {
         "command": "gitorbit.copy.hash",
@@ -816,6 +486,16 @@
         {
           "command": "gitorbit.changes.unstage",
           "when": "view == gitorbit.views.changes && viewItem == stagedChange",
+          "group": "inline@2"
+        },
+        {
+          "command": "gitorbit.changes.stageAll",
+          "when": "view == gitorbit.views.changes && viewItem == repoHeader",
+          "group": "inline@1"
+        },
+        {
+          "command": "gitorbit.changes.discardAll",
+          "when": "view == gitorbit.views.changes && viewItem == repoHeader",
           "group": "inline@2"
         },
         {
@@ -1159,6 +839,16 @@
           "type": "number",
           "default": 10,
           "description": "Auto sync interval in minutes (0 to disable)."
+        },
+        "gitorbit.general.selectedRepo": {
+          "type": "string",
+          "default": "",
+          "description": "Currently selected repository path (for multi-repo workspaces)."
+        },
+        "gitorbit.general.multiRepoDiscoveryDepth": {
+          "type": "number",
+          "default": 3,
+          "description": "Maximum depth to search for nested repositories (0-5)."
         }
       }
     }
