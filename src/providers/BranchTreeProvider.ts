@@ -89,9 +89,12 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
   async getChildren(element?: BranchItem): Promise<BranchItem[]> {
     if (!this.gitService.isInitialized()) return [];
 
+    // Get selected repository for multi-repo support
+    const repo = this.gitService.getSelectedRepository();
+
     if (element) {
       if (element.type === 'folder' && element.subItems) {
-        const branches = await this.gitService.getBranches();
+        const branches = await this.gitService.getBranches(repo);
         return await this.mapToBranchItems(
           element.subItems,
           element.isRemote,
@@ -103,7 +106,7 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
     }
 
     try {
-      const branches = await this.gitService.getBranches();
+      const branches = await this.gitService.getBranches(repo);
       const branchNames = this.isRemote
         ? branches.all.filter((b) => b.startsWith('remotes/')).map((b) => b.replace('remotes/', ''))
         : branches.all.filter((b) => !b.startsWith('remotes/'));

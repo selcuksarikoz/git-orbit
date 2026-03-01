@@ -568,6 +568,12 @@
         "icon": "$(repo)"
       },
       {
+        "command": "gitorbit.switchRepository",
+        "title": "Switch Repository",
+        "category": "GitOrbit",
+        "icon": "$(repo)"
+      },
+      {
         "command": "gitorbit.copy.hash",
         "title": "Copy Commit Hash",
         "category": "GitOrbit",

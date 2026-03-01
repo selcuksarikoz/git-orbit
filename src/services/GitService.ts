@@ -681,8 +681,8 @@ export class GitService {
   }
 
   @memoize
-  public async getFileHistory(filePath: string, limit: number = 20) {
-    return this.getLog(limit, filePath);
+  public async getFileHistory(filePath: string, limit: number = 20, repo?: GitRepository) {
+    return this.getLog(limit, filePath, repo);
   }
 
   @memoize
@@ -1323,5 +1323,85 @@ export class GitService {
       date: lines[2],
       message: lines.slice(3).join('\n').trim(),
     };
+  }
+
+  @memoize
+  public async getTags(repo?: GitRepository) {
+    await this._ensureInitialized();
+    const targetRepo = repo || this.getDefaultRepository();
+    if (!targetRepo) return [];
+
+    try {
+      const result = await targetRepo.executor.exec([
+        'for-each-ref',
+        '--sort=-creatordate',
+        '--format=%(refname:short)|%(objectname:short)|%(creatordate:short)|%(subject)',
+        'refs/tags',
+      ]);
+
+      return result.stdout
+        .trim()
+        .split('\n')
+        .filter((line) => line)
+        .map((line) => {
+          const [name, hash, date, subject] = line.split('|');
+          return { name: name || '', hash: hash || '', date: date || '', subject: subject || '' };
+        });
+    } catch {
+      return [];
+    }
+  }
+
+  @memoize
+  public async getBranchesForTag(tagName: string, repo?: GitRepository) {
+    await this._ensureInitialized();
+    const targetRepo = repo || this.getDefaultRepository();
+    if (!targetRepo) return [];
+
+    try {
+      const result = await targetRepo.executor.exec([
+        'branch',
+        '-a',
+        '--contains',
+        `refs/tags/${tagName}`,
+      ]);
+      return result.stdout
+        .trim()
+        .split('\n')
+        .map((b) => b.trim().replace(/^\*\s*/, ''))
+        .filter((b) => b);
+    } catch {
+      return [];
+    }
+  }
+
+  @memoize
+  public async getContributors(repo?: GitRepository) {
+    await this._ensureInitialized();
+    const targetRepo = repo || this.getDefaultRepository();
+    if (!targetRepo) return [];
+
+    try {
+      const result = await targetRepo.executor.exec(['shortlog', '-sn', '--all', '--no-merges']);
+
+      return result.stdout
+        .trim()
+        .split('\n')
+        .filter((line) => line)
+        .map((line) => {
+          const match = line.trim().match(/^\s*(\d+)\s+(.+)$/);
+          if (match) {
+            return {
+              name: match[2],
+              email: '',
+              count: parseInt(match[1], 10),
+            };
+          }
+          return { name: '', email: '', count: 0 };
+        })
+        .filter((c) => c.name);
+    } catch {
+      return [];
+    }
   }
 }

@@ -45,8 +45,9 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem | vscode.TreeI
     const graphElement = element as GraphItem | undefined;
 
     if (!graphElement) {
-      // Root: All commits
-      const log = await this.gitService.getAllLog(this.limit);
+      // Root: All commits for selected repository
+      const repo = this.gitService.getSelectedRepository();
+      const log = await this.gitService.getAllLog(this.limit, repo);
 
       let commits = log.all;
       if (this.filterText) {

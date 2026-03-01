@@ -957,10 +957,92 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  // Quick repository switch from command palette
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.switchRepository', async () => {
+      const gitService = GitService.getInstance();
+      await gitService.ensureInitialized();
+      const repos = gitService.getRepositories();
+
+      if (repos.length === 0) {
+        vscode.window.showWarningMessage('No git repositories found.');
+        return;
+      }
+
+      if (repos.length === 1) {
+        vscode.window.showInformationMessage('Only one repository in workspace.');
+        return;
+      }
+
+      const selectedRepo = gitService.getSelectedRepository();
+      const repoOptions = repos.map((r) => ({
+        label: r.rootDir.split(/[/\\]/).pop() || r.rootDir,
+        description: r.rootDir,
+        detail: selectedRepo?.rootDir === r.rootDir ? '$(check) Currently selected' : undefined,
+        repo: r,
+      }));
+
+      const picked = await vscode.window.showQuickPick(repoOptions, {
+        placeHolder: 'Select active repository',
+        title: 'GitOrbit: Switch Repository',
+      });
+
+      if (picked) {
+        gitService.setSelectedRepository(picked.repo);
+        vscode.window.showInformationMessage(`Switched to: ${picked.label}`);
+      }
+    })
+  );
+
+  // Status bar item to show active repository
+  const repoStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  repoStatusBarItem.command = 'gitorbit.switchRepository';
+  context.subscriptions.push(repoStatusBarItem);
+
+  // Update status bar when repo selection changes
+  const updateRepoStatusBar = () => {
+    const gitService = GitService.getInstance();
+    const repos = gitService.getRepositories();
+    const selectedRepo = gitService.getSelectedRepository();
+
+    if (repos.length === 0) {
+      repoStatusBarItem.hide();
+      return;
+    }
+
+    if (repos.length === 1) {
+      // Only one repo, show it but don't make it clickable for switching
+      const repoName = repos[0].rootDir.split(/[/\\]/).pop() || 'Repository';
+      repoStatusBarItem.text = `$(repo) ${repoName}`;
+      repoStatusBarItem.tooltip = `Repository: ${repos[0].rootDir}`;
+      repoStatusBarItem.show();
+      return;
+    }
+
+    // Multiple repos - show selected one
+    const repoName = selectedRepo
+      ? selectedRepo.rootDir.split(/[/\\]/).pop()
+      : repos[0].rootDir.split(/[/\\]/).pop();
+    repoStatusBarItem.text = `$(repo) ${repoName} ($(chevron-down))`;
+    repoStatusBarItem.tooltip = `Active: ${selectedRepo?.rootDir || repos[0].rootDir}\nClick to switch repository`;
+    repoStatusBarItem.show();
+  };
+
+  // Initial update
+  updateRepoStatusBar();
+
   // Listen for repo selection changes and refresh all views
   context.subscriptions.push(
     GitService.getInstance().onDidChangeSelectedRepo(() => {
       refreshAll();
+      updateRepoStatusBar();
+    })
+  );
+
+  // Update status bar when repos are discovered
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      setTimeout(updateRepoStatusBar, 1000);
     })
   );
 

@@ -50,15 +50,18 @@ export class StashTreeProvider extends BaseTreeProvider<StashItem> {
   async getChildren(element?: StashItem): Promise<StashItem[]> {
     if (!this.gitService.isInitialized()) return [];
 
+    // Get selected repository for multi-repo support
+    const repo = this.gitService.getSelectedRepository();
+
     // Root: List Stashes
     if (!element) {
-      const stashes = await this.gitService.getStashes();
+      const stashes = await this.gitService.getStashes(repo);
       return stashes.all.map((stash) => new StashItem(stash.message, 'stash', stash.index));
     }
 
     // Stash content: List changed files
     if (element.type === 'stash' && element.index !== undefined) {
-      const files = await this.gitService.getStashFiles(element.index);
+      const files = await this.gitService.getStashFiles(element.index, repo);
       return files.map((file) => new StashItem(file, 'file', element.index, file));
     }
 

@@ -80,7 +80,8 @@ export class CommitTreeProvider extends BaseTreeProvider<CommitItem | vscode.Tre
     if (!this.gitService.isInitialized()) return [];
     if (element) return [];
 
-    const log = await this.gitService.getLog(this.limit);
+    const repo = this.gitService.getSelectedRepository();
+    const log = await this.gitService.getLog(this.limit, undefined, repo);
 
     let commits = log.all;
     if (this.filterText) {

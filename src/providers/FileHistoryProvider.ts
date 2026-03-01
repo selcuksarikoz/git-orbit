@@ -67,7 +67,8 @@ export class FileHistoryProvider extends BaseTreeProvider<CommitItem | vscode.Tr
 
     if (!this.currentFilePath) return [];
 
-    const log = await this.gitService.getFileHistory(this.currentFilePath, this.limit);
+    const repo = this.gitService.getSelectedRepository();
+    const log = await this.gitService.getFileHistory(this.currentFilePath, this.limit, repo);
 
     let commits = log.all;
     if (this.filterText) {

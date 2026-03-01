@@ -43,9 +43,12 @@ export class TagTreeProvider extends BaseTreeProvider<TagItem> {
   async getChildren(element?: TagItem): Promise<TagItem[]> {
     if (!this.gitService.isInitialized()) return [];
 
+    // Get selected repository for multi-repo support
+    const repo = this.gitService.getSelectedRepository();
+
     if (!element) {
       try {
-        const tags = await this.gitService.getTags();
+        const tags = await this.gitService.getTags(repo);
         return tags.map(
           (tag) =>
             new TagItem(
@@ -64,7 +67,7 @@ export class TagTreeProvider extends BaseTreeProvider<TagItem> {
 
     if (element.type === 'tag') {
       try {
-        const branches = await this.gitService.getBranchesForTag(element.label);
+        const branches = await this.gitService.getBranchesForTag(element.label, repo);
         return branches.map(
           (branch) =>
             new TagItem(branch, '', '', '', 'branch', vscode.TreeItemCollapsibleState.None)

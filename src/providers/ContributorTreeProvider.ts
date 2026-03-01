@@ -44,8 +44,11 @@ export class ContributorTreeProvider extends BaseTreeProvider<ContributorItem> {
     if (!this.gitService.isInitialized()) return [];
     if (element) return [];
 
+    // Get selected repository for multi-repo support
+    const repo = this.gitService.getSelectedRepository();
+
     try {
-      const contributors = await this.gitService.getContributors();
+      const contributors = await this.gitService.getContributors(repo);
       return contributors.map(
         (c) => new ContributorItem(c.name, c.email, c.count, vscode.TreeItemCollapsibleState.None)
       );
