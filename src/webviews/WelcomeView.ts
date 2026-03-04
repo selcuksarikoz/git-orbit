@@ -52,9 +52,13 @@ export class WelcomeView {
       context.subscriptions
     );
 
-    panel.onDidDispose(() => {
-      WelcomeView.currentPanel = undefined;
-    }, null, context.subscriptions);
+    panel.onDidDispose(
+      () => {
+        WelcomeView.currentPanel = undefined;
+      },
+      null,
+      context.subscriptions
+    );
 
     context.globalState.update('welcomeVersion', version);
   }

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { BaseTreeProvider } from './BaseTreeProvider';
 import { GitService, GitRepository } from '../services/GitService';
 import { IconService } from '../services/IconService';
+import { toStrikethrough } from '../utils/HtmlUtils';
 
 /**
  * Represents a branch or a folder in the tree view.
@@ -75,10 +76,7 @@ export class BranchItem extends vscode.TreeItem {
   }
 
   static toStrikethrough(text: string): string {
-    return text
-      .split('')
-      .map((char) => char + '\u0336')
-      .join('');
+    return toStrikethrough(text);
   }
 }
 

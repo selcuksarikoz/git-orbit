@@ -458,7 +458,6 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('gitorbit.openCommitDiffs', async (item: any) => {
       if (!item.hash) return;
 
-      // Requires VS Code 1.86+
       const versionParts = vscode.version.split('.');
       const major = parseInt(versionParts[0]);
       const minor = parseInt(versionParts[1]);
@@ -470,7 +469,20 @@ export function activate(context: vscode.ExtensionContext) {
       }
 
       try {
-        const files = await GitService.getInstance().getChangedFilesWithStatus(item.hash);
+        const gitService = GitService.getInstance();
+        const repoRoot = item.repoRoot;
+
+        let targetRepo: any;
+        if (repoRoot) {
+          const repos = gitService.getMainRepositories();
+          targetRepo = repos.find((r) => r.rootDir === repoRoot);
+          if (!targetRepo) {
+            const worktrees = gitService.getWorktrees();
+            targetRepo = worktrees.find((w) => w.rootDir === repoRoot);
+          }
+        }
+
+        const files = await gitService.getChangedFilesWithStatus(item.hash, targetRepo);
 
         if (files.length === 0) {
           vscode.window.showInformationMessage('No changed files in this commit.');
@@ -479,13 +491,13 @@ export function activate(context: vscode.ExtensionContext) {
 
         const multiDiffResources = files.map((file) => {
           const { original: originalUri, modified: modifiedUri } =
-            GitContentProvider.getCommitDiffUris(item.hash, file.path, file.status);
+            GitContentProvider.getCommitDiffUris(item.hash, file.path, file.status, repoRoot);
 
           return {
             originalUri: originalUri,
             modifiedUri: modifiedUri,
-            name: file.path, // Optional: might give better label in the diff
-            title: file.path, // Optional
+            name: file.path,
+            title: file.path,
           };
         });
 
@@ -1005,74 +1017,87 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // Quick repository switch from command palette
-  context.subscriptions.push(
-    vscode.commands.registerCommand('gitorbit.switchRepository', async () => {
-      const gitService = GitService.getInstance();
-      await gitService.ensureInitialized();
-      const repos = gitService.getMainRepositories();
-      const worktrees = gitService.getWorktrees();
+  const formatBranchName = (branch?: string): string => {
+    if (!branch) return 'unknown';
+    return branch.replace(/^refs\/heads\//, '');
+  };
 
-      if (repos.length === 0 && worktrees.length === 0) {
-        vscode.window.showWarningMessage('No git repositories found.');
-        return;
-      }
+  const showRepositorySwitcher = async () => {
+    const gitService = GitService.getInstance();
+    await gitService.ensureInitialized();
+    const repos = gitService.getMainRepositories();
+    const worktrees = gitService.getWorktrees();
+    const allRepos = [...repos, ...worktrees];
 
-      if (repos.length === 1 && worktrees.length === 0) {
-        vscode.window.showInformationMessage('Only one repository in workspace.');
-        return;
-      }
+    if (allRepos.length === 0) {
+      vscode.window.showWarningMessage('No git repositories found.');
+      return;
+    }
 
-      const selectedRepo = gitService.getSelectedRepository();
+    if (allRepos.length === 1) {
+      vscode.window.showInformationMessage('Only one repository/worktree in workspace.');
+      return;
+    }
 
-      const repoOptions: vscode.QuickPickItem[] = [];
+    const selectedRepo = gitService.getSelectedRepository();
 
-      if (repos.length > 0) {
-        repoOptions.push({
-          label: '$(repo) Main Repositories',
-          kind: vscode.QuickPickItemKind.Separator,
-        });
-        repos.forEach((r) => {
-          repoOptions.push({
-            label: `$(repo) ${r.rootDir.split(/[/\\]/).pop() || r.rootDir}`,
-            description: r.rootDir,
-            detail: selectedRepo?.rootDir === r.rootDir ? '$(check) Currently selected' : undefined,
-          });
-        });
-      }
+    type RepoPickItem = vscode.QuickPickItem & { repo?: (typeof allRepos)[number] };
+    const repoOptions: RepoPickItem[] = [];
 
-      if (worktrees.length > 0) {
-        repoOptions.push({ label: '$(files) Worktrees', kind: vscode.QuickPickItemKind.Separator });
-        worktrees.forEach((wt) => {
-          repoOptions.push({
-            label: `$(files) ${wt.rootDir.split(/[/\\]/).pop() || wt.rootDir}`,
-            description: `Branch: ${wt.branch || 'unknown'}`,
-            detail:
-              selectedRepo?.rootDir === wt.rootDir ? '$(check) Currently selected' : undefined,
-          });
-        });
-      }
-
-      const picked = await vscode.window.showQuickPick(repoOptions, {
-        placeHolder: 'Select repository or worktree',
-        title: 'GitOrbit: Switch Repository',
+    if (repos.length > 0) {
+      repoOptions.push({
+        label: '$(repo) Main Repositories',
+        kind: vscode.QuickPickItemKind.Separator,
       });
 
-      if (picked && !picked.kind) {
-        const allRepos = [...repos, ...worktrees];
-        const selected = allRepos.find(
-          (r) =>
-            r.rootDir.includes(picked.description || '') ||
-            r.rootDir.endsWith(picked.label.replace(/^\$\(.*\)\s/, ''))
-        );
-        if (selected) {
-          gitService.setSelectedRepository(selected);
-          vscode.window.showInformationMessage(
-            `Switched to: ${picked.label.replace(/^\$\(.*\)\s/, '')}`
-          );
-        }
-      }
-    })
+      repos.forEach((repo) => {
+        repoOptions.push({
+          label: `$(repo) ${repo.rootDir.split(/[/\\]/).pop() || repo.rootDir}`,
+          description: repo.rootDir,
+          detail:
+            selectedRepo?.rootDir === repo.rootDir
+              ? '$(check) Currently selected'
+              : `Branch: ${formatBranchName(repo.branch)}`,
+          repo,
+        });
+      });
+    }
+
+    if (worktrees.length > 0) {
+      repoOptions.push({
+        label: '$(files) Worktrees',
+        kind: vscode.QuickPickItemKind.Separator,
+      });
+
+      worktrees.forEach((worktree) => {
+        repoOptions.push({
+          label: `$(files) ${worktree.rootDir.split(/[/\\]/).pop() || worktree.rootDir}`,
+          description: worktree.rootDir,
+          detail:
+            selectedRepo?.rootDir === worktree.rootDir
+              ? '$(check) Currently selected'
+              : `Branch: ${formatBranchName(worktree.branch)}`,
+          repo: worktree,
+        });
+      });
+    }
+
+    const picked = await vscode.window.showQuickPick(repoOptions, {
+      placeHolder: 'Select repository or worktree',
+      title: 'GitOrbit: Switch Repository/Worktree',
+    });
+
+    if (picked?.repo) {
+      gitService.setSelectedRepository(picked.repo);
+      vscode.window.showInformationMessage(`Switched to: ${picked.label.replace(/^\$\(.*\)\s/, '')}`);
+    }
+  };
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.switchRepository', showRepositorySwitcher)
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.worktree.switch', showRepositorySwitcher)
   );
 
   // Status bar item to show active repository
@@ -1092,25 +1117,23 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    const isWorktree = selectedRepo?.isWorktree || repos[0].isWorktree;
+    const activeRepo = selectedRepo || repos[0];
+    const isWorktree = !!activeRepo.isWorktree;
     const icon = isWorktree ? '$(files)' : '$(repo)';
-    const worktreeInfo = isWorktree ? ` (${selectedRepo?.branch || repos[0].branch})` : '';
+    const activeName = activeRepo.rootDir.split(/[/\\]/).pop() || 'Repository';
+    const branchInfo = formatBranchName(activeRepo.branch);
+    const hasSwitchOptions = repos.length + worktrees.length > 1;
+    const chevron = hasSwitchOptions ? ' ($(chevron-down))' : '';
 
-    if (repos.length === 1) {
-      // Only one repo, show it but don't make it clickable for switching
-      const repoName = repos[0].rootDir.split(/[/\\]/).pop() || 'Repository';
-      repoStatusBarItem.text = `${icon} ${repoName}${worktreeInfo}`;
-      repoStatusBarItem.tooltip = `Repository: ${repos[0].rootDir}${worktrees.length > 0 ? `\nWorktrees: ${worktrees.length}` : ''}`;
+    if (!hasSwitchOptions) {
+      repoStatusBarItem.text = `${icon} ${activeName} (${branchInfo})`;
+      repoStatusBarItem.tooltip = `Active: ${activeRepo.rootDir}\nBranch: ${branchInfo}`;
       repoStatusBarItem.show();
       return;
     }
 
-    // Multiple repos - show selected one
-    const repoName = selectedRepo
-      ? selectedRepo.rootDir.split(/[/\\]/).pop()
-      : repos[0].rootDir.split(/[/\\]/).pop();
-    repoStatusBarItem.text = `${icon} ${repoName}${worktreeInfo} ($(chevron-down))`;
-    repoStatusBarItem.tooltip = `Active: ${selectedRepo?.rootDir || repos[0].rootDir}\nTotal repos: ${repos.length}\nWorktrees: ${worktrees.length}\nClick to switch repository`;
+    repoStatusBarItem.text = `${icon} ${activeName} (${branchInfo})${chevron}`;
+    repoStatusBarItem.tooltip = `Active: ${activeRepo.rootDir}\nBranch: ${branchInfo}\nMain repos: ${repos.length}\nWorktrees: ${worktrees.length}\nClick to switch repository/worktree`;
     repoStatusBarItem.show();
   };
 

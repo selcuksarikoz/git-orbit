@@ -4,6 +4,7 @@ import { GitContentProvider } from './GitContentProvider';
 import { StatusDecorationProvider } from './StatusDecorationProvider';
 import { AIService } from '../services/AIService';
 import { BisectService, BisectState } from '../services/BisectService';
+import { toStrikethrough } from '../utils/HtmlUtils';
 
 class BisectLogItem extends vscode.TreeItem {
   constructor(status: 'bad' | 'good' | 'skip', hash: string) {
@@ -71,10 +72,7 @@ class ChangeItem extends vscode.TreeItem {
   }
 
   static toStrikethrough(text: string): string {
-    return text
-      .split('')
-      .map((char) => char + '\u0336')
-      .join('');
+    return toStrikethrough(text);
   }
 }
 

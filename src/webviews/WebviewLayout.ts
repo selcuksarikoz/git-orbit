@@ -6,7 +6,12 @@ export interface WebviewLayoutOptions {
   bodyClass?: string;
 }
 
-export function getWebviewLayout(webview: vscode.Webview, extensionUri: vscode.Uri, options: WebviewLayoutOptions, content: string): string {
+export function getWebviewLayout(
+  webview: vscode.Webview,
+  extensionUri: vscode.Uri,
+  options: WebviewLayoutOptions,
+  content: string
+): string {
   const nonce = getNonce();
 
   return `<!DOCTYPE html>

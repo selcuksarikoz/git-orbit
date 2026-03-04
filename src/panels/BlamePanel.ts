@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/GitService';
 import { formatRelativeTime } from '../utils/BlameUtils';
+import { escapeHtml, getGravatarUrl, formatLineRanges } from '../utils/HtmlUtils';
 
 interface BlameLineInfo {
   hash: string;
@@ -455,9 +456,7 @@ export class BlamePanel {
   }
 
   private _getGravatarUrl(email: string): string {
-    const crypto = require('crypto');
-    const hash = crypto.createHash('md5').update(email.toLowerCase().trim()).digest('hex');
-    return `https://www.gravatar.com/avatar/${hash}?s=60&d=identicon`;
+    return getGravatarUrl(email, 60);
   }
 
   private _parseFileBlame(blameOutput: string): any[] {
@@ -510,63 +509,10 @@ export class BlamePanel {
   }
 
   private _formatLineRanges(lines: number[]): string {
-    if (lines.length === 0) return '';
-
-    const sorted = [...lines].sort((a, b) => a - b);
-    const ranges: string[] = [];
-    let start = sorted[0];
-    let end = sorted[0];
-
-    for (let i = 1; i < sorted.length; i++) {
-      if (sorted[i] === end + 1) {
-        end = sorted[i];
-      } else {
-        ranges.push(start === end ? `${start}` : `${start}-${end}`);
-        start = sorted[i];
-        end = sorted[i];
-      }
-    }
-    ranges.push(start === end ? `${start}` : `${start}-${end}`);
-
-    return ranges.join(', ');
-  }
-
-  private _formatClickableLineRanges(lines: number[]): string {
-    if (lines.length === 0) return '';
-
-    const sorted = [...lines].sort((a, b) => a - b);
-    const ranges: string[] = [];
-    let start = sorted[0];
-    let end = sorted[0];
-
-    for (let i = 1; i < sorted.length; i++) {
-      if (sorted[i] === end + 1) {
-        end = sorted[i];
-      } else {
-        if (start === end) {
-          ranges.push(`<a class="line-link" onclick="goToLine(${start})">${start}</a>`);
-        } else {
-          ranges.push(`<a class="line-link" onclick="goToLine(${start})">${start}-${end}</a>`);
-        }
-        start = sorted[i];
-        end = sorted[i];
-      }
-    }
-    if (start === end) {
-      ranges.push(`<a class="line-link" onclick="goToLine(${start})">${start}</a>`);
-    } else {
-      ranges.push(`<a class="line-link" onclick="goToLine(${start})">${start}-${end}</a>`);
-    }
-
-    return ranges.join(', ');
+    return formatLineRanges(lines);
   }
 
   private _escapeHtml(text: string): string {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+    return escapeHtml(text);
   }
 }

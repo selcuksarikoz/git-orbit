@@ -23,9 +23,13 @@ export class FeedbackView {
     FeedbackView.currentPanel = panel;
     panel.webview.html = FeedbackView.getHtmlContent();
 
-    panel.onDidDispose(() => {
-      FeedbackView.currentPanel = undefined;
-    }, null, []);
+    panel.onDidDispose(
+      () => {
+        FeedbackView.currentPanel = undefined;
+      },
+      null,
+      []
+    );
   }
 
   private static getHtmlContent(): string {

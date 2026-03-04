@@ -8,7 +8,7 @@
 </p>
 
 <h1 align="center">🚀 GitOrbit</h1>
-<p align="center"><strong>Complete Git Workflow Manager for VS Code — with Multi-Repository Support</strong></p>
+<p align="center"><strong>Complete Git Worktree Manager for VS Code — with Multi-Repository Support</strong></p>
 
 ---
 
@@ -118,7 +118,7 @@ Right-click any commit to copy:
 1. Install from [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=selcuksarikoz.gitorbit)
 2. Open a Git repository
 3. Click the GitOrbit icon in the Activity Bar
-4. Start managing your Git workflow!
+4. Start managing your Git worktree!
 
 ### Multiple Repositories (Mono-repo / Multi-root)
 

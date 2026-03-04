@@ -47,7 +47,8 @@ export class PullRequestView {
 
     panel.webview.onDidReceiveMessage(
       async (message) => {
-        const showLoading = (msg: string) => panel.webview.postMessage({ command: 'showLoading', message: msg });
+        const showLoading = (msg: string) =>
+          panel.webview.postMessage({ command: 'showLoading', message: msg });
         const hideLoading = () => panel.webview.postMessage({ command: 'hideLoading' });
         const refreshPage = async () => {
           const data = await PullRequestService.getInstance().getPRDetails(pr.number);
@@ -85,7 +86,11 @@ export class PullRequestView {
               break;
             case 'requestChanges':
               showLoading('Requesting changes...');
-              await PullRequestService.getInstance().reviewPR(pr.number, 'REQUEST_CHANGES', message.body);
+              await PullRequestService.getInstance().reviewPR(
+                pr.number,
+                'REQUEST_CHANGES',
+                message.body
+              );
               vscode.window.showInformationMessage('Changes requested.');
               await refreshPage();
               break;
@@ -97,7 +102,10 @@ export class PullRequestView {
               break;
             case 'merge':
               showLoading('Merging PR...');
-              const merged = await PullRequestService.getInstance().mergePR(pr.number, message.method);
+              const merged = await PullRequestService.getInstance().mergePR(
+                pr.number,
+                message.method
+              );
               if (merged) {
                 vscode.window.showInformationMessage('PR Merged!');
                 panel.dispose();
@@ -127,41 +135,65 @@ export class PullRequestView {
       context.subscriptions
     );
 
-    panel.onDidDispose(() => {
-      PullRequestView.panels.delete(pr.number);
-    }, null, context.subscriptions);
+    panel.onDidDispose(
+      () => {
+        PullRequestView.panels.delete(pr.number);
+      },
+      null,
+      context.subscriptions
+    );
   }
 
-  private static getHtmlContent(pr: PRDetails, collaborators: { login: string; avatarUrl: string }[], prNumber: number): string {
-    const currentReviewerLogins = new Set(pr.reviewers.map(r => r.login));
-    const availableCollaborators = collaborators.filter(c => !currentReviewerLogins.has(c.login));
+  private static getHtmlContent(
+    pr: PRDetails,
+    collaborators: { login: string; avatarUrl: string }[],
+    prNumber: number
+  ): string {
+    const currentReviewerLogins = new Set(pr.reviewers.map((r) => r.login));
+    const availableCollaborators = collaborators.filter((c) => !currentReviewerLogins.has(c.login));
 
-    const reviewersHtml = pr.reviewers.map(r => `
+    const reviewersHtml = pr.reviewers
+      .map(
+        (r) => `
       <div class="reviewer-chip">
         <img class="avatar-sm" src="${r.avatarUrl}" alt="${r.login}" />
         <span>${r.login}</span>
         <span class="badge ${r.state === 'APPROVED' ? 'badge-success' : r.state === 'CHANGES_REQUESTED' ? 'badge-danger' : 'badge-muted'}">${r.state || 'Pending'}</span>
         <button class="btn-icon" onclick="removeReviewer('${r.login}')" title="Remove">×</button>
       </div>
-    `).join('');
+    `
+      )
+      .join('');
 
-    const collaboratorOptionsHtml = availableCollaborators.map(c => `
+    const collaboratorOptionsHtml = availableCollaborators
+      .map(
+        (c) => `
       <label class="collab-option">
         <input type="checkbox" value="${c.login}" />
         <img class="avatar-sm" src="${c.avatarUrl}" alt="${c.login}" />
         <span>${c.login}</span>
       </label>
-    `).join('');
+    `
+      )
+      .join('');
 
-    const filesHtml = pr.files.map(f => `
+    const filesHtml = pr.files
+      .map(
+        (f) => `
       <div class="file-item" onclick="openFile('${f.filename}')">
         <span class="file-status ${f.status}">${f.status[0].toUpperCase()}</span>
         <span class="file-name">${f.filename}</span>
         <span class="file-stats"><span class="add">+${f.additions}</span> <span class="del">-${f.deletions}</span></span>
       </div>
-    `).join('');
+    `
+      )
+      .join('');
 
-    const commentsHtml = pr.comments.length > 0 ? pr.comments.map(c => `
+    const commentsHtml =
+      pr.comments.length > 0
+        ? pr.comments
+            .map(
+              (c) => `
       <div class="comment-item">
         <div class="comment-header">
           <strong>${c.author}</strong>
@@ -169,7 +201,10 @@ export class PullRequestView {
         </div>
         <div class="comment-body">${escapeHtml(c.body)}</div>
       </div>
-    `).join('') : '<div class="empty-state">No comments yet</div>';
+    `
+            )
+            .join('')
+        : '<div class="empty-state">No comments yet</div>';
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -318,11 +353,15 @@ export class PullRequestView {
         <div class="actions-row">
             <button class="btn btn-success" id="approveBtn" onclick="approve()">✓ Approve</button>
             <button class="btn btn-danger" id="requestChangesBtn" onclick="requestChanges()">✗ Request Changes</button>
-            ${pr.mergeable ? `
+            ${
+              pr.mergeable
+                ? `
             <button class="btn btn-primary" id="mergeBtn" onclick="merge('merge')">Merge</button>
             <button class="btn btn-secondary" onclick="merge('squash')">Squash</button>
             <button class="btn btn-secondary" onclick="merge('rebase')">Rebase</button>
-            ` : '<span class="badge badge-warning">⚠ Cannot merge</span>'}
+            `
+                : '<span class="badge badge-warning">⚠ Cannot merge</span>'
+            }
         </div>
     </div>
 

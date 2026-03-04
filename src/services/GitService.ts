@@ -1477,4 +1477,87 @@ export class GitService {
       return [];
     }
   }
+
+  /**
+   * Get truncated diff for a specific commit (for AI context)
+   */
+  public async getTruncatedCommitDiff(hash: string, maxChars: number = 8000): Promise<string> {
+    await this._ensureInitialized();
+    const targetRepo = this.getDefaultRepository();
+    if (!targetRepo) return '';
+
+    try {
+      const result = await targetRepo.executor.exec(['show', '--stat', hash]);
+      const stat = result.stdout;
+
+      const diffResult = await targetRepo.executor.exec(['show', hash]);
+      let diff = diffResult.stdout;
+
+      if (diff.length <= maxChars) {
+        return diff;
+      }
+
+      // Truncate
+      const lines = diff.split('\n');
+      const truncatedLines: string[] = [];
+      let currentFileLines = 0;
+      const maxLinesPerFile = 50;
+      let totalChars = 0;
+
+      for (const line of lines) {
+        if (
+          line.startsWith('diff --git') ||
+          line.startsWith('index ') ||
+          line.startsWith('---') ||
+          line.startsWith('+++')
+        ) {
+          truncatedLines.push(line);
+          currentFileLines = 0;
+          totalChars += line.length + 1;
+          continue;
+        }
+
+        if (line.startsWith('@@')) {
+          truncatedLines.push(line);
+          currentFileLines = 0;
+          totalChars += line.length + 1;
+          continue;
+        }
+
+        if (currentFileLines < maxLinesPerFile && totalChars < maxChars) {
+          truncatedLines.push(line);
+          currentFileLines++;
+          totalChars += line.length + 1;
+        } else if (currentFileLines === maxLinesPerFile) {
+          truncatedLines.push('... (truncated)');
+          currentFileLines++;
+          totalChars += 20;
+        }
+      }
+
+      return `${stat}\n${truncatedLines.join('\n')}`;
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * Get current git user info
+   */
+  public async getUserInfo(): Promise<{ name: string; email: string }> {
+    await this._ensureInitialized();
+    const targetRepo = this.getDefaultRepository();
+    if (!targetRepo) return { name: '', email: '' };
+
+    try {
+      const nameResult = await targetRepo.executor.exec(['config', 'user.name']);
+      const emailResult = await targetRepo.executor.exec(['config', 'user.email']);
+      return {
+        name: nameResult.stdout.trim() || 'Unknown',
+        email: emailResult.stdout.trim() || '',
+      };
+    } catch {
+      return { name: 'Unknown', email: '' };
+    }
+  }
 }

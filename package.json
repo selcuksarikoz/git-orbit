@@ -1,6 +1,6 @@
 {
   "name": "gitorbit",
-  "displayName": "Git Workflow Manager — Multi-Repo Support",
+  "displayName": "Git Worktree Manager — Multi-Repo Support",
   "description": "Complete Git toolkit for VS Code with full multi-repository support. Work with unlimited nested repos, mono-repos, or multi-root workspaces. Features: visual git graph, bisect wizard, interactive rebase, blame annotations, PR management, stash, cherry-pick, and optional AI commit suggestions.",
   "version": "1.2.0",
   "publisher": "selcuksarikoz",
@@ -573,6 +573,36 @@
         "title": "Switch Repository",
         "category": "GitOrbit",
         "icon": "$(repo)"
+      },
+      {
+        "command": "gitorbit.worktree.switch",
+        "title": "Switch Worktree/Repository",
+        "category": "GitOrbit",
+        "icon": "$(files)"
+      },
+      {
+        "command": "gitorbit.worktree.list",
+        "title": "List Worktrees",
+        "category": "GitOrbit",
+        "icon": "$(list-unordered)"
+      },
+      {
+        "command": "gitorbit.worktree.add",
+        "title": "Create Worktree...",
+        "category": "GitOrbit",
+        "icon": "$(add)"
+      },
+      {
+        "command": "gitorbit.worktree.remove",
+        "title": "Remove Worktree...",
+        "category": "GitOrbit",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "gitorbit.worktree.prune",
+        "title": "Prune Worktrees",
+        "category": "GitOrbit",
+        "icon": "$(clear-all)"
       },
       {
         "command": "gitorbit.copy.hash",

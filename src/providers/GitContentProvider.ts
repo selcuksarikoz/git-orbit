@@ -1,32 +1,43 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import { GitService } from '../services/GitService';
+import { GitService, GitRepository } from '../services/GitService';
 
 export class GitContentProvider implements vscode.TextDocumentContentProvider {
   static scheme = 'gitorbit-git';
 
   provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
-    const authority = decodeURIComponent(uri.authority);
+    const [repoRoot, ...rest] = uri.authority.split('::');
+    const hash = rest.join('::') || repoRoot;
     const gitService = GitService.getInstance();
-    const relativePath = gitService.getRelativePath(uri.path);
 
-    if (authority === 'EMPTY') {
+    let targetRepo: GitRepository | undefined;
+    if (repoRoot && repoRoot !== hash) {
+      const repos = gitService.getRepositories();
+      targetRepo = repos.find((r) => r.rootDir === repoRoot);
+      if (!targetRepo) {
+        const worktrees = gitService.getWorktrees();
+        targetRepo = worktrees.find((w) => w.rootDir === repoRoot);
+      }
+    }
+
+    const relativePath = gitService.getRelativePath(uri.path, targetRepo?.rootDir);
+
+    if (hash === 'EMPTY') {
       return Promise.resolve('');
     }
 
-    if (authority.toUpperCase() === 'INDEX') {
-      // For index content, we use :0:path to specify the stage clearly
-      return gitService.showFileContentRaw(`:0:${relativePath}`);
+    if (hash.toUpperCase() === 'INDEX') {
+      return gitService.showFileContentRaw(`:0:${relativePath}`, targetRepo);
     }
 
-    return gitService.showFileContentRaw(`${authority}:${relativePath}`);
+    return gitService.showFileContentRaw(`${hash}:${relativePath}`, targetRepo);
   }
 
-  static getUri(hash: string, path: string): vscode.Uri {
+  static getUri(hash: string, filePath: string, repoRoot?: string): vscode.Uri {
+    const authority = repoRoot ? `${repoRoot}::${hash}` : hash;
     return vscode.Uri.from({
       scheme: GitContentProvider.scheme,
-      authority: hash,
-      path: path.startsWith('/') ? path : `/${path}`,
+      authority: authority,
+      path: filePath.startsWith('/') ? filePath : `/${filePath}`,
     });
   }
 
@@ -41,27 +52,32 @@ export class GitContentProvider implements vscode.TextDocumentContentProvider {
     rootDir: string
   ): { original: vscode.Uri | undefined; modified: vscode.Uri | undefined } {
     if (staged) {
-      // HEAD vs INDEX
-      let original: vscode.Uri | undefined = GitContentProvider.getUri('HEAD', relativePath);
-      let modified: vscode.Uri | undefined = GitContentProvider.getUri('INDEX', relativePath);
+      let original: vscode.Uri | undefined = GitContentProvider.getUri(
+        'HEAD',
+        relativePath,
+        rootDir
+      );
+      let modified: vscode.Uri | undefined = GitContentProvider.getUri(
+        'INDEX',
+        relativePath,
+        rootDir
+      );
 
       if (status === 'A') {
-        original = GitContentProvider.getUri('EMPTY', relativePath);
+        original = GitContentProvider.getUri('EMPTY', relativePath, rootDir);
       } else if (status === 'D') {
-        // If deleted in staging, modified is basically empty/gone
-        modified = GitContentProvider.getUri('EMPTY', relativePath);
+        modified = GitContentProvider.getUri('EMPTY', relativePath, rootDir);
       }
       return { original, modified };
     } else {
-      // INDEX vs Working Tree
       const isUntracked = status === '?' || status === 'U';
       const original = isUntracked
-        ? GitContentProvider.getUri('EMPTY', relativePath)
-        : GitContentProvider.getUri('INDEX', relativePath);
+        ? GitContentProvider.getUri('EMPTY', relativePath, rootDir)
+        : GitContentProvider.getUri('INDEX', relativePath, rootDir);
 
       const isDeleted = status === 'D';
       const modified = isDeleted
-        ? GitContentProvider.getUri('EMPTY', relativePath)
+        ? GitContentProvider.getUri('EMPTY', relativePath, rootDir)
         : vscode.Uri.file(vscode.Uri.joinPath(vscode.Uri.file(rootDir), relativePath).fsPath);
 
       return { original, modified };
@@ -70,11 +86,14 @@ export class GitContentProvider implements vscode.TextDocumentContentProvider {
 
   static getCommitDiffUris(
     hash: string,
-    path: string,
-    status: string
+    filePath: string,
+    status: string,
+    repoRoot?: string
   ): { original: vscode.Uri | undefined; modified: vscode.Uri | undefined } {
-    const original = status === 'A' ? undefined : GitContentProvider.getUri(`${hash}^`, path);
-    const modified = status === 'D' ? undefined : GitContentProvider.getUri(hash, path);
+    const original =
+      status === 'A' ? undefined : GitContentProvider.getUri(`${hash}^`, filePath, repoRoot);
+    const modified =
+      status === 'D' ? undefined : GitContentProvider.getUri(hash, filePath, repoRoot);
 
     return { original, modified };
   }
