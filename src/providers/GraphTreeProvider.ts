@@ -38,16 +38,178 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem | vscode.TreeI
   async getChildren(
     element?: GraphItem | vscode.TreeItem
   ): Promise<(GraphItem | vscode.TreeItem)[]> {
+    const repos = this.gitService.getMainRepositories();
+    const worktrees = this.gitService.getWorktrees();
+
     if (element instanceof vscode.TreeItem && !(element instanceof GraphItem)) {
+      // Handle TreeItem (worktree groups)
+      const treeItem = element;
+
+      if (treeItem.contextValue === 'worktreeGroup') {
+        const repoRoot = (treeItem as any).repoRoot;
+        const repoWorktrees = worktrees.filter((w) => w.worktreePath?.startsWith(repoRoot));
+
+        return repoWorktrees.map((wt) => {
+          const item = new vscode.TreeItem(
+            `${wt.rootDir.split(/[/\\]/).pop()} (${wt.branch})`,
+            vscode.TreeItemCollapsibleState.Collapsed
+          );
+          item.contextValue = 'worktree';
+          (item as any).repoRoot = wt.rootDir;
+          item.iconPath = new vscode.ThemeIcon('files');
+          return item;
+        });
+      }
+
+      if (treeItem.contextValue === 'worktree') {
+        const repoRoot = (treeItem as any).repoRoot;
+        const repo = { rootDir: repoRoot } as any;
+        const log = await this.gitService.getAllLog(this.limit, repo);
+
+        return log.all
+          .slice(0, this.limit)
+          .map(
+            (commit, index) =>
+              new GraphItem(
+                commit.message,
+                commit.author_name,
+                commit.date,
+                commit.hash,
+                vscode.TreeItemCollapsibleState.Collapsed,
+                'commit',
+                index === 0,
+                commit.refs,
+                commit.author_email
+              )
+          );
+      }
+
       return [];
     }
 
     const graphElement = element as GraphItem | undefined;
 
     if (!graphElement) {
-      // Root: All commits for selected repository
-      const repo = this.gitService.getSelectedRepository();
-      const log = await this.gitService.getAllLog(this.limit, repo);
+      // Root: Show all repos, worktrees, AND their commits (no clicking needed)
+      const items: (GraphItem | vscode.TreeItem)[] = [];
+
+      // Add main repositories with their commits and worktrees
+      for (const repo of repos) {
+        const repoWorktrees = worktrees.filter((w) => w.worktreePath?.startsWith(repo.rootDir));
+
+        // Get main repo commits
+        const log = await this.gitService.getAllLog(this.limit, repo);
+
+        if (log.all.length > 0) {
+          const repoItem = new vscode.TreeItem(
+            repo.rootDir.split(/[/\\]/).pop() || 'Repository',
+            vscode.TreeItemCollapsibleState.Expanded
+          );
+          repoItem.contextValue = 'repo';
+          repoItem.iconPath = new vscode.ThemeIcon('repo');
+          (repoItem as any).repoRoot = repo.rootDir;
+
+          // Add commits as children of repo
+          const commitItems: (GraphItem | vscode.TreeItem)[] = log.all
+            .slice(0, this.limit)
+            .map(
+              (commit, index) =>
+                new GraphItem(
+                  commit.message,
+                  commit.author_name,
+                  commit.date,
+                  commit.hash,
+                  vscode.TreeItemCollapsibleState.Collapsed,
+                  'commit',
+                  index === 0,
+                  commit.refs,
+                  commit.author_email
+                )
+            );
+          items.push(...commitItems);
+        }
+
+        // Add worktrees with their commits
+        for (const wt of repoWorktrees) {
+          const wtItem = new vscode.TreeItem(
+            `${wt.rootDir.split(/[/\\]/).pop()} (${wt.branch})`,
+            vscode.TreeItemCollapsibleState.Expanded
+          );
+          wtItem.contextValue = 'worktree';
+          wtItem.iconPath = new vscode.ThemeIcon('files');
+          (wtItem as any).repoRoot = wt.rootDir;
+
+          // Get worktree commits
+          const wtRepo = { rootDir: wt.rootDir } as any;
+          const wtLog = await this.gitService.getAllLog(this.limit, wtRepo);
+
+          const wtCommitItems: (GraphItem | vscode.TreeItem)[] = wtLog.all
+            .slice(0, this.limit)
+            .map(
+              (commit, index) =>
+                new GraphItem(
+                  commit.message,
+                  commit.author_name,
+                  commit.date,
+                  commit.hash,
+                  vscode.TreeItemCollapsibleState.Collapsed,
+                  'commit',
+                  index === 0,
+                  commit.refs,
+                  commit.author_email
+                )
+            );
+          items.push(wtItem, ...wtCommitItems);
+        }
+      }
+
+      // Add standalone worktrees with their commits
+      const mainRoots = new Set(repos.map((r) => r.rootDir));
+      const standaloneWorktrees = worktrees.filter((w) => !mainRoots.has(w.rootDir));
+
+      for (const wt of standaloneWorktrees) {
+        const wtItem = new vscode.TreeItem(
+          `${wt.rootDir.split(/[/\\]/).pop()} (${wt.branch})`,
+          vscode.TreeItemCollapsibleState.Expanded
+        );
+        wtItem.contextValue = 'worktree';
+        wtItem.iconPath = new vscode.ThemeIcon('files');
+        (wtItem as any).repoRoot = wt.rootDir;
+
+        const wtRepo = { rootDir: wt.rootDir } as any;
+        const wtLog = await this.gitService.getAllLog(this.limit, wtRepo);
+
+        const wtCommitItems: (GraphItem | vscode.TreeItem)[] = wtLog.all
+          .slice(0, this.limit)
+          .map(
+            (commit, index) =>
+              new GraphItem(
+                commit.message,
+                commit.author_name,
+                commit.date,
+                commit.hash,
+                vscode.TreeItemCollapsibleState.Collapsed,
+                'commit',
+                index === 0,
+                commit.refs,
+                commit.author_email
+              )
+          );
+        items.push(wtItem, ...wtCommitItems);
+      }
+
+      if (items.length === 0) {
+        return [new vscode.TreeItem('No commits found')];
+      }
+
+      return items;
+    }
+
+    // Handle repo item - show its commits
+    if ((graphElement as any).contextValue === 'repo') {
+      const repoRoot = (graphElement as any).repoRoot;
+      const targetRepo = this.gitService.getRepositories().find((r) => r.rootDir === repoRoot);
+      const log = await this.gitService.getAllLog(this.limit, targetRepo);
 
       let commits = log.all;
       if (this.filterText) {
@@ -89,14 +251,8 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem | vscode.TreeI
       }
 
       return items;
-    } else if (graphElement.type === 'commit') {
-      // Expand commit to show changed files (folder structure)
-      const files = await this.gitService.getChangedFilesWithStatus(graphElement.hash);
-      const tree = this.buildFileTree(files);
-      return this.mapToFileItems(tree, graphElement.hash);
-    } else if (graphElement.type === 'folder' && graphElement.subItems) {
-      return this.mapToFileItems(graphElement.subItems, graphElement.hash);
     }
+
     return [];
   }
 
@@ -176,7 +332,8 @@ export class GraphItem extends vscode.TreeItem {
     public readonly authorEmail: string = '',
     public readonly filePath?: string,
     public readonly status?: string,
-    public readonly subItems?: any
+    public readonly subItems?: any,
+    public readonly repoRoot?: string
   ) {
     super(label, collapsibleState);
     this.contextValue = type;

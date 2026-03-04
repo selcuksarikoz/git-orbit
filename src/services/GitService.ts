@@ -17,6 +17,9 @@ export interface GitRepository {
   rootDir: string;
   executor: GitExecutor;
   remoteUrl?: string;
+  isWorktree: boolean;
+  worktreePath?: string;
+  branch?: string;
 }
 
 /**
@@ -73,6 +76,60 @@ export class GitService {
     // Discover all git repositories in workspace
     for (const folder of workspaceFolders) {
       await this.discoverRepositories(folder.uri.fsPath);
+    }
+
+    // Discover worktrees for each discovered repository
+    await this.discoverWorktrees();
+  }
+
+  /**
+   * Discover worktrees for all known repositories.
+   */
+  private async discoverWorktrees(): Promise<void> {
+    for (const repo of this.repositories.values()) {
+      if (repo.isWorktree) continue;
+
+      try {
+        const result = await repo.executor.exec(['worktree', 'list', '--porcelain']);
+        const entries = result.stdout.split('\n\n');
+
+        for (const entry of entries) {
+          if (!entry.trim()) continue;
+
+          const lines = entry.split('\n');
+          let worktreePath = '';
+          let branch = '';
+          let head = '';
+
+          for (const line of lines) {
+            if (line.startsWith('worktree ')) {
+              worktreePath = line.replace('worktree ', '').trim();
+            } else if (line.startsWith('HEAD ')) {
+              head = line.replace('HEAD ', '').trim();
+            } else if (line.startsWith('branch ')) {
+              branch = line.replace('branch ', '').trim();
+            }
+          }
+
+          if (worktreePath && worktreePath !== repo.rootDir) {
+            const worktreeExecutor = new GitExecutor(worktreePath);
+            const remoteResult = await worktreeExecutor
+              .exec(['remote', 'get-url', 'origin'])
+              .catch(() => ({ stdout: '' }));
+
+            this.repositories.set(worktreePath, {
+              rootDir: worktreePath,
+              executor: worktreeExecutor,
+              remoteUrl: remoteResult.stdout.trim() || undefined,
+              isWorktree: true,
+              worktreePath: worktreePath,
+              branch: branch || head,
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to discover worktrees for ${repo.rootDir}:`, error);
+      }
     }
   }
 
@@ -158,6 +215,7 @@ export class GitService {
           rootDir: actualRoot,
           executor: actualExecutor,
           remoteUrl: remoteResult.stdout.trim() || undefined,
+          isWorktree: false,
         };
       }
 
@@ -168,6 +226,7 @@ export class GitService {
         rootDir,
         executor,
         remoteUrl: remoteResult.stdout.trim() || undefined,
+        isWorktree: false,
       };
     } catch {
       return null;
@@ -194,6 +253,20 @@ export class GitService {
    */
   public getRepositoryCount(): number {
     return this.repositories.size;
+  }
+
+  /**
+   * Get all worktrees (excluding main repos).
+   */
+  public getWorktrees(): GitRepository[] {
+    return Array.from(this.repositories.values()).filter((repo) => repo.isWorktree);
+  }
+
+  /**
+   * Get all main repositories (not worktrees).
+   */
+  public getMainRepositories(): GitRepository[] {
+    return Array.from(this.repositories.values()).filter((repo) => !repo.isWorktree);
   }
 
   /**

@@ -78,49 +78,203 @@ export class CommitTreeProvider extends BaseTreeProvider<CommitItem | vscode.Tre
     element?: CommitItem | vscode.TreeItem
   ): Promise<(CommitItem | vscode.TreeItem)[]> {
     if (!this.gitService.isInitialized()) return [];
-    if (element) return [];
 
-    const repo = this.gitService.getSelectedRepository();
-    const log = await this.gitService.getLog(this.limit, undefined, repo);
+    const repos = this.gitService.getMainRepositories();
+    const worktrees = this.gitService.getWorktrees();
 
-    let commits = log.all;
-    if (this.filterText) {
-      const search = this.filterText.toLowerCase();
-      commits = commits.filter(
-        (c) =>
-          c.message.toLowerCase().includes(search) ||
-          c.hash.toLowerCase().includes(search) ||
-          c.author_name.toLowerCase().includes(search)
-      );
+    // Handle TreeItem (worktree groups)
+    if (element instanceof vscode.TreeItem && !(element instanceof CommitItem)) {
+      const treeItem = element;
+
+      if (treeItem.contextValue === 'worktreeGroup') {
+        const repoRoot = (treeItem as any).repoRoot;
+        const repoWorktrees = worktrees.filter((w) => w.worktreePath?.startsWith(repoRoot));
+
+        return repoWorktrees.map((wt) => {
+          const item = new vscode.TreeItem(
+            `${wt.rootDir.split(/[/\\]/).pop()} (${wt.branch})`,
+            vscode.TreeItemCollapsibleState.Collapsed
+          );
+          item.contextValue = 'worktree';
+          (item as any).repoRoot = wt.rootDir;
+          item.iconPath = new vscode.ThemeIcon('files');
+          return item;
+        });
+      }
+
+      if (treeItem.contextValue === 'worktree') {
+        const repoRoot = (treeItem as any).repoRoot;
+        const repo = { rootDir: repoRoot } as any;
+        const log = await this.gitService.getLog(this.limit, undefined, repo);
+
+        return log.all
+          .slice(0, this.limit)
+          .map(
+            (commit, index) =>
+              new CommitItem(
+                commit.message,
+                `${commit.author_name} • ${commit.date}`,
+                commit.hash,
+                vscode.TreeItemCollapsibleState.None,
+                undefined,
+                index === 0,
+                commit.author_email
+              )
+          );
+      }
+
+      return [];
     }
 
-    const items: (CommitItem | vscode.TreeItem)[] = commits.map(
-      (commit, index) =>
-        new CommitItem(
-          commit.message,
-          `${commit.author_name} • ${commit.date}`,
-          commit.hash,
-          vscode.TreeItemCollapsibleState.None,
-          undefined,
-          index === 0, // Mark first commit as latest
-          commit.author_email
-        )
-    );
+    if (!element) {
+      // Root: Show all repos, worktrees, AND their commits (no clicking needed)
+      const items: (CommitItem | vscode.TreeItem)[] = [];
 
-    if (log.all.length >= this.limit && !this.filterText) {
-      const loadMoreItem = new vscode.TreeItem(
-        'Load More...',
-        vscode.TreeItemCollapsibleState.None
-      );
-      loadMoreItem.command = {
-        command: 'gitorbit.loadMoreCommits',
-        title: 'Load More',
-      };
-      loadMoreItem.iconPath = new vscode.ThemeIcon('add');
-      items.push(loadMoreItem);
+      // Add main repositories with their commits and worktrees
+      for (const repo of repos) {
+        const repoWorktrees = worktrees.filter((w) => w.worktreePath?.startsWith(repo.rootDir));
+
+        // Get main repo commits
+        const log = await this.gitService.getLog(this.limit, undefined, repo);
+
+        if (log.all.length > 0) {
+          // Add commits directly
+          const commitItems: (CommitItem | vscode.TreeItem)[] = log.all
+            .slice(0, this.limit)
+            .map(
+              (commit, index) =>
+                new CommitItem(
+                  commit.message,
+                  `${commit.author_name} • ${commit.date}`,
+                  commit.hash,
+                  vscode.TreeItemCollapsibleState.None,
+                  undefined,
+                  index === 0,
+                  commit.author_email
+                )
+            );
+          items.push(...commitItems);
+        }
+
+        // Add worktrees with their commits
+        for (const wt of repoWorktrees) {
+          const wtItem = new vscode.TreeItem(
+            `${wt.rootDir.split(/[/\\]/).pop()} (${wt.branch})`,
+            vscode.TreeItemCollapsibleState.Expanded
+          );
+          wtItem.contextValue = 'worktree';
+          wtItem.iconPath = new vscode.ThemeIcon('files');
+          (wtItem as any).repoRoot = wt.rootDir;
+
+          // Get worktree commits
+          const wtRepo = { rootDir: wt.rootDir } as any;
+          const wtLog = await this.gitService.getLog(this.limit, undefined, wtRepo);
+
+          const wtCommitItems: (CommitItem | vscode.TreeItem)[] = wtLog.all
+            .slice(0, this.limit)
+            .map(
+              (commit, index) =>
+                new CommitItem(
+                  commit.message,
+                  `${commit.author_name} • ${commit.date}`,
+                  commit.hash,
+                  vscode.TreeItemCollapsibleState.None,
+                  undefined,
+                  index === 0,
+                  commit.author_email
+                )
+            );
+          items.push(wtItem, ...wtCommitItems);
+        }
+      }
+
+      // Add standalone worktrees with their commits
+      const mainRoots = new Set(repos.map((r) => r.rootDir));
+      const standaloneWorktrees = worktrees.filter((w) => !mainRoots.has(w.rootDir));
+
+      for (const wt of standaloneWorktrees) {
+        const wtItem = new vscode.TreeItem(
+          `${wt.rootDir.split(/[/\\]/).pop()} (${wt.branch})`,
+          vscode.TreeItemCollapsibleState.Expanded
+        );
+        wtItem.contextValue = 'worktree';
+        wtItem.iconPath = new vscode.ThemeIcon('files');
+        (wtItem as any).repoRoot = wt.rootDir;
+
+        const wtRepo = { rootDir: wt.rootDir } as any;
+        const wtLog = await this.gitService.getLog(this.limit, undefined, wtRepo);
+
+        const wtCommitItems: (CommitItem | vscode.TreeItem)[] = wtLog.all
+          .slice(0, this.limit)
+          .map(
+            (commit: any, index: number) =>
+              new CommitItem(
+                commit.message,
+                `${commit.author_name} • ${commit.date}`,
+                commit.hash,
+                vscode.TreeItemCollapsibleState.None,
+                undefined,
+                index === 0,
+                commit.author_email
+              )
+          );
+        items.push(wtItem, ...wtCommitItems);
+      }
+
+      if (items.length === 0) {
+        return [new vscode.TreeItem('No commits found')];
+      }
+
+      return items;
     }
 
-    return items;
+    // Handle repo item - show its commits
+    if ((element as any).contextValue === 'repo') {
+      const repoRoot = (element as any).repoRoot;
+      const targetRepo = this.gitService.getRepositories().find((r) => r.rootDir === repoRoot);
+      const log = await this.gitService.getLog(this.limit, undefined, targetRepo);
+
+      let commits = log.all;
+      if (this.filterText) {
+        const search = this.filterText.toLowerCase();
+        commits = commits.filter(
+          (c) =>
+            c.message.toLowerCase().includes(search) ||
+            c.hash.toLowerCase().includes(search) ||
+            c.author_name.toLowerCase().includes(search)
+        );
+      }
+
+      const items: (CommitItem | vscode.TreeItem)[] = commits.map(
+        (commit, index) =>
+          new CommitItem(
+            commit.message,
+            `${commit.author_name} • ${commit.date}`,
+            commit.hash,
+            vscode.TreeItemCollapsibleState.None,
+            undefined,
+            index === 0,
+            commit.author_email
+          )
+      );
+
+      if (log.all.length >= this.limit && !this.filterText) {
+        const loadMoreItem = new vscode.TreeItem(
+          'Load More...',
+          vscode.TreeItemCollapsibleState.None
+        );
+        loadMoreItem.command = {
+          command: 'gitorbit.loadMoreCommits',
+          title: 'Load More',
+        };
+        loadMoreItem.iconPath = new vscode.ThemeIcon('add');
+        items.push(loadMoreItem);
+      }
+
+      return items;
+    }
+
+    return [];
   }
 
   public incrementLimit() {

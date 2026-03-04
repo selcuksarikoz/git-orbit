@@ -118,14 +118,25 @@ class RepoHeaderItem extends vscode.TreeItem {
     isSelected: boolean = false
   ) {
     const folderName = repo.rootDir.split(/[/\\]/).pop() || 'Repository';
-    super(folderName, vscode.TreeItemCollapsibleState.Expanded);
+    const isWorktree = repo.isWorktree;
+    const branchInfo = repo.branch ? ` (${repo.branch})` : '';
+    const iconName = isWorktree ? 'files' : 'repo';
+
+    super(`${folderName}${branchInfo}`, vscode.TreeItemCollapsibleState.Expanded);
     this.description = changeCount > 0 ? `${changeCount} changes` : 'no changes';
-    this.tooltip = `Repository: ${repo.rootDir}\nChanges: ${changeCount}${isSelected ? '\n(Selected)' : ''}`;
+
+    const typeLabel = isWorktree ? 'Worktree' : 'Repository';
+    this.tooltip = `${typeLabel}: ${repo.rootDir}\nChanges: ${changeCount}${isSelected ? '\n(Selected)' : ''}`;
+
     this.iconPath = new vscode.ThemeIcon(
-      'repo',
+      iconName,
       isSelected ? new vscode.ThemeColor('charts.green') : new vscode.ThemeColor('foreground')
     );
-    this.contextValue = isSelected ? 'repoHeaderSelected' : 'repoHeader';
+    this.contextValue = isSelected
+      ? 'repoHeaderSelected'
+      : isWorktree
+        ? 'worktreeHeader'
+        : 'repoHeader';
 
     // Click to select this repo
     this.command = {
