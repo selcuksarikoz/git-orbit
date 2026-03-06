@@ -2,7 +2,7 @@
   "name": "gitorbit",
   "displayName": "Git Worktree Manager — Multi-Repo Support",
   "description": "Complete Git toolkit for VS Code with full multi-repository support. Work with unlimited nested repos, mono-repos, or multi-root workspaces. Features: visual git graph, bisect wizard, interactive rebase, blame annotations, PR management, stash, cherry-pick, and optional AI commit suggestions.",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "publisher": "selcuksarikoz",
   "icon": "assets/icons/logo.png",
   "repository": {
