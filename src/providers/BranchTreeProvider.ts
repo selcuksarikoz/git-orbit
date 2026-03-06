@@ -97,10 +97,40 @@ export class BranchItem extends vscode.TreeItem {
  */
 export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
   private gitService: GitService;
+  private hiddenBranchesByRepo: Map<string, Set<string>> = new Map();
 
   constructor(private readonly isRemote: boolean) {
     super();
     this.gitService = GitService.getInstance();
+  }
+
+  public hideBranch(branchName: string, repo?: GitRepository): void {
+    const repoKey = repo?.rootDir || '__default__';
+    const hiddenBranches = this.hiddenBranchesByRepo.get(repoKey) || new Set<string>();
+    hiddenBranches.add(branchName);
+    this.hiddenBranchesByRepo.set(repoKey, hiddenBranches);
+    this.refresh();
+  }
+
+  private filterHiddenBranches(branchNames: string[], repo?: GitRepository): string[] {
+    const repoKey = repo?.rootDir || '__default__';
+    const hiddenBranches = this.hiddenBranchesByRepo.get(repoKey);
+    if (!hiddenBranches || hiddenBranches.size === 0) {
+      return branchNames;
+    }
+
+    for (const hiddenBranch of Array.from(hiddenBranches)) {
+      if (!branchNames.includes(hiddenBranch)) {
+        hiddenBranches.delete(hiddenBranch);
+      }
+    }
+
+    if (hiddenBranches.size === 0) {
+      this.hiddenBranchesByRepo.delete(repoKey);
+      return branchNames;
+    }
+
+    return branchNames.filter((branchName) => !hiddenBranches.has(branchName));
   }
 
   getTreeItem(element: BranchItem): vscode.TreeItem {
@@ -207,9 +237,14 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
     // Get branches for this repo
     try {
       const branches = await this.gitService.getBranches(repo);
-      const branchNames = this.isRemote
-        ? branches.all.filter((b) => b.startsWith('remotes/')).map((b) => b.replace('remotes/', ''))
-        : branches.all.filter((b) => !b.startsWith('remotes/'));
+      const branchNames = this.filterHiddenBranches(
+        this.isRemote
+          ? branches.all
+              .filter((b) => b.startsWith('remotes/'))
+              .map((b) => b.replace('remotes/', ''))
+          : branches.all.filter((b) => !b.startsWith('remotes/')),
+        repo
+      );
 
       const tree = this.buildTree(branchNames);
       const folderItems = await this.mapToBranchItems(
@@ -273,9 +308,14 @@ export class BranchTreeProvider extends BaseTreeProvider<BranchItem> {
   private async getBranchesForRepo(repo: GitRepository): Promise<BranchItem[]> {
     try {
       const branches = await this.gitService.getBranches(repo);
-      const branchNames = this.isRemote
-        ? branches.all.filter((b) => b.startsWith('remotes/')).map((b) => b.replace('remotes/', ''))
-        : branches.all.filter((b) => !b.startsWith('remotes/'));
+      const branchNames = this.filterHiddenBranches(
+        this.isRemote
+          ? branches.all
+              .filter((b) => b.startsWith('remotes/'))
+              .map((b) => b.replace('remotes/', ''))
+          : branches.all.filter((b) => !b.startsWith('remotes/')),
+        repo
+      );
 
       const tree = this.buildTree(branchNames);
       return await this.mapToBranchItems(

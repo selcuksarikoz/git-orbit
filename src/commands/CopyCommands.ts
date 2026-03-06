@@ -99,7 +99,10 @@ export class CopyCommands {
     if (!hash) return;
 
     try {
-      const remoteUrl = await this.gitService.getRemoteUrl();
+      const targetRepo = item?.repoRoot
+        ? this.gitService.getRepositoryByRoot(item.repoRoot)
+        : undefined;
+      const remoteUrl = await this.gitService.getRemoteUrl(targetRepo);
       if (!remoteUrl) {
         vscode.window.showWarningMessage('No remote URL found.');
         return;

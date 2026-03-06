@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { ConfigService } from '../services/ConfigService';
-import { GitService } from '../services/GitService';
+import { GitRepository, GitService } from '../services/GitService';
 import { TooltipGenerator } from '../utils/TooltipGenerator';
 import { BaseTreeProvider } from './BaseTreeProvider';
 
@@ -23,6 +23,28 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem | vscode.TreeI
 
   getTreeItem(element: GraphItem | vscode.TreeItem): vscode.TreeItem {
     return element;
+  }
+
+  private resolveRepo(repoRoot?: string): GitRepository | undefined {
+    return repoRoot ? this.gitService.getRepositoryByRoot(repoRoot) : undefined;
+  }
+
+  private createCommitItem(commit: any, index: number, repo?: GitRepository): GraphItem {
+    return new GraphItem(
+      commit.message,
+      commit.author_name,
+      commit.date,
+      commit.hash,
+      vscode.TreeItemCollapsibleState.Collapsed,
+      'commit',
+      index === 0,
+      commit.refs,
+      commit.author_email,
+      undefined,
+      undefined,
+      undefined,
+      repo?.rootDir
+    );
   }
 
   resolveTreeItem(
@@ -63,25 +85,10 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem | vscode.TreeI
 
       if (treeItem.contextValue === 'worktree') {
         const repoRoot = (treeItem as any).repoRoot;
-        const repo = { rootDir: repoRoot } as any;
+        const repo = this.resolveRepo(repoRoot);
         const log = await this.gitService.getAllLog(this.limit, repo);
 
-        return log.all
-          .slice(0, this.limit)
-          .map(
-            (commit, index) =>
-              new GraphItem(
-                commit.message,
-                commit.author_name,
-                commit.date,
-                commit.hash,
-                vscode.TreeItemCollapsibleState.Collapsed,
-                'commit',
-                index === 0,
-                commit.refs,
-                commit.author_email
-              )
-          );
+        return log.all.slice(0, this.limit).map((commit, index) => this.createCommitItem(commit, index, repo));
       }
 
       return [];
@@ -112,20 +119,7 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem | vscode.TreeI
           // Add commits as children of repo
           const commitItems: (GraphItem | vscode.TreeItem)[] = log.all
             .slice(0, this.limit)
-            .map(
-              (commit, index) =>
-                new GraphItem(
-                  commit.message,
-                  commit.author_name,
-                  commit.date,
-                  commit.hash,
-                  vscode.TreeItemCollapsibleState.Collapsed,
-                  'commit',
-                  index === 0,
-                  commit.refs,
-                  commit.author_email
-                )
-            );
+            .map((commit, index) => this.createCommitItem(commit, index, repo));
           items.push(...commitItems);
         }
 
@@ -140,25 +134,11 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem | vscode.TreeI
           (wtItem as any).repoRoot = wt.rootDir;
 
           // Get worktree commits
-          const wtRepo = { rootDir: wt.rootDir } as any;
-          const wtLog = await this.gitService.getAllLog(this.limit, wtRepo);
+          const wtLog = await this.gitService.getAllLog(this.limit, wt);
 
           const wtCommitItems: (GraphItem | vscode.TreeItem)[] = wtLog.all
             .slice(0, this.limit)
-            .map(
-              (commit, index) =>
-                new GraphItem(
-                  commit.message,
-                  commit.author_name,
-                  commit.date,
-                  commit.hash,
-                  vscode.TreeItemCollapsibleState.Collapsed,
-                  'commit',
-                  index === 0,
-                  commit.refs,
-                  commit.author_email
-                )
-            );
+            .map((commit, index) => this.createCommitItem(commit, index, wt));
           items.push(wtItem, ...wtCommitItems);
         }
       }
@@ -176,25 +156,11 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem | vscode.TreeI
         wtItem.iconPath = new vscode.ThemeIcon('files');
         (wtItem as any).repoRoot = wt.rootDir;
 
-        const wtRepo = { rootDir: wt.rootDir } as any;
-        const wtLog = await this.gitService.getAllLog(this.limit, wtRepo);
+        const wtLog = await this.gitService.getAllLog(this.limit, wt);
 
         const wtCommitItems: (GraphItem | vscode.TreeItem)[] = wtLog.all
           .slice(0, this.limit)
-          .map(
-            (commit, index) =>
-              new GraphItem(
-                commit.message,
-                commit.author_name,
-                commit.date,
-                commit.hash,
-                vscode.TreeItemCollapsibleState.Collapsed,
-                'commit',
-                index === 0,
-                commit.refs,
-                commit.author_email
-              )
-          );
+          .map((commit, index) => this.createCommitItem(commit, index, wt));
         items.push(wtItem, ...wtCommitItems);
       }
 
@@ -208,7 +174,7 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem | vscode.TreeI
     // Handle repo item - show its commits
     if ((graphElement as any).contextValue === 'repo') {
       const repoRoot = (graphElement as any).repoRoot;
-      const targetRepo = this.gitService.getRepositories().find((r) => r.rootDir === repoRoot);
+      const targetRepo = this.resolveRepo(repoRoot);
       const log = await this.gitService.getAllLog(this.limit, targetRepo);
 
       let commits = log.all;
@@ -223,18 +189,7 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem | vscode.TreeI
       }
 
       const items: (GraphItem | vscode.TreeItem)[] = commits.map(
-        (commit, index) =>
-          new GraphItem(
-            commit.message,
-            commit.author_name,
-            commit.date,
-            commit.hash,
-            vscode.TreeItemCollapsibleState.Collapsed,
-            'commit',
-            index === 0,
-            commit.refs,
-            commit.author_email
-          )
+        (commit, index) => this.createCommitItem(commit, index, targetRepo)
       );
 
       if (log.all.length >= this.limit && !this.filterText) {
@@ -350,7 +305,7 @@ export class GraphItem extends vscode.TreeItem {
       this.command = {
         command: 'gitorbit.openCommitDiff',
         title: 'Open Diff',
-        arguments: [{ hash: this.hash, filePath: this.filePath }],
+        arguments: [{ hash: this.hash, filePath: this.filePath, repoRoot: this.repoRoot }],
       };
     } else {
       this.iconPath = vscode.ThemeIcon.Folder;

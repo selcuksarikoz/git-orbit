@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { GitService } from '../services/GitService';
+import { GitRepository, GitService } from '../services/GitService';
 import { escapeHtml } from '../utils/HtmlUtils';
 
 interface BranchInfo {
@@ -31,6 +31,10 @@ export class GitGraphPanel {
   private readonly _extensionUri: vscode.Uri;
   private _disposables: vscode.Disposable[] = [];
   private gitService: GitService;
+
+  private getActiveRepo(): GitRepository | undefined {
+    return this.gitService.getSelectedRepository() || this.gitService.getDefaultRepository();
+  }
 
   public static createOrShow(extensionUri: vscode.Uri) {
     const column = vscode.ViewColumn.One;
@@ -98,37 +102,24 @@ export class GitGraphPanel {
   private async loadBranches() {
     try {
       await this.gitService.ensureInitialized();
-      const repo = this.gitService.getDefaultRepository();
+      const repo = this.getActiveRepo();
 
       if (!repo) {
         throw new Error('No repository found');
       }
 
-      const result = await repo.executor.exec(['branch', '-a', '-v']);
-      const branches: BranchInfo[] = [];
-
-      result.stdout.split('\n').forEach((line) => {
-        if (!line.trim()) return;
-
-        const current = line.startsWith('*');
-        const cleanLine = line.substring(2).trim();
-        const parts = cleanLine.split(/\s+/);
-        const name = parts[0];
-
-        if (name.startsWith('remotes/')) {
-          branches.push({
-            name: name.replace('remotes/', ''),
-            isRemote: true,
-            current: false,
-          });
-        } else {
-          branches.push({
-            name,
-            isRemote: false,
-            current,
-          });
-        }
-      });
+      const branchState = await this.gitService.getBranches(repo);
+      const branches: BranchInfo[] = branchState.all
+        .filter((name) => !name.endsWith('/HEAD'))
+        .map((name) => {
+          const isRemote = name.startsWith('remotes/');
+          const branchName = isRemote ? name.replace('remotes/', '') : name;
+          return {
+            name: branchName,
+            isRemote,
+            current: !isRemote && branchName === branchState.current,
+          };
+        });
 
       this._panel.webview.postMessage({
         command: 'updateBranches',
@@ -142,7 +133,7 @@ export class GitGraphPanel {
   private async loadBranchCommits(branch: string) {
     try {
       await this.gitService.ensureInitialized();
-      const repo = this.gitService.getDefaultRepository();
+      const repo = this.getActiveRepo();
 
       if (!repo) {
         throw new Error('No repository found');
@@ -188,21 +179,32 @@ export class GitGraphPanel {
             'diff-tree',
             '--no-commit-id',
             '--name-status',
+            '--root',
+            '-m',
+            '-z',
             '-r',
             commit.hash,
           ]);
+          const parts = filesResult.stdout.split('\0').filter((line) => line);
+          const files: FileChange[] = [];
 
-          commit.files = filesResult.stdout
-            .trim()
-            .split('\n')
-            .filter((line) => line)
-            .map((line) => {
-              const parts = line.split(/\s+/);
-              return {
-                path: parts.slice(1).join(' '),
-                status: parts[0],
-              };
-            });
+          for (let i = 0; i < parts.length; i++) {
+            const status = parts[i];
+            const firstPath = parts[i + 1];
+            if (!firstPath) continue;
+
+            if (status.startsWith('R') || status.startsWith('C')) {
+              const nextPath = parts[i + 2];
+              files.push({ path: nextPath || firstPath, status });
+              i += 2;
+              continue;
+            }
+
+            files.push({ path: firstPath, status });
+            i += 1;
+          }
+
+          commit.files = files;
         } catch {
           commit.files = [];
         }
@@ -212,6 +214,7 @@ export class GitGraphPanel {
         command: 'updateCommits',
         commits,
         branch,
+        repoRoot: repo.rootDir,
       });
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to load commits: ${error}`);
@@ -226,7 +229,7 @@ export class GitGraphPanel {
   private async loadFileDiff(hash: string, filePath: string) {
     try {
       await this.gitService.ensureInitialized();
-      const repo = this.gitService.getDefaultRepository();
+      const repo = this.getActiveRepo();
 
       if (!repo) return;
 
@@ -244,7 +247,7 @@ export class GitGraphPanel {
       // File might be new (no parent diff)
       try {
         await this.gitService.ensureInitialized();
-        const repo = this.gitService.getDefaultRepository();
+        const repo = this.getActiveRepo();
         if (!repo) return;
 
         const result = await repo.executor.exec(['show', hash, '--', filePath]);
@@ -267,11 +270,20 @@ export class GitGraphPanel {
   }
 
   private async handleCommitClick(hash: string) {
-    await vscode.commands.executeCommand('gitorbit.openCommitDiffs', { hash });
+    const repo = this.getActiveRepo();
+    await vscode.commands.executeCommand('gitorbit.openCommitDiffs', {
+      hash,
+      repoRoot: repo?.rootDir,
+    });
   }
 
   private async handleFileClick(hash: string, filePath: string) {
-    await vscode.commands.executeCommand('gitorbit.openCommitDiffs', { hash, filePath });
+    const repo = this.getActiveRepo();
+    await vscode.commands.executeCommand('gitorbit.openCommitDiffs', {
+      hash,
+      filePath,
+      repoRoot: repo?.rootDir,
+    });
   }
 
   private async handleToggleCommit(hash: string) {
@@ -287,7 +299,7 @@ export class GitGraphPanel {
           cancellable: false,
         },
         async () => {
-          await this.gitService.pull('origin', branch);
+          await this.gitService.pull('origin', branch, this.getActiveRepo());
         }
       );
       vscode.window.showInformationMessage(`Pulled ${branch}`);
@@ -306,7 +318,7 @@ export class GitGraphPanel {
           cancellable: false,
         },
         async () => {
-          await this.gitService.push('origin', branch);
+          await this.gitService.push('origin', branch, false, this.getActiveRepo());
         }
       );
       vscode.window.showInformationMessage(`Pushed ${branch}`);
@@ -324,8 +336,9 @@ export class GitGraphPanel {
           cancellable: false,
         },
         async () => {
-          await this.gitService.pull('origin', branch);
-          await this.gitService.push('origin', branch);
+          const repo = this.getActiveRepo();
+          await this.gitService.pull('origin', branch, repo);
+          await this.gitService.push('origin', branch, false, repo);
         }
       );
       vscode.window.showInformationMessage(`Synced ${branch}`);

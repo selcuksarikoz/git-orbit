@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/GitService';
-import * as cp from 'child_process';
 
 export class BlameCommands {
   private gitService: GitService;
@@ -71,13 +70,14 @@ export class BlameCommands {
   private async showLineHistory(args: { file: string; line: number }) {
     try {
       const { file, line } = args;
-      const relativePath = this.gitService.getRelativePath(file);
+      const repo = this.gitService.getRepositoryForPath(file);
+      const relativePath = repo ? this.gitService.getRelativePath(file, repo.rootDir) : file;
 
       // Save the current active editor
       const currentEditor = vscode.window.activeTextEditor;
 
       // Use git log to get file history
-      const historyData = await this.gitService.getFileHistory(relativePath, 50);
+      const historyData = await this.gitService.getFileHistory(file, 50, repo);
 
       if (!historyData || !historyData.all || historyData.all.length === 0) {
         vscode.window.showInformationMessage('No history found for this file');
@@ -108,6 +108,7 @@ export class BlameCommands {
           description: commit.message,
           detail: `${commit.author_name} • ${formattedDate}`,
           hash: commit.hash,
+          repoRoot: repo?.rootDir,
         };
       });
 
@@ -133,7 +134,10 @@ export class BlameCommands {
         }
 
         // Show the diff for the selected commit
-        await this.viewCommitDiff(selected.hash);
+        await vscode.commands.executeCommand('gitorbit.openCommitDiffs', {
+          hash: selected.hash,
+          repoRoot: selected.repoRoot,
+        });
       }
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to show line history: ${error}`);
@@ -145,21 +149,8 @@ export class BlameCommands {
    */
   private async getRemoteUrl(): Promise<string | null> {
     try {
-      const result = await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
-        cp.exec(
-          'git config --get remote.origin.url',
-          { cwd: this.gitService.rootDir },
-          (error, stdout, stderr) => {
-            if (error) {
-              reject(error);
-            } else {
-              resolve({ stdout, stderr });
-            }
-          }
-        );
-      });
-
-      return result.stdout.trim();
+      const remoteUrl = await this.gitService.getRemoteUrl();
+      return remoteUrl || null;
     } catch {
       return null;
     }

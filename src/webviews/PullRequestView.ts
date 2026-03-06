@@ -38,8 +38,8 @@ export class PullRequestView {
     panel.webview.html = getLoadingHtml('Loading PR details...');
 
     try {
-      const details = await PullRequestService.getInstance().getPRDetails(pr.number);
-      const collaborators = await PullRequestService.getInstance().getCollaborators();
+      const details = await PullRequestService.getInstance().getPRDetails(pr.repo!, pr.number);
+      const collaborators = await PullRequestService.getInstance().getCollaborators(pr.repo!);
       panel.webview.html = PullRequestView.getHtmlContent(details, collaborators, pr.number);
     } catch (e) {
       panel.webview.html = getErrorHtml(e);
@@ -51,8 +51,8 @@ export class PullRequestView {
           panel.webview.postMessage({ command: 'showLoading', message: msg });
         const hideLoading = () => panel.webview.postMessage({ command: 'hideLoading' });
         const refreshPage = async () => {
-          const data = await PullRequestService.getInstance().getPRDetails(pr.number);
-          const collabs = await PullRequestService.getInstance().getCollaborators();
+          const data = await PullRequestService.getInstance().getPRDetails(pr.repo!, pr.number);
+          const collabs = await PullRequestService.getInstance().getCollaborators(pr.repo!);
           panel.webview.html = PullRequestView.getHtmlContent(data, collabs, pr.number);
         };
 
@@ -61,32 +61,46 @@ export class PullRequestView {
             case 'addReviewers':
               showLoading('Adding reviewers...');
               for (const username of message.usernames) {
-                await PullRequestService.getInstance().addReviewer(pr.number, username);
+                await PullRequestService.getInstance().addReviewer(pr.repo!, pr.number, username);
               }
               vscode.window.showInformationMessage(`Added ${message.usernames.length} reviewer(s)`);
               await refreshPage();
               break;
             case 'removeReviewer':
               showLoading('Removing reviewer...');
-              await PullRequestService.getInstance().removeReviewer(pr.number, message.username);
+              await PullRequestService.getInstance().removeReviewer(
+                pr.repo!,
+                pr.number,
+                message.username
+              );
               vscode.window.showInformationMessage(`Removed ${message.username}`);
               await refreshPage();
               break;
             case 'updateDescription':
               showLoading('Saving description...');
-              await PullRequestService.getInstance().updatePRDescription(pr.number, message.body);
+              await PullRequestService.getInstance().updatePRDescription(
+                pr.repo!,
+                pr.number,
+                message.body
+              );
               vscode.window.showInformationMessage('Description updated');
               await refreshPage();
               break;
             case 'approve':
               showLoading('Approving PR...');
-              await PullRequestService.getInstance().reviewPR(pr.number, 'APPROVE', message.body);
+              await PullRequestService.getInstance().reviewPR(
+                pr.repo!,
+                pr.number,
+                'APPROVE',
+                message.body
+              );
               vscode.window.showInformationMessage('PR Approved!');
               await refreshPage();
               break;
             case 'requestChanges':
               showLoading('Requesting changes...');
               await PullRequestService.getInstance().reviewPR(
+                pr.repo!,
                 pr.number,
                 'REQUEST_CHANGES',
                 message.body
@@ -96,13 +110,14 @@ export class PullRequestView {
               break;
             case 'comment':
               showLoading('Adding comment...');
-              await PullRequestService.getInstance().commentPR(pr.number, message.body);
+              await PullRequestService.getInstance().commentPR(pr.repo!, pr.number, message.body);
               vscode.window.showInformationMessage('Comment added.');
               await refreshPage();
               break;
             case 'merge':
               showLoading('Merging PR...');
               const merged = await PullRequestService.getInstance().mergePR(
+                pr.repo!,
                 pr.number,
                 message.method
               );
@@ -115,7 +130,9 @@ export class PullRequestView {
               break;
             case 'openFile':
               const gitService = (await import('../services/GitService')).GitService.getInstance();
-              const filePath = vscode.Uri.file(`${gitService.rootDir}/${message.filename}`);
+              const filePath = vscode.Uri.file(
+                `${(pr.repo || gitService.getDefaultRepository())?.rootDir || ''}/${message.filename}`
+              );
               await vscode.commands.executeCommand('vscode.open', filePath);
               break;
             case 'openInBrowser':

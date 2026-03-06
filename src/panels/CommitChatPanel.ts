@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { GitService } from '../services/GitService';
+import { GitRepository, GitService } from '../services/GitService';
 import { AIService, Message } from '../services/AIService';
 import { md5 } from '../utils/Hash';
 
@@ -113,7 +113,8 @@ export class CommitChatPanel {
     commitHash: string,
     message: string,
     customDiff?: string,
-    initialPrompt?: string
+    initialPrompt?: string,
+    repo?: GitRepository
   ) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
@@ -123,7 +124,7 @@ export class CommitChatPanel {
     let diff = customDiff || '';
     if (!diff) {
       try {
-        diff = await GitService.getInstance().getTruncatedCommitDiff(commitHash);
+        diff = await GitService.getInstance().getTruncatedCommitDiff(commitHash, 8000, repo);
       } catch (e) {
         diff = 'Could not fetch diff.';
       }
@@ -138,7 +139,7 @@ export class CommitChatPanel {
     }
 
     // Fetch user info for gravatar
-    const userInfo = await GitService.getInstance().getUserInfo();
+    const userInfo = await GitService.getInstance().getUserInfo(repo);
     const avatarUrl = userInfo.email
       ? `https://www.gravatar.com/avatar/${md5(userInfo.email)}?s=100&d=identicon`
       : `https://api.dicebear.com/7.x/avataaars/svg?seed=${userInfo.name}&backgroundColor=3b82f6`;

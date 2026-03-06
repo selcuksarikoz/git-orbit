@@ -7,8 +7,10 @@ export class FullDiffProvider implements vscode.TextDocumentContentProvider {
   provideTextDocumentContent(uri: vscode.Uri): vscode.ProviderResult<string> {
     const params = new URLSearchParams(uri.query);
     const hash = params.get('hash');
+    const repoRoot = params.get('repoRoot') || undefined;
     if (!hash) return '';
 
-    return GitService.getInstance().getCommitFullDiff(hash);
+    const targetRepo = repoRoot ? GitService.getInstance().getRepositoryByRoot(repoRoot) : undefined;
+    return GitService.getInstance().getCommitFullDiff(hash, targetRepo);
   }
 }

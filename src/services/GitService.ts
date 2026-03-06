@@ -1,4 +1,3 @@
-import * as cp from 'child_process';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { GitExecutor } from '../utils/GitExecutor';
@@ -145,7 +144,7 @@ export class GitService {
     if (isGitRepo) {
       const repo = await this.createRepository(startPath);
       if (repo) {
-        this.repositories.set(startPath, repo);
+        this.repositories.set(repo.rootDir, repo);
       }
       // Continue searching subdirectories even if this is a git repo
       // (for nested repos like itchy/itchySDK)
@@ -188,7 +187,7 @@ export class GitService {
     try {
       const gitDir = path.join(dir, '.git');
       const stat = await vscode.workspace.fs.stat(vscode.Uri.file(gitDir));
-      return !!(stat.type & vscode.FileType.Directory);
+      return !!(stat.type & (vscode.FileType.Directory | vscode.FileType.File));
     } catch {
       return false;
     }
@@ -201,6 +200,16 @@ export class GitService {
     const executor = new GitExecutor(rootDir);
 
     try {
+      const [gitDirResult, commonDirResult, branchResult] = await Promise.all([
+        executor.exec(['rev-parse', '--git-dir']).catch(() => ({ stdout: '.git' })),
+        executor.exec(['rev-parse', '--git-common-dir']).catch(() => ({ stdout: '.git' })),
+        executor.exec(['branch', '--show-current']).catch(() => ({ stdout: '' })),
+      ]);
+      const gitDir = gitDirResult.stdout.trim();
+      const commonDir = commonDirResult.stdout.trim();
+      const currentBranch = branchResult.stdout.trim();
+      const isWorktree = !!gitDir && !!commonDir && gitDir !== commonDir;
+
       // Verify it's a valid git repo and get the actual root
       const result = await executor.exec(['rev-parse', '--show-toplevel']);
       const actualRoot = result.stdout.trim();
@@ -215,7 +224,9 @@ export class GitService {
           rootDir: actualRoot,
           executor: actualExecutor,
           remoteUrl: remoteResult.stdout.trim() || undefined,
-          isWorktree: false,
+          isWorktree,
+          worktreePath: isWorktree ? rootDir : undefined,
+          branch: currentBranch || undefined,
         };
       }
 
@@ -226,7 +237,9 @@ export class GitService {
         rootDir,
         executor,
         remoteUrl: remoteResult.stdout.trim() || undefined,
-        isWorktree: false,
+        isWorktree,
+        worktreePath: isWorktree ? rootDir : undefined,
+        branch: currentBranch || undefined,
       };
     } catch {
       return null;
@@ -238,6 +251,7 @@ export class GitService {
    */
   public async refreshRepositories(): Promise<void> {
     this.repositories.clear();
+    this.clearCache();
     await this.initialize();
   }
 
@@ -246,6 +260,10 @@ export class GitService {
    */
   public getRepositories(): GitRepository[] {
     return Array.from(this.repositories.values());
+  }
+
+  public getRepositoryByRoot(rootDir: string): GitRepository | undefined {
+    return this.repositories.get(rootDir);
   }
 
   /**
@@ -1050,17 +1068,34 @@ export class GitService {
       'diff-tree',
       '--no-commit-id',
       '--name-status',
+      '--root',
+      '-m',
+      '-z',
       '-r',
       hash,
     ]);
-    return result.stdout
-      .trim()
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => {
-        const [status, path] = line.split(/\s+/);
-        return { path, status };
-      });
+    const parts = result.stdout.split('\0').filter(Boolean);
+    const files: { path: string; status: string }[] = [];
+
+    for (let i = 0; i < parts.length; i++) {
+      const status = parts[i];
+      const firstPath = parts[i + 1];
+      if (!status || !firstPath) {
+        continue;
+      }
+
+      if (status.startsWith('R') || status.startsWith('C')) {
+        const nextPath = parts[i + 2];
+        files.push({ path: nextPath || firstPath, status });
+        i += 2;
+        continue;
+      }
+
+      files.push({ path: firstPath, status });
+      i += 1;
+    }
+
+    return files;
   }
 
   @memoize
@@ -1069,7 +1104,14 @@ export class GitService {
     const targetRepo = repo || this.getDefaultRepository();
     if (!targetRepo) return [];
 
-    const result = await targetRepo.executor.exec(['show', '--name-only', '--format=', hash]);
+    const result = await targetRepo.executor.exec([
+      'show',
+      '--name-only',
+      '--format=',
+      '-m',
+      '--root',
+      hash,
+    ]);
     return result.stdout.trim().split('\n').filter(Boolean);
   }
 
@@ -1243,6 +1285,24 @@ export class GitService {
     if (!targetRepo) return;
 
     const args = ['branch', force ? '-D' : '-d', branchName];
+    const result = await targetRepo.executor.exec(args);
+    this.clearCache();
+    return result;
+  }
+
+  public async deleteRemoteBranch(
+    remote: string,
+    branchName: string,
+    force: boolean = false,
+    repo?: GitRepository
+  ) {
+    await this._ensureInitialized();
+    const targetRepo = repo || this.getDefaultRepository();
+    if (!targetRepo) return;
+
+    const args = force
+      ? ['push', remote, `:refs/heads/${branchName}`]
+      : ['push', remote, '--delete', branchName];
     const result = await targetRepo.executor.exec(args);
     this.clearCache();
     return result;
@@ -1481,9 +1541,13 @@ export class GitService {
   /**
    * Get truncated diff for a specific commit (for AI context)
    */
-  public async getTruncatedCommitDiff(hash: string, maxChars: number = 8000): Promise<string> {
+  public async getTruncatedCommitDiff(
+    hash: string,
+    maxChars: number = 8000,
+    repo?: GitRepository
+  ): Promise<string> {
     await this._ensureInitialized();
-    const targetRepo = this.getDefaultRepository();
+    const targetRepo = repo || this.getDefaultRepository();
     if (!targetRepo) return '';
 
     try {
@@ -1544,9 +1608,9 @@ export class GitService {
   /**
    * Get current git user info
    */
-  public async getUserInfo(): Promise<{ name: string; email: string }> {
+  public async getUserInfo(repo?: GitRepository): Promise<{ name: string; email: string }> {
     await this._ensureInitialized();
-    const targetRepo = this.getDefaultRepository();
+    const targetRepo = repo || this.getDefaultRepository();
     if (!targetRepo) return { name: '', email: '' };
 
     try {

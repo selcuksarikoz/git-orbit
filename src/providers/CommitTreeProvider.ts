@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { BaseTreeProvider } from './BaseTreeProvider';
-import { GitService } from '../services/GitService';
+import { GitRepository, GitService } from '../services/GitService';
 import { ConfigService } from '../services/ConfigService';
 
 import { TooltipGenerator } from '../utils/TooltipGenerator';
@@ -14,7 +14,8 @@ export class CommitItem extends vscode.TreeItem {
       .TreeItemCollapsibleState.None,
     public readonly filePath?: string,
     public readonly isLatest: boolean = false,
-    public readonly authorEmail: string = ''
+    public readonly authorEmail: string = '',
+    public readonly repoRoot?: string
   ) {
     super(label, collapsibleState);
     const [name, date] = description.split(' • ');
@@ -74,6 +75,23 @@ export class CommitTreeProvider extends BaseTreeProvider<CommitItem | vscode.Tre
     return element;
   }
 
+  private resolveRepo(repoRoot?: string): GitRepository | undefined {
+    return repoRoot ? this.gitService.getRepositoryByRoot(repoRoot) : undefined;
+  }
+
+  private createCommitItem(commit: any, index: number, repo?: GitRepository): CommitItem {
+    return new CommitItem(
+      commit.message,
+      `${commit.author_name} • ${commit.date}`,
+      commit.hash,
+      vscode.TreeItemCollapsibleState.None,
+      undefined,
+      index === 0,
+      commit.author_email,
+      repo?.rootDir
+    );
+  }
+
   async getChildren(
     element?: CommitItem | vscode.TreeItem
   ): Promise<(CommitItem | vscode.TreeItem)[]> {
@@ -104,23 +122,10 @@ export class CommitTreeProvider extends BaseTreeProvider<CommitItem | vscode.Tre
 
       if (treeItem.contextValue === 'worktree') {
         const repoRoot = (treeItem as any).repoRoot;
-        const repo = { rootDir: repoRoot } as any;
+        const repo = this.resolveRepo(repoRoot);
         const log = await this.gitService.getLog(this.limit, undefined, repo);
 
-        return log.all
-          .slice(0, this.limit)
-          .map(
-            (commit, index) =>
-              new CommitItem(
-                commit.message,
-                `${commit.author_name} • ${commit.date}`,
-                commit.hash,
-                vscode.TreeItemCollapsibleState.None,
-                undefined,
-                index === 0,
-                commit.author_email
-              )
-          );
+        return log.all.slice(0, this.limit).map((commit, index) => this.createCommitItem(commit, index, repo));
       }
 
       return [];
@@ -141,18 +146,7 @@ export class CommitTreeProvider extends BaseTreeProvider<CommitItem | vscode.Tre
           // Add commits directly
           const commitItems: (CommitItem | vscode.TreeItem)[] = log.all
             .slice(0, this.limit)
-            .map(
-              (commit, index) =>
-                new CommitItem(
-                  commit.message,
-                  `${commit.author_name} • ${commit.date}`,
-                  commit.hash,
-                  vscode.TreeItemCollapsibleState.None,
-                  undefined,
-                  index === 0,
-                  commit.author_email
-                )
-            );
+            .map((commit, index) => this.createCommitItem(commit, index, repo));
           items.push(...commitItems);
         }
 
@@ -167,23 +161,11 @@ export class CommitTreeProvider extends BaseTreeProvider<CommitItem | vscode.Tre
           (wtItem as any).repoRoot = wt.rootDir;
 
           // Get worktree commits
-          const wtRepo = { rootDir: wt.rootDir } as any;
-          const wtLog = await this.gitService.getLog(this.limit, undefined, wtRepo);
+          const wtLog = await this.gitService.getLog(this.limit, undefined, wt);
 
           const wtCommitItems: (CommitItem | vscode.TreeItem)[] = wtLog.all
             .slice(0, this.limit)
-            .map(
-              (commit, index) =>
-                new CommitItem(
-                  commit.message,
-                  `${commit.author_name} • ${commit.date}`,
-                  commit.hash,
-                  vscode.TreeItemCollapsibleState.None,
-                  undefined,
-                  index === 0,
-                  commit.author_email
-                )
-            );
+            .map((commit, index) => this.createCommitItem(commit, index, wt));
           items.push(wtItem, ...wtCommitItems);
         }
       }
@@ -201,23 +183,11 @@ export class CommitTreeProvider extends BaseTreeProvider<CommitItem | vscode.Tre
         wtItem.iconPath = new vscode.ThemeIcon('files');
         (wtItem as any).repoRoot = wt.rootDir;
 
-        const wtRepo = { rootDir: wt.rootDir } as any;
-        const wtLog = await this.gitService.getLog(this.limit, undefined, wtRepo);
+        const wtLog = await this.gitService.getLog(this.limit, undefined, wt);
 
         const wtCommitItems: (CommitItem | vscode.TreeItem)[] = wtLog.all
           .slice(0, this.limit)
-          .map(
-            (commit: any, index: number) =>
-              new CommitItem(
-                commit.message,
-                `${commit.author_name} • ${commit.date}`,
-                commit.hash,
-                vscode.TreeItemCollapsibleState.None,
-                undefined,
-                index === 0,
-                commit.author_email
-              )
-          );
+          .map((commit: any, index: number) => this.createCommitItem(commit, index, wt));
         items.push(wtItem, ...wtCommitItems);
       }
 
@@ -231,7 +201,7 @@ export class CommitTreeProvider extends BaseTreeProvider<CommitItem | vscode.Tre
     // Handle repo item - show its commits
     if ((element as any).contextValue === 'repo') {
       const repoRoot = (element as any).repoRoot;
-      const targetRepo = this.gitService.getRepositories().find((r) => r.rootDir === repoRoot);
+      const targetRepo = this.resolveRepo(repoRoot);
       const log = await this.gitService.getLog(this.limit, undefined, targetRepo);
 
       let commits = log.all;
@@ -246,16 +216,7 @@ export class CommitTreeProvider extends BaseTreeProvider<CommitItem | vscode.Tre
       }
 
       const items: (CommitItem | vscode.TreeItem)[] = commits.map(
-        (commit, index) =>
-          new CommitItem(
-            commit.message,
-            `${commit.author_name} • ${commit.date}`,
-            commit.hash,
-            vscode.TreeItemCollapsibleState.None,
-            undefined,
-            index === 0,
-            commit.author_email
-          )
+        (commit, index) => this.createCommitItem(commit, index, targetRepo)
       );
 
       if (log.all.length >= this.limit && !this.filterText) {

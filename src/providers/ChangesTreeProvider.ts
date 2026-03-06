@@ -523,7 +523,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       // Handle deletions
       if (!item.isStaged && item.status === 'D') {
         // Show deleted file
-        const indexUri = GitContentProvider.getUri('INDEX', item.path);
+        const indexUri = GitContentProvider.getUri('INDEX', item.path, item.rootPath);
         await vscode.commands.executeCommand('vscode.open', indexUri, {
           preview: true,
           label: `${item.path} (Deleted)`,
@@ -541,20 +541,12 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
   }
 
   public async stage(item: ChangeItem) {
-    if (item.repo) {
-      await GitService.getInstance().stage(item.path, item.repo);
-    } else {
-      await GitService.getInstance().stage(item.path);
-    }
+    await GitService.getInstance().stage(item.path, item.repo);
     this.refresh();
   }
 
   public async unstage(item: ChangeItem) {
-    if (item.repo) {
-      await GitService.getInstance().unstage(item.path, item.repo);
-    } else {
-      await GitService.getInstance().unstage(item.path);
-    }
+    await GitService.getInstance().unstage(item.path, item.repo);
     this.refresh();
   }
 
@@ -727,11 +719,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
           useTrash: false,
         });
       } else {
-        if (item.repo) {
-          await GitService.getInstance().discardChanges(item.path, item.repo);
-        } else {
-          await GitService.getInstance().discardChanges(item.path);
-        }
+        await GitService.getInstance().discardChanges(item.path, item.repo);
       }
       this.refresh();
     } catch (e: any) {

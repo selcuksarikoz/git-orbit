@@ -147,14 +147,16 @@ export function activate(context: vscode.ExtensionContext) {
   const tagProvider = new TagTreeProvider();
   const contributorProvider = new ContributorTreeProvider();
 
-  vscode.window.registerTreeDataProvider('gitorbit.views.localBranches', localBranchProvider);
-  vscode.window.registerTreeDataProvider('gitorbit.views.remoteBranches', remoteBranchProvider);
-  vscode.window.registerTreeDataProvider('gitorbit.views.commits', commitProvider);
-  vscode.window.registerTreeDataProvider('gitorbit.views.graph', graphProvider);
-  vscode.window.registerTreeDataProvider('gitorbit.views.fileHistory', fileHistoryProvider);
-  vscode.window.registerTreeDataProvider('gitorbit.views.stashes', stashProvider);
-  vscode.window.registerTreeDataProvider('gitorbit.views.tags', tagProvider);
-  vscode.window.registerTreeDataProvider('gitorbit.views.contributors', contributorProvider);
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider('gitorbit.views.localBranches', localBranchProvider),
+    vscode.window.registerTreeDataProvider('gitorbit.views.remoteBranches', remoteBranchProvider),
+    vscode.window.registerTreeDataProvider('gitorbit.views.commits', commitProvider),
+    vscode.window.registerTreeDataProvider('gitorbit.views.graph', graphProvider),
+    vscode.window.registerTreeDataProvider('gitorbit.views.fileHistory', fileHistoryProvider),
+    vscode.window.registerTreeDataProvider('gitorbit.views.stashes', stashProvider),
+    vscode.window.registerTreeDataProvider('gitorbit.views.tags', tagProvider),
+    vscode.window.registerTreeDataProvider('gitorbit.views.contributors', contributorProvider)
+  );
 
   // Move refreshAll up so it's available for providers
   const refreshAll = () => {
@@ -257,11 +259,24 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         if (!message || message === 'No message') {
-          const details = await GitService.getInstance().getCommitDetails(node.hash);
+          const targetRepo = node.repoRoot
+            ? GitService.getInstance().getRepositoryByRoot(node.repoRoot)
+            : undefined;
+          const details = await GitService.getInstance().getCommitDetails(node.hash, targetRepo);
           message = details.message;
         }
 
-        CommitChatPanel.createOrShow(context.extensionUri, node.hash, message || 'No message');
+        const targetRepo = node.repoRoot
+          ? GitService.getInstance().getRepositoryByRoot(node.repoRoot)
+          : undefined;
+        CommitChatPanel.createOrShow(
+          context.extensionUri,
+          node.hash,
+          message || 'No message',
+          undefined,
+          undefined,
+          targetRepo
+        );
       } else {
         vscode.window.showErrorMessage('Could not resolve commit details for chat.');
       }
@@ -415,11 +430,15 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('gitorbit.openCommitDiff', async (item: any) => {
       if (!item.hash) return;
       try {
+        const gitService = GitService.getInstance();
+        const targetRepo = item.repoRoot
+          ? gitService.getRepositoryByRoot(item.repoRoot)
+          : undefined;
         let filePath = item.filePath;
 
         if (!filePath) {
           // Global history
-          const changedFiles = await GitService.getInstance().getChangedFiles(item.hash);
+          const changedFiles = await gitService.getChangedFiles(item.hash, targetRepo);
           if (changedFiles.length === 0) {
             vscode.window.showInformationMessage('No files changed in this commit.');
             return;
@@ -438,8 +457,8 @@ export function activate(context: vscode.ExtensionContext) {
 
         // Side-by-side Diff
         const fileName = filePath.split(/[\\\/]/).pop();
-        const rightUri = GitContentProvider.getUri(item.hash, filePath);
-        const leftUri = GitContentProvider.getUri(`${item.hash}^`, filePath);
+        const rightUri = GitContentProvider.getUri(item.hash, filePath, item.repoRoot);
+        const leftUri = GitContentProvider.getUri(`${item.hash}^`, filePath, item.repoRoot);
 
         await vscode.commands.executeCommand(
           'vscode.diff',
@@ -530,7 +549,9 @@ export function activate(context: vscode.ExtensionContext) {
   // Centralized Refresh Function
 
   // Register Centralized Command Classes (Branch & Stash)
-  BranchCommands.getInstance(refreshAll).register(context);
+  BranchCommands.getInstance(refreshAll, localBranchProvider, remoteBranchProvider).register(
+    context
+  );
   StashCommands.getInstance(refreshAll).register(context);
   CopyCommands.getInstance().register(context);
 
@@ -706,7 +727,7 @@ export function activate(context: vscode.ExtensionContext) {
         },
         async () => {
           try {
-            await gitService.fetch();
+            await gitService.fetchAll();
           } catch (e) {
             console.error('Fetch failed', e);
           }
@@ -904,7 +925,7 @@ export function activate(context: vscode.ExtensionContext) {
       syncInterval = setInterval(
         async () => {
           try {
-            await gitService.fetch();
+            await gitService.fetchAll();
             refreshAll();
           } catch (e) {
             console.error('Auto-sync failed', e);
@@ -916,11 +937,13 @@ export function activate(context: vscode.ExtensionContext) {
   };
 
   setupAutoSync();
-  vscode.workspace.onDidChangeConfiguration((e) => {
-    if (e.affectsConfiguration('gitorbit.sync.autoSyncInterval')) {
-      setupAutoSync();
-    }
-  });
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('gitorbit.sync.autoSyncInterval')) {
+        setupAutoSync();
+      }
+    })
+  );
 
   // Webview - Show on Update/Install
   WelcomeView.show(context);
@@ -939,6 +962,7 @@ export function activate(context: vscode.ExtensionContext) {
   watcher.onDidChange(triggerRefresh);
   watcher.onDidCreate(triggerRefresh);
   watcher.onDidDelete(triggerRefresh);
+  context.subscriptions.push(watcher);
 
   // 2. Native VS Code Git API Integration (Primary for Cursor/Antigravity/VSCode)
   try {
@@ -973,7 +997,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Pull Requests
   const prProvider = new PullRequestTreeProvider();
-  vscode.window.registerTreeDataProvider('gitorbit.views.pullRequests', prProvider);
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider('gitorbit.views.pullRequests', prProvider)
+  );
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.pullRequests.refresh', () => prProvider.refresh())
   );
@@ -1106,23 +1132,31 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(repoStatusBarItem);
 
   // Update status bar when repo selection changes
-  const updateRepoStatusBar = () => {
+  const updateRepoStatusBar = async () => {
     const gitService = GitService.getInstance();
-    const repos = gitService.getRepositories();
+    const allRepos = gitService.getRepositories();
+    const mainRepos = gitService.getMainRepositories();
     const selectedRepo = gitService.getSelectedRepository();
     const worktrees = gitService.getWorktrees();
 
-    if (repos.length === 0) {
+    if (allRepos.length === 0) {
       repoStatusBarItem.hide();
       return;
     }
 
-    const activeRepo = selectedRepo || repos[0];
+    const activeRepo = selectedRepo || mainRepos[0] || worktrees[0];
     const isWorktree = !!activeRepo.isWorktree;
     const icon = isWorktree ? '$(files)' : '$(repo)';
     const activeName = activeRepo.rootDir.split(/[/\\]/).pop() || 'Repository';
-    const branchInfo = formatBranchName(activeRepo.branch);
-    const hasSwitchOptions = repos.length + worktrees.length > 1;
+    let branchInfo = formatBranchName(activeRepo.branch);
+    try {
+      const branches = await gitService.getBranches(activeRepo);
+      branchInfo = formatBranchName(branches.current || activeRepo.branch);
+    } catch {
+      // Keep the discovered branch if live branch lookup fails.
+    }
+    const totalRepoOptions = mainRepos.length + worktrees.length;
+    const hasSwitchOptions = totalRepoOptions > 1;
     const chevron = hasSwitchOptions ? ' ($(chevron-down))' : '';
 
     if (!hasSwitchOptions) {
@@ -1133,25 +1167,25 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     repoStatusBarItem.text = `${icon} ${activeName} (${branchInfo})${chevron}`;
-    repoStatusBarItem.tooltip = `Active: ${activeRepo.rootDir}\nBranch: ${branchInfo}\nMain repos: ${repos.length}\nWorktrees: ${worktrees.length}\nClick to switch repository/worktree`;
+    repoStatusBarItem.tooltip = `Active: ${activeRepo.rootDir}\nBranch: ${branchInfo}\nMain repos: ${mainRepos.length}\nWorktrees: ${worktrees.length}\nClick to switch repository/worktree`;
     repoStatusBarItem.show();
   };
 
   // Initial update
-  updateRepoStatusBar();
+  void updateRepoStatusBar();
 
   // Listen for repo selection changes and refresh all views
   context.subscriptions.push(
     GitService.getInstance().onDidChangeSelectedRepo(() => {
       refreshAll();
-      updateRepoStatusBar();
+      void updateRepoStatusBar();
     })
   );
 
   // Update status bar when repos are discovered
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
-      setTimeout(updateRepoStatusBar, 1000);
+      setTimeout(() => void updateRepoStatusBar(), 1000);
     })
   );
 
