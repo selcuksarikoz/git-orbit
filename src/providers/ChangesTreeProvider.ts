@@ -4,6 +4,7 @@ import { GitContentProvider } from './GitContentProvider';
 import { StatusDecorationProvider } from './StatusDecorationProvider';
 import { AIService } from '../services/AIService';
 import { BisectService, BisectState } from '../services/BisectService';
+import { WorktreeService } from '../services/WorktreeService';
 import { toStrikethrough } from '../utils/HtmlUtils';
 
 class BisectLogItem extends vscode.TreeItem {
@@ -302,9 +303,14 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       if (repos.length >= 1) {
         const items: vscode.TreeItem[] = [];
 
+        // Sort: main repos first, then worktrees
+        const mainRepos = repos.filter((r) => !r.isWorktree);
+        const worktrees = repos.filter((r) => r.isWorktree);
+        const sortedRepos = [...mainRepos, ...worktrees];
+
         // Show all repos (even those without changes)
         const selectedRepo = gitService.getSelectedRepository();
-        for (const repo of repos) {
+        for (const repo of sortedRepos) {
           const repoStaged = this._staged.filter((s) => s.repo.rootDir === repo.rootDir);
           const repoUnstaged = this._unstaged.filter((s) => s.repo.rootDir === repo.rootDir);
           const totalChanges = repoStaged.length + repoUnstaged.length;
@@ -442,6 +448,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
 
   public async commit(amend: boolean = false) {
     const gitService = GitService.getInstance();
+    const worktreeService = WorktreeService.getInstance();
 
     // If multiple repos, ask which one to commit
     const repos = gitService.getRepositories();
@@ -466,6 +473,12 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
 
     if (!targetRepo) {
       vscode.window.showErrorMessage('No repository found.');
+      return;
+    }
+
+    const worktree = await worktreeService.promptForWorktree(targetRepo);
+
+    if (!worktree && repos.length > 1) {
       return;
     }
 
@@ -885,6 +898,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
   public async smartCommit() {
     const gitService = GitService.getInstance();
     const aiService = AIService.getInstance();
+    const worktreeService = WorktreeService.getInstance();
 
     // If multiple repos, ask which one to use
     const repos = gitService.getRepositories();
@@ -909,6 +923,12 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
 
     if (!targetRepo) {
       vscode.window.showErrorMessage('No repository found.');
+      return;
+    }
+
+    const worktree = await worktreeService.promptForWorktree(targetRepo);
+
+    if (!worktree && repos.length > 1) {
       return;
     }
 

@@ -186,4 +186,19 @@ describe('BranchCommands', () => {
       expect(mockGitService.deleteBranch).toHaveBeenCalledWith('main', false, '/test');
     });
   });
+
+  describe('deleteBranchMenu', () => {
+    it('should handle null item gracefully', async () => {
+      const menuFn = (vscode.commands.registerCommand as any).mock.calls.find(
+        (call: any[]) => call[0] === 'gitorbit.deleteBranchMenu'
+      )?.[1];
+
+      expect(menuFn).toBeDefined();
+      await menuFn(null);
+
+      expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
+        'No branch selected for deletion.'
+      );
+    });
+  });
 });

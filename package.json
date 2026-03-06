@@ -68,10 +68,18 @@
           "when": "config.gitorbit.views.showChanges"
         },
         {
+          "id": "gitorbit.views.worktrees",
+          "name": "Worktrees",
+          "icon": "$(files)",
+          "when": "config.gitorbit.views.showWorktrees",
+          "visibility": "collapsed"
+        },
+        {
           "id": "gitorbit.views.localBranches",
           "name": "Local Branches",
           "icon": "$(git-branch)",
-          "when": "config.gitorbit.views.showLocalBranches"
+          "when": "config.gitorbit.views.showLocalBranches",
+          "visibility": "collapsed"
         },
         {
           "id": "gitorbit.views.graph",
@@ -604,6 +612,18 @@
         "icon": "$(clear-all)"
       },
       {
+        "command": "gitorbit.worktree.open",
+        "title": "Open Worktree",
+        "category": "GitOrbit",
+        "icon": "$(folder-open)"
+      },
+      {
+        "command": "gitorbit.copy.hash",
+        "title": "Open Worktree",
+        "category": "GitOrbit",
+        "icon": "$(folder-open)"
+      },
+      {
         "command": "gitorbit.copy.hash",
         "title": "Copy Commit Hash",
         "category": "GitOrbit",
@@ -881,6 +901,31 @@
           "group": "inline@2"
         },
         {
+          "command": "gitorbit.worktree.open",
+          "when": "view == gitorbit.views.changes && viewItem == worktreeHeader",
+          "group": "inline@1"
+        },
+        {
+          "command": "gitorbit.worktree.remove",
+          "when": "view == gitorbit.views.changes && viewItem == worktreeHeader",
+          "group": "inline@2"
+        },
+        {
+          "command": "gitorbit.worktree.list",
+          "when": "view == gitorbit.views.changes && viewItem == worktreeHeader",
+          "group": "worktreeActions@1"
+        },
+        {
+          "command": "gitorbit.worktree.add",
+          "when": "view == gitorbit.views.changes && viewItem == worktreeHeader",
+          "group": "worktreeActions@2"
+        },
+        {
+          "command": "gitorbit.worktree.prune",
+          "when": "view == gitorbit.views.changes && viewItem == worktreeHeader",
+          "group": "worktreeActions@3"
+        },
+        {
           "command": "gitorbit.deleteBranchMenu",
           "when": "view == gitorbit.views.localBranches && viewItem == localBranchNotCurrent",
           "group": "inline@5"
@@ -1083,6 +1128,21 @@
           "command": "gitorbit.copy.date",
           "when": "(view == gitorbit.views.commits || view == gitorbit.views.graph || view == gitorbit.views.fileHistory) && viewItem == commit",
           "group": "5_copy@6"
+        },
+        {
+          "command": "gitorbit.worktree.open",
+          "when": "view == gitorbit.views.worktrees && viewItem == worktreeItem",
+          "group": "inline@1"
+        },
+        {
+          "command": "gitorbit.worktree.remove",
+          "when": "view == gitorbit.views.worktrees && viewItem == worktreeItem",
+          "group": "inline@2"
+        },
+        {
+          "command": "gitorbit.worktree.add",
+          "when": "view == gitorbit.views.worktrees && viewItem == worktreeGroup",
+          "group": "inline@1"
         }
       ],
       "editor/title": [
@@ -1171,6 +1231,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show/Hide Pull Requests."
+        },
+        "gitorbit.views.showWorktrees": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show/Hide Worktrees."
         },
         "gitorbit.gitflow.featurePrefix": {
           "type": "string",

@@ -288,4 +288,68 @@ export class WorktreeService {
 
     await this.addWorktree(targetPath, branch, shouldCreateBranch, targetRepo);
   }
+
+  public async selectWorktree(
+    repo?: GitRepository,
+    includeMain: boolean = true
+  ): Promise<WorktreeInfo | undefined> {
+    const targetRepo = repo || this.gitService.getDefaultRepository();
+    if (!targetRepo) return undefined;
+
+    const worktrees = await this.listWorktrees(targetRepo);
+
+    if (worktrees.length === 0) {
+      vscode.window.showInformationMessage('No worktrees found');
+      return undefined;
+    }
+
+    if (worktrees.length === 1 && includeMain) {
+      return worktrees[0];
+    }
+
+    const items: vscode.QuickPickItem[] = worktrees.map((wt) => ({
+      label: `$(folder) ${path.basename(wt.path)}`,
+      description: `Branch: ${wt.branch || wt.head}`,
+      detail: wt.path,
+    }));
+
+    const selected = await vscode.window.showQuickPick(items, {
+      placeHolder: 'Select worktree',
+      title: 'Select Worktree',
+    });
+
+    if (selected) {
+      return worktrees[items.indexOf(selected)];
+    }
+
+    return undefined;
+  }
+
+  public async promptForWorktree(repo?: GitRepository): Promise<WorktreeInfo | undefined> {
+    const targetRepo = repo || this.gitService.getDefaultRepository();
+    if (!targetRepo) return undefined;
+
+    const worktrees = await this.listWorktrees(targetRepo);
+
+    if (worktrees.length <= 1) {
+      return worktrees[0];
+    }
+
+    const items: vscode.QuickPickItem[] = worktrees.map((wt) => ({
+      label: `$(folder) ${path.basename(wt.path)}`,
+      description: `Branch: ${wt.branch || wt.head}`,
+      detail: wt.path,
+    }));
+
+    const selected = await vscode.window.showQuickPick(items, {
+      placeHolder: 'Select worktree to continue',
+      title: 'Multiple Worktrees Detected',
+    });
+
+    if (selected) {
+      return worktrees[items.indexOf(selected)];
+    }
+
+    return undefined;
+  }
 }

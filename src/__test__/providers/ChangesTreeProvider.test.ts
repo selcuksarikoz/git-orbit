@@ -10,7 +10,10 @@ vi.mock('vscode', () => ({
     fire = vi.fn();
   },
   TreeItem: class {
-    constructor(public label: string, public collapsibleState: any) {}
+    constructor(
+      public label: string,
+      public collapsibleState: any
+    ) {}
   },
   TreeItemCollapsibleState: {
     None: 0,
@@ -18,14 +21,20 @@ vi.mock('vscode', () => ({
     Expanded: 2,
   },
   ThemeIcon: class {
-    constructor(public id: string, public color: any) {}
+    constructor(
+      public id: string,
+      public color: any
+    ) {}
   },
   ThemeColor: class {
     constructor(public id: string) {}
   },
   Uri: {
     file: (p: string) => ({ fsPath: p, scheme: 'file' }),
-    joinPath: (uri: any, ...parts: string[]) => ({ fsPath: uri.fsPath + '/' + parts.join('/'), scheme: 'file' }),
+    joinPath: (uri: any, ...parts: string[]) => ({
+      fsPath: uri.fsPath + '/' + parts.join('/'),
+      scheme: 'file',
+    }),
   },
   workspace: {
     createFileSystemWatcher: vi.fn().mockReturnValue({
@@ -51,8 +60,18 @@ vi.mock('../../services/GitService', () => ({
       getRepositories: vi.fn().mockReturnValue([{ rootDir: '/test/repo' }]),
       getSelectedRepository: vi.fn().mockReturnValue({ rootDir: '/test/repo' }),
       getAllStatus: vi.fn().mockResolvedValue([
-        { path: 'file1.ts', stagedStatus: 'M', workingTreeStatus: ' ', repo: { rootDir: '/test/repo' } },
-        { path: 'file2.ts', stagedStatus: ' ', workingTreeStatus: 'M', repo: { rootDir: '/test/repo' } },
+        {
+          path: 'file1.ts',
+          stagedStatus: 'M',
+          workingTreeStatus: ' ',
+          repo: { rootDir: '/test/repo' },
+        },
+        {
+          path: 'file2.ts',
+          stagedStatus: ' ',
+          workingTreeStatus: 'M',
+          repo: { rootDir: '/test/repo' },
+        },
       ]),
     }),
   },
@@ -67,6 +86,15 @@ vi.mock('../../services/BisectService', () => ({
     }),
   },
   BisectState: { Idle: 0, Active: 1, Finished: 2 },
+}));
+
+// Mock WorktreeService
+vi.mock('../../services/WorktreeService', () => ({
+  WorktreeService: {
+    getInstance: vi.fn().mockReturnValue({
+      promptForWorktree: vi.fn().mockResolvedValue(undefined),
+    }),
+  },
 }));
 
 describe('ChangesTreeProvider', () => {

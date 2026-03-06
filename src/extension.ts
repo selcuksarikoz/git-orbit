@@ -7,6 +7,7 @@ import { GitflowService } from './services/GitflowService';
 import { GitService } from './services/GitService';
 import { IconService } from './services/IconService';
 import { WorktreeService } from './services/WorktreeService';
+import { WorktreeTreeProvider } from './providers/WorktreeTreeProvider';
 import { PullRequestTreeProvider } from './providers/PullRequestTreeProvider';
 import { WelcomeView } from './webviews/WelcomeView';
 import { FeedbackView } from './webviews/FeedbackView';
@@ -146,6 +147,7 @@ export function activate(context: vscode.ExtensionContext) {
   const stashProvider = new StashTreeProvider();
   const tagProvider = new TagTreeProvider();
   const contributorProvider = new ContributorTreeProvider();
+  const worktreeProvider = new WorktreeTreeProvider();
 
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider('gitorbit.views.localBranches', localBranchProvider),
@@ -155,7 +157,8 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerTreeDataProvider('gitorbit.views.fileHistory', fileHistoryProvider),
     vscode.window.registerTreeDataProvider('gitorbit.views.stashes', stashProvider),
     vscode.window.registerTreeDataProvider('gitorbit.views.tags', tagProvider),
-    vscode.window.registerTreeDataProvider('gitorbit.views.contributors', contributorProvider)
+    vscode.window.registerTreeDataProvider('gitorbit.views.contributors', contributorProvider),
+    vscode.window.registerTreeDataProvider('gitorbit.views.worktrees', worktreeProvider)
   );
 
   // Move refreshAll up so it's available for providers
@@ -169,6 +172,7 @@ export function activate(context: vscode.ExtensionContext) {
     stashProvider.refresh();
     tagProvider.refresh();
     contributorProvider.refresh();
+    worktreeProvider.refresh();
     if (changesProvider) {
       changesProvider.refresh();
     }
@@ -558,7 +562,8 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.startRemoteBranch', (node?: any) => {
       const defaultSource = node ? node.branchName || node.label : undefined;
-      GitflowService.getInstance().showRemoteMenu(defaultSource);
+      const repo = node ? node.repo : undefined;
+      GitflowService.getInstance().showRemoteMenu(defaultSource, repo);
     })
   );
 
@@ -595,25 +600,28 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.startBranch', (node?: any) => {
       const defaultSource = node ? node.branchName || node.label : undefined;
-      GitflowService.getInstance().startBranch(defaultSource);
+      const repo = node ? node.repo : undefined;
+      GitflowService.getInstance().startBranch(defaultSource, repo);
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitorbit.gitflow.menu', () => {
-      GitflowService.getInstance().showMenu();
+    vscode.commands.registerCommand('gitorbit.gitflow.menu', (node?: any) => {
+      GitflowService.getInstance().showMenu(node);
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitorbit.gitflow.startFeature', () => {
-      GitflowService.getInstance().startFeature();
+    vscode.commands.registerCommand('gitorbit.gitflow.startFeature', (node?: any) => {
+      const repo = node ? node.repo : undefined;
+      GitflowService.getInstance().startFeature(repo);
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitorbit.gitflow.startHotfix', () => {
-      GitflowService.getInstance().startHotfix();
+    vscode.commands.registerCommand('gitorbit.gitflow.startHotfix', (node?: any) => {
+      const repo = node ? node.repo : undefined;
+      GitflowService.getInstance().startHotfix(repo);
     })
   );
 
@@ -633,14 +641,27 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitorbit.worktree.remove', async () => {
-      const worktrees = await worktreeService.listWorktrees();
-      if (worktrees.length === 0) {
-        vscode.window.showInformationMessage('No worktrees found');
+    vscode.commands.registerCommand('gitorbit.worktree.remove', async (item?: any) => {
+      let worktreesToRemove: { path: string; branch?: string; head?: string }[] = [];
+
+      if (item && item.repo && item.repo.isWorktree) {
+        worktreesToRemove = [{ path: item.repo.rootDir, branch: item.repo.branch }];
+      } else {
+        const worktrees = await worktreeService.listWorktrees();
+        if (worktrees.length === 0) {
+          vscode.window.showInformationMessage('No worktrees found');
+          return;
+        }
+        worktreesToRemove = worktrees;
+      }
+
+      if (worktreesToRemove.length === 1) {
+        await worktreeService.removeWorktree(worktreesToRemove[0].path);
+        refreshAll();
         return;
       }
 
-      const items = worktrees.map((wt) => ({
+      const items = worktreesToRemove.map((wt) => ({
         label: `$(folder) ${wt.path.split(/[/\\]/).pop()}`,
         description: `Branch: ${wt.branch || wt.head}`,
         worktree: wt,
@@ -661,6 +682,76 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('gitorbit.worktree.prune', async () => {
       await worktreeService.pruneWorktrees();
       refreshAll();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.worktree.open', async (item: any) => {
+      if (item && item.repo && item.repo.isWorktree) {
+        await worktreeService.openWorktree(item.repo.rootDir);
+      } else {
+        const repos = gitService.getWorktrees();
+        if (repos.length === 0) {
+          vscode.window.showInformationMessage('No worktrees found');
+          return;
+        }
+
+        const items = repos.map((wt) => ({
+          label: `$(folder) ${wt.rootDir.split(/[/\\]/).pop()}`,
+          description: `Branch: ${wt.branch || ''}`,
+          repo: wt,
+        }));
+
+        const selected = await vscode.window.showQuickPick(items, {
+          placeHolder: 'Select worktree to open',
+        });
+
+        if (selected && selected.repo) {
+          await worktreeService.openWorktree(selected.repo.rootDir);
+        }
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.worktree.switch', async (item: any) => {
+      let worktreePath: string | undefined;
+
+      if (item && item.repo && item.repo.isWorktree) {
+        worktreePath = item.repo.rootDir;
+      } else if (item && item.worktreeInfo && item.worktreeInfo.path) {
+        worktreePath = item.worktreeInfo.path;
+      }
+
+      if (!worktreePath) {
+        const repos = gitService.getWorktrees();
+        if (repos.length === 0) {
+          vscode.window.showInformationMessage('No worktrees found');
+          return;
+        }
+
+        const items = repos.map((wt) => ({
+          label: `$(folder) ${wt.rootDir.split(/[/\\]/).pop()}`,
+          description: `Branch: ${wt.branch || ''}`,
+          repo: wt,
+        }));
+
+        const selected = await vscode.window.showQuickPick(items, {
+          placeHolder: 'Select worktree to switch',
+        });
+
+        if (selected && selected.repo) {
+          worktreePath = selected.repo.rootDir;
+        }
+      }
+
+      if (worktreePath) {
+        gitService.setSelectedRepository(gitService.getRepositoryByRoot(worktreePath));
+        vscode.window.showInformationMessage(
+          `Switched to worktree: ${worktreePath.split(/[/\\]/).pop()}`
+        );
+        refreshAll();
+      }
     })
   );
 
@@ -1115,15 +1206,14 @@ export function activate(context: vscode.ExtensionContext) {
 
     if (picked?.repo) {
       gitService.setSelectedRepository(picked.repo);
-      vscode.window.showInformationMessage(`Switched to: ${picked.label.replace(/^\$\(.*\)\s/, '')}`);
+      vscode.window.showInformationMessage(
+        `Switched to: ${picked.label.replace(/^\$\(.*\)\s/, '')}`
+      );
     }
   };
 
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.switchRepository', showRepositorySwitcher)
-  );
-  context.subscriptions.push(
-    vscode.commands.registerCommand('gitorbit.worktree.switch', showRepositorySwitcher)
   );
 
   // Status bar item to show active repository

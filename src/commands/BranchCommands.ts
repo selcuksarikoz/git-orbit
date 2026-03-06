@@ -325,6 +325,10 @@ export class BranchCommands {
    * @param item - The tree item representing the branch.
    */
   private async deleteBranchMenu(item: any) {
+    if (!item) {
+      vscode.window.showErrorMessage('No branch selected for deletion.');
+      return;
+    }
     const branchName = item.branchName || item.label;
     const repo = item.repo;
 

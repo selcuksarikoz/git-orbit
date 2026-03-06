@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { GitService } from './GitService';
+import { GitService, GitRepository } from './GitService';
 import { ConfigService } from './ConfigService';
 
 /**
@@ -16,12 +16,47 @@ export class GitflowService {
     this.configService = ConfigService.getInstance();
   }
 
+  private async selectRepository(providedRepo?: GitRepository): Promise<GitRepository | undefined> {
+    if (providedRepo) return providedRepo;
+
+    const selectedRepo = this.gitService.getSelectedRepository();
+    if (selectedRepo) return selectedRepo;
+
+    const repos = this.gitService.getRepositories();
+
+    if (repos.length === 0) {
+      vscode.window.showErrorMessage('No repositories found.');
+      return undefined;
+    }
+
+    if (repos.length === 1) {
+      return repos[0];
+    }
+
+    const repoOptions = repos.map((r) => ({
+      label: r.rootDir.split(/[/\\]/).pop() || r.rootDir,
+      description: r.rootDir,
+      repo: r,
+    }));
+
+    const selected = await vscode.window.showQuickPick(repoOptions, {
+      placeHolder: 'Select repository',
+      title: 'Select Repository',
+    });
+
+    return selected?.repo;
+  }
+
   /**
    * Prompts user for a source branch and new branch name, then creates and pushes it.
    * @param defaultSource - Optional default source branch to pre-select.
+   * @param repo - Optional repository to use.
    */
-  public async startRemoteBranch(defaultSource?: string) {
-    const branches = await this.gitService.getBranches();
+  public async startRemoteBranch(defaultSource?: string, repo?: GitRepository) {
+    const targetRepo = await this.selectRepository(repo);
+    if (!targetRepo) return;
+
+    const branches = await this.gitService.getBranches(targetRepo);
 
     let source = defaultSource;
     if (!source) {
@@ -44,7 +79,7 @@ export class GitflowService {
 
     if (name) {
       // Use atomic push to create on remote without local checkout
-      await this.createRemoteOnly(name, cleanSource);
+      await this.createRemoteOnly(name, cleanSource, targetRepo);
     }
   }
 
@@ -52,7 +87,9 @@ export class GitflowService {
    * Atomic remote branch creation. Creates branch on origin from source
    * without creating a local branch or checking it out.
    */
-  private async createRemoteOnly(branchName: string, source: string) {
+  private async createRemoteOnly(branchName: string, source: string, repo?: GitRepository) {
+    if (!repo) return;
+
     try {
       await vscode.window.withProgress(
         {
@@ -63,8 +100,8 @@ export class GitflowService {
         async () => {
           // git push origin <source>:refs/heads/<new_branch>
           // Using full refname for destination to prevent ambiguity
-          await this.gitService.push('origin', `${source}:refs/heads/${branchName}`);
-          await this.gitService.fetch('origin');
+          await this.gitService.push('origin', `${source}:refs/heads/${branchName}`, false, repo);
+          await this.gitService.fetch('origin', repo);
           vscode.window.showInformationMessage(
             `Remote branch '${branchName}' created successfully.`
           );
@@ -79,9 +116,13 @@ export class GitflowService {
   /**
    * Prompts user for source and name, then creates a local branch.
    * @param defaultSource - Optional default source branch to pre-select.
+   * @param repo - Optional repository to use.
    */
-  public async startBranch(defaultSource?: string) {
-    const branches = await this.gitService.getBranches();
+  public async startBranch(defaultSource?: string, repo?: GitRepository) {
+    const targetRepo = await this.selectRepository(repo);
+    if (!targetRepo) return;
+
+    const branches = await this.gitService.getBranches(targetRepo);
 
     let source = defaultSource;
     if (!source) {
@@ -98,7 +139,7 @@ export class GitflowService {
     });
 
     if (name) {
-      await this.createAndCheckout(name, source);
+      await this.createAndCheckout(name, source, targetRepo);
     }
   }
 
@@ -114,8 +155,10 @@ export class GitflowService {
 
   /**
    * Shows a QuickPick menu with available branch creation options.
+   * @param node - Optional tree node that triggered the command.
    */
-  public async showMenu() {
+  public async showMenu(node?: any) {
+    const repo = node?.repo;
     const items: vscode.QuickPickItem[] = [
       {
         label: '$(plus) Create Branch',
@@ -144,24 +187,27 @@ export class GitflowService {
     });
 
     if (selected) {
+      const source = node?.branchName || node?.label;
       if (selected.label.includes('Feature')) {
-        await this.startGitflowBranch('feature');
+        await this.startGitflowBranch('feature', source, false, repo);
       } else if (selected.label.includes('Hotfix')) {
-        await this.startGitflowBranch('hotfix');
+        await this.startGitflowBranch('hotfix', source, false, repo);
       } else if (selected.label.includes('Bugfix')) {
-        await this.startGitflowBranch('bugfix');
+        await this.startGitflowBranch('bugfix', source, false, repo);
       } else if (selected.label.includes('Release')) {
-        await this.startGitflowBranch('release');
+        await this.startGitflowBranch('release', source, false, repo);
       } else if (selected.label.includes('Create Branch')) {
-        await this.startBranch();
+        await this.startBranch(source, repo);
       }
     }
   }
 
   /**
    * Shows a QuickPick menu for remote branch creation options.
+   * @param defaultSource - Optional default source branch.
+   * @param repo - Optional repository.
    */
-  public async showRemoteMenu(defaultSource?: string) {
+  public async showRemoteMenu(defaultSource?: string, repo?: GitRepository) {
     const items: vscode.QuickPickItem[] = [
       {
         label: '$(cloud-upload) Create Remote Branch',
@@ -191,15 +237,15 @@ export class GitflowService {
 
     if (selected) {
       if (selected.label.includes('Feature')) {
-        await this.startGitflowBranch('feature', defaultSource, true);
+        await this.startGitflowBranch('feature', defaultSource, true, repo);
       } else if (selected.label.includes('Hotfix')) {
-        await this.startGitflowBranch('hotfix', defaultSource, true);
+        await this.startGitflowBranch('hotfix', defaultSource, true, repo);
       } else if (selected.label.includes('Bugfix')) {
-        await this.startGitflowBranch('bugfix', defaultSource, true);
+        await this.startGitflowBranch('bugfix', defaultSource, true, repo);
       } else if (selected.label.includes('Release')) {
-        await this.startGitflowBranch('release', defaultSource, true);
+        await this.startGitflowBranch('release', defaultSource, true, repo);
       } else if (selected.label.includes('Create Remote Branch')) {
-        await this.startRemoteBranch(defaultSource);
+        await this.startRemoteBranch(defaultSource, repo);
       }
     }
   }
@@ -210,12 +256,17 @@ export class GitflowService {
    * @param type - Gitflow branch type.
    * @param defaultSource - Optional default source branch.
    * @param remoteOnly - Whether to only create on remote.
+   * @param repo - Optional repository to use.
    */
   public async startGitflowBranch(
     type: 'feature' | 'hotfix' | 'bugfix' | 'release',
     defaultSource?: string,
-    remoteOnly: boolean = false
+    remoteOnly: boolean = false,
+    repo?: GitRepository
   ) {
+    const targetRepo = await this.selectRepository(repo);
+    if (!targetRepo) return;
+
     let prefix = '';
     let baseBranch = '';
     let placeholder = '';
@@ -246,7 +297,7 @@ export class GitflowService {
     let source = defaultSource || baseBranch;
 
     // If base branch isn't set or doesn't exist, ask the user
-    const branches = await this.gitService.getBranches();
+    const branches = await this.gitService.getBranches(targetRepo);
     if (!source || !branches.all.includes(source)) {
       source =
         (await vscode.window.showQuickPick(branches.all, {
@@ -273,9 +324,9 @@ export class GitflowService {
     if (name) {
       const branchName = `${prefix}${name}`;
       if (remoteOnly) {
-        await this.createRemoteOnly(branchName, cleanSource);
+        await this.createRemoteOnly(branchName, cleanSource, targetRepo);
       } else {
-        await this.createAndCheckout(branchName, source);
+        await this.createAndCheckout(branchName, source, targetRepo);
       }
     }
   }
@@ -284,26 +335,27 @@ export class GitflowService {
    * Starts a new feature branch using the configured feature prefix.
    * @deprecated Use startGitflowBranch('feature')
    */
-  public async startFeature() {
-    await this.startGitflowBranch('feature');
+  public async startFeature(repo?: GitRepository) {
+    await this.startGitflowBranch('feature', undefined, false, repo);
   }
 
   /**
    * Starts a new hotfix branch using the configured hotfix prefix.
    * @deprecated Use startGitflowBranch('hotfix')
    */
-  public async startHotfix() {
-    await this.startGitflowBranch('hotfix');
+  public async startHotfix(repo?: GitRepository) {
+    await this.startGitflowBranch('hotfix', undefined, false, repo);
   }
 
   /**
    * Internal helper to create and checkout a branch.
    * @param branchName - Name of branch to create.
    * @param source - Source branch.
+   * @param repo - Repository to use.
    */
-  private async createAndCheckout(branchName: string, source?: string) {
+  private async createAndCheckout(branchName: string, source?: string, repo?: GitRepository) {
     try {
-      await this.gitService.createBranch(branchName, source);
+      await this.gitService.createBranch(branchName, source, repo);
       vscode.window.showInformationMessage(`Started branch: ${branchName}`);
       vscode.commands.executeCommand('gitorbit.refreshViews');
     } catch (error: any) {

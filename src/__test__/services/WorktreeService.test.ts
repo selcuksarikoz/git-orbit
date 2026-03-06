@@ -3,7 +3,6 @@ import * as vscode from 'vscode';
 import { WorktreeService } from '../../services/WorktreeService';
 import { GitService } from '../../services/GitService';
 
-// Mock vscode
 vi.mock('vscode', () => ({
   window: {
     showInformationMessage: vi.fn(),
@@ -24,7 +23,6 @@ vi.mock('vscode', () => ({
   },
 }));
 
-// Mock GitService
 vi.mock('../../services/GitService', () => ({
   GitService: {
     getInstance: vi.fn().mockReturnValue({
@@ -59,7 +57,8 @@ describe('WorktreeService', () => {
 
   it('should list worktrees', async () => {
     mockExecutor.exec.mockResolvedValue({
-      stdout: 'worktree /test/repo\nHEAD abcdef1\nbranch refs/heads/main\n\nworktree /test/wt1\nHEAD 1234567\nbranch refs/heads/feature1\n\n',
+      stdout:
+        'worktree /test/repo\nHEAD abcdef1\nbranch refs/heads/main\n\nworktree /test/wt1\nHEAD 1234567\nbranch refs/heads/feature1\n\n',
       stderr: '',
       exitCode: 0,
     });
@@ -78,8 +77,16 @@ describe('WorktreeService', () => {
     const success = await worktreeService.addWorktree('/test/wt2', 'feature2', true);
 
     expect(success).toBe(true);
-    expect(mockExecutor.exec).toHaveBeenCalledWith(['worktree', 'add', '-b', 'feature2', '/test/wt2']);
-    expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(expect.stringContaining('Worktree created at'));
+    expect(mockExecutor.exec).toHaveBeenCalledWith([
+      'worktree',
+      'add',
+      '-b',
+      'feature2',
+      '/test/wt2',
+    ]);
+    expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+      expect.stringContaining('Worktree created at')
+    );
   });
 
   it('should remove a worktree', async () => {
@@ -90,7 +97,9 @@ describe('WorktreeService', () => {
 
     expect(success).toBe(true);
     expect(mockExecutor.exec).toHaveBeenCalledWith(['worktree', 'remove', '/test/wt1']);
-    expect(vscode.window.showInformationMessage).toHaveBeenCalledWith('Worktree removed successfully');
+    expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+      'Worktree removed successfully'
+    );
   });
 
   it('should prune worktrees', async () => {
@@ -108,6 +117,55 @@ describe('WorktreeService', () => {
     const success = await worktreeService.lockWorktree('/test/wt1', 'test reason');
 
     expect(success).toBe(true);
-    expect(mockExecutor.exec).toHaveBeenCalledWith(['worktree', 'lock', '/test/wt1', '-m', 'test reason']);
+    expect(mockExecutor.exec).toHaveBeenCalledWith([
+      'worktree',
+      'lock',
+      '/test/wt1',
+      '-m',
+      'test reason',
+    ]);
+  });
+
+  it('should unlock a worktree', async () => {
+    mockExecutor.exec.mockResolvedValue({ stdout: '', stderr: '', exitCode: 0 });
+
+    const success = await worktreeService.unlockWorktree('/test/wt1');
+
+    expect(success).toBe(true);
+    expect(mockExecutor.exec).toHaveBeenCalledWith(['worktree', 'unlock', '/test/wt1']);
+  });
+
+  it('should show worktree menu', async () => {
+    mockExecutor.exec.mockResolvedValue({
+      stdout:
+        'worktree /test/repo\nHEAD abcdef1\nbranch refs/heads/main\n\nworktree /test/wt1\nHEAD 1234567\nbranch refs/heads/feature1\n\n',
+      stderr: '',
+      exitCode: 0,
+    });
+
+    vi.mocked(vscode.window.showQuickPick).mockResolvedValue(undefined);
+
+    await worktreeService.showWorktreeMenu();
+
+    expect(vscode.window.showQuickPick).toHaveBeenCalled();
+  });
+
+  it('should show message when no worktrees in menu', async () => {
+    mockExecutor.exec.mockResolvedValue({ stdout: '', stderr: '', exitCode: 0 });
+
+    await worktreeService.showWorktreeMenu();
+
+    expect(vscode.window.showInformationMessage).toHaveBeenCalledWith('No worktrees found');
+  });
+
+  it('should open worktree folder', async () => {
+    vi.mocked(vscode.commands.executeCommand).mockResolvedValue(undefined);
+
+    await worktreeService.openWorktree('/test/wt1');
+
+    expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+      'vscode.openFolder',
+      expect.any(Object)
+    );
   });
 });
