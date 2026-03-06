@@ -26,6 +26,16 @@
 - Prioritize performance. Cache expensive calls (e.g., git commands) using `@memoize`.
 - Debounce file system watchers and UI updates.
 
+## Testing
+
+- **Test Structure**: Every source file must have a corresponding test file in `src/__test__/` maintaining the same directory structure.
+  - `src/services/GitService.ts` → `src/__test__/services/GitService.test.ts`
+  - `src/providers/TreeProvider.ts` → `src/__test__/providers/TreeProvider.test.ts`
+  - `src/panels/Panel.ts` → `src/__test__/panels/Panel.test.ts`
+  - `src/utils/helper.ts` → `src/__test__/utils/helper.test.ts`
+- **Test Coverage**: When modifying any source file, always check if a corresponding test file exists. If not, create one following the existing test patterns in that directory.
+- **Run Tests**: After any code changes, always run `npx vitest run` to verify all tests pass.
+
 ## AI Response Guidelines
 
 - **Build**: Only run build once if user explicitly requests it. Do not auto-run builds after every change.

@@ -19,6 +19,7 @@
   ],
   "keywords": [
     "git",
+    "worktree",
     "multi-repo",
     "multi-workspace",
     "monorepo",
@@ -31,9 +32,6 @@
     "scm",
     "llm",
     "smart-commit",
-    "openai",
-    "gemini",
-    "anthropic",
     "code-review",
     "annotation",
     "bisect",
@@ -55,8 +53,9 @@
     "compile": "node ./esbuild.js",
     "watch": "node ./esbuild.js --watch",
     "bundle": "node ./esbuild.js --production",
-    "package": "rm -rf ./dist && vsce package",
+    "package": "rm -rf ./dist && npm run test:unit && vsce package",
     "test": "vscode-test",
+    "test:unit": "vitest run",
     "prettier": "prettier --write . --cache"
   },
   "contributes": {
@@ -1247,6 +1246,7 @@
     "esbuild": "^0.27.3",
     "eslint": "^8.57.1",
     "prettier": "^3.8.1",
-    "typescript": "^6.0.0-dev.20260304"
+    "typescript": "^6.0.0-dev.20260304",
+    "vitest": "^3.0.0"
   }
 }
