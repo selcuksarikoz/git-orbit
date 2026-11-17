@@ -758,6 +758,18 @@
         "icon": "$(git-branch)"
       },
       {
+        "command": "gitorbit.gitflow.startBugfix",
+        "title": "Start Bugfix...",
+        "category": "GitOrbit",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "gitorbit.gitflow.startRelease",
+        "title": "Start Release...",
+        "category": "GitOrbit",
+        "icon": "$(git-branch)"
+      },
+      {
         "command": "gitorbit.bisect.skip",
         "title": "Bisect: Skip Commit",
         "category": "GitOrbit"
@@ -999,6 +1011,16 @@
           "command": "gitorbit.gitflow.startHotfix",
           "when": "view == gitorbit.views.localBranches",
           "group": "branchActions@4"
+        },
+        {
+          "command": "gitorbit.gitflow.startBugfix",
+          "when": "view == gitorbit.views.localBranches",
+          "group": "branchActions@5"
+        },
+        {
+          "command": "gitorbit.gitflow.startRelease",
+          "when": "view == gitorbit.views.localBranches",
+          "group": "branchActions@6"
         },
         {
           "command": "gitorbit.contributors.refresh",

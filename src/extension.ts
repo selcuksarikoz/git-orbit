@@ -697,6 +697,20 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.gitflow.startBugfix', (node?: any) => {
+      const repo = node ? node.repo : undefined;
+      GitflowService.getInstance().startBugfix(repo);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.gitflow.startRelease', (node?: any) => {
+      const repo = node ? node.repo : undefined;
+      GitflowService.getInstance().startRelease(repo);
+    })
+  );
+
   // Worktree Commands
   const worktreeService = WorktreeService.getInstance();
 

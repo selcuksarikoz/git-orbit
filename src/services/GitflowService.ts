@@ -294,20 +294,28 @@ export class GitflowService {
         break;
     }
 
-    let source = defaultSource || baseBranch;
-
-    // If base branch isn't set or doesn't exist, ask the user
     const branches = await this.gitService.getBranches(targetRepo);
-    if (!source || !branches.all.includes(source)) {
-      source =
-        (await vscode.window.showQuickPick(branches.all, {
-          placeHolder: `Select source branch for ${
-            remoteOnly ? 'remote ' : ''
-          }${type} (Source: '${source}' not found)`,
-        })) || '';
+    if (branches.all.length === 0) {
+      vscode.window.showErrorMessage('No branches found to branch from.');
+      return;
     }
 
-    if (!source) return;
+    // Git Flow always lets the user confirm the source branch; the configured
+    // base (or the tree item) is pre-selected but can be changed.
+    const preferred = defaultSource || baseBranch;
+    const ordered = [
+      ...branches.all.filter((branch) => branch === preferred),
+      ...branches.all.filter((branch) => branch !== preferred),
+    ];
+    const items = ordered.map((branch) => ({
+      label: branch,
+      description: branch === preferred ? `default for ${type}` : undefined,
+    }));
+    const selected = await vscode.window.showQuickPick(items, {
+      placeHolder: `Select source branch for ${remoteOnly ? 'remote ' : ''}${type}`,
+    });
+    if (!selected) return;
+    const source = selected.label;
 
     // Clean source for remote creation
     const cleanSource = source.startsWith('remotes/')
@@ -345,6 +353,14 @@ export class GitflowService {
    */
   public async startHotfix(repo?: GitRepository) {
     await this.startGitflowBranch('hotfix', undefined, false, repo);
+  }
+
+  public async startBugfix(repo?: GitRepository) {
+    await this.startGitflowBranch('bugfix', undefined, false, repo);
+  }
+
+  public async startRelease(repo?: GitRepository) {
+    await this.startGitflowBranch('release', undefined, false, repo);
   }
 
   /**

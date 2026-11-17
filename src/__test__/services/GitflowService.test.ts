@@ -106,14 +106,60 @@ describe('GitflowService', () => {
     );
   });
 
-  it('should start a gitflow branch (feature)', async () => {
+  it('should start a gitflow branch (feature) from the selected base', async () => {
+    vi.mocked(vscode.window.showQuickPick).mockResolvedValue({ label: 'develop' } as any);
     vi.mocked(vscode.window.showInputBox).mockResolvedValue('awesome-feature' as any);
 
     await gitflowService.startGitflowBranch('feature');
 
+    expect(vscode.window.showQuickPick).toHaveBeenCalledWith(
+      [expect.objectContaining({ label: 'develop' }), expect.anything()],
+      expect.objectContaining({ placeHolder: 'Select source branch for feature' })
+    );
     expect(mockGitService.createBranch).toHaveBeenCalledWith('feature/awesome-feature', 'develop', {
       rootDir: '/test/repo',
     });
+  });
+
+  it('should start a bugfix branch from the configured base', async () => {
+    vi.mocked(vscode.window.showQuickPick).mockResolvedValue({ label: 'develop' } as any);
+    vi.mocked(vscode.window.showInputBox).mockResolvedValue('minor-fix' as any);
+
+    await gitflowService.startBugfix();
+
+    expect(mockGitService.createBranch).toHaveBeenCalledWith('bugfix/minor-fix', 'develop', {
+      rootDir: '/test/repo',
+    });
+  });
+
+  it('should start a release branch from the configured base', async () => {
+    vi.mocked(vscode.window.showQuickPick).mockResolvedValue({ label: 'main' } as any);
+    vi.mocked(vscode.window.showInputBox).mockResolvedValue('v1.0.0' as any);
+
+    await gitflowService.startRelease();
+
+    expect(mockGitService.createBranch).toHaveBeenCalledWith('release/v1.0.0', 'main', {
+      rootDir: '/test/repo',
+    });
+  });
+
+  it('should start a hotfix branch from the configured base', async () => {
+    vi.mocked(vscode.window.showQuickPick).mockResolvedValue({ label: 'main' } as any);
+    vi.mocked(vscode.window.showInputBox).mockResolvedValue('urgent-fix' as any);
+
+    await gitflowService.startHotfix();
+
+    expect(mockGitService.createBranch).toHaveBeenCalledWith('hotfix/urgent-fix', 'main', {
+      rootDir: '/test/repo',
+    });
+  });
+
+  it('should abort when no source branch is selected', async () => {
+    vi.mocked(vscode.window.showQuickPick).mockResolvedValue(undefined);
+
+    await gitflowService.startGitflowBranch('feature');
+
+    expect(mockGitService.createBranch).not.toHaveBeenCalled();
   });
 
   it('should start a remote branch', async () => {
