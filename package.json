@@ -11,7 +11,7 @@
   },
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
-    "vscode": "^1.107.0"
+    "vscode": "^1.146.0"
   },
   "categories": [
     "SCM Providers",
@@ -49,11 +49,11 @@
   ],
   "main": "./dist/extension.js",
   "scripts": {
-    "vscode:prepublish": "npm run bundle",
+    "vscode:prepublish": "bun run bundle",
     "compile": "node ./esbuild.js",
     "watch": "node ./esbuild.js --watch",
     "bundle": "node ./esbuild.js --production",
-    "package": "rm -rf ./dist && npm run test:unit && vsce package",
+    "package": "rm -rf ./dist && bun run test:unit && vsce package",
     "test": "vscode-test",
     "test:unit": "vitest run",
     "format": "oxfmt --write .",
@@ -557,6 +557,12 @@
         "category": "GitOrbit"
       },
       {
+        "command": "gitorbit.ai.setModel",
+        "title": "Set OpenRouter Model...",
+        "category": "GitOrbit",
+        "icon": "$(symbol-string)"
+      },
+      {
         "command": "gitorbit.ai.selectProvider",
         "title": "Select AI Provider...",
         "category": "GitOrbit",
@@ -853,6 +859,11 @@
           "command": "gitorbit.ai.clearApiKey",
           "when": "view == gitorbit.views.changes",
           "group": "gitorbit_4_ai@3"
+        },
+        {
+          "command": "gitorbit.ai.setModel",
+          "when": "view == gitorbit.views.changes",
+          "group": "gitorbit_4_ai@4"
         },
         {
           "command": "gitorbit.openSettings",
@@ -1504,7 +1515,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.3.3",
-    "@types/vscode": "^1.107.0",
+    "@types/vscode": "^1.146.0",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.7.1",
     "esbuild": "^0.27.3",

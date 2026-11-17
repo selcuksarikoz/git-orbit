@@ -96,8 +96,29 @@ export function activate(context: vscode.ExtensionContext) {
       try {
         await aiProviderRegistry.clearApiKey('openrouter');
         vscode.window.showInformationMessage('OpenRouter API key cleared.');
-      } catch (error: any) {
-        vscode.window.showErrorMessage(`Failed to clear API key: ${error.message}`);
+      } catch {
+        vscode.window.showErrorMessage('Failed to clear API key.');
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.ai.setModel', async () => {
+      const config = vscode.workspace.getConfiguration('gitorbit.ai.openrouter');
+      const current = config.get<string>('model') || 'openai/gpt-4o-mini';
+      const model = await vscode.window.showInputBox({
+        prompt: 'OpenRouter model id (e.g. openai/gpt-4o-mini)',
+        value: current,
+        ignoreFocusOut: true,
+      });
+      const trimmed = model?.trim();
+      if (!trimmed || trimmed === current) return;
+
+      try {
+        await config.update('model', trimmed, vscode.ConfigurationTarget.Global);
+        vscode.window.showInformationMessage(`OpenRouter model set to ${trimmed}.`);
+      } catch {
+        vscode.window.showErrorMessage('Failed to save OpenRouter model.');
       }
     })
   );
@@ -337,7 +358,9 @@ export function activate(context: vscode.ExtensionContext) {
             'current-changes',
             'Workspace Changes',
             combinedDiff,
-            'Please check these changes for any code smells, potential bugs, or improvements. Provide a detailed analysis.'
+            'Review this diff for code smells, potential bugs and security issues. ' +
+              'For each finding give the file/line, severity (high/medium/low), why it matters, ' +
+              'and a concrete fix. If you find nothing, say so explicitly.'
           );
         }
       );

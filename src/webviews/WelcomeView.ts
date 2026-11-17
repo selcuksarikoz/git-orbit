@@ -40,6 +40,9 @@ export class WelcomeView {
           case 'setApiKey':
             vscode.commands.executeCommand('gitorbit.ai.setApiKey');
             break;
+          case 'setModel':
+            vscode.commands.executeCommand('gitorbit.ai.setModel');
+            break;
           case 'selectProvider':
             vscode.commands.executeCommand('gitorbit.ai.selectProvider');
             break;
@@ -288,6 +291,7 @@ export class WelcomeView {
             </div>
             <div class="ai-actions">
                 <button class="btn btn-primary btn-sm" onclick="setApiKey()">🔑 Set API Key</button>
+                <button class="btn btn-secondary btn-sm" onclick="setModel()">⚙️ Set Model</button>
                 <button class="btn btn-secondary btn-sm" onclick="selectProvider()">🖥️ Select Provider</button>
             </div>
         </div>
@@ -302,6 +306,7 @@ export class WelcomeView {
         const vscode = acquireVsCodeApi();
         function openSettings() { vscode.postMessage({ command: 'openSettings' }); }
         function setApiKey() { vscode.postMessage({ command: 'setApiKey' }); }
+        function setModel() { vscode.postMessage({ command: 'setModel' }); }
         function selectProvider() { vscode.postMessage({ command: 'selectProvider' }); }
         function donate() { vscode.postMessage({ command: 'donate' }); }
         function feedback() { vscode.postMessage({ command: 'feedback' }); }

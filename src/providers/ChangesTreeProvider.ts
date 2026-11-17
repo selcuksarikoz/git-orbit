@@ -929,6 +929,9 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       return;
     }
 
+    // Validate credentials before any side effects (e.g. auto-staging).
+    if (!(await aiService.validateConfig())) return;
+
     const worktree = await worktreeService.promptForWorktree(targetRepo);
 
     if (!worktree && repos.length > 1) {
@@ -965,8 +968,6 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     }
 
     // Call AI
-    if (!(await aiService.validateConfig())) return;
-
     try {
       await vscode.window.withProgress(
         {
@@ -975,13 +976,19 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
           cancellable: false,
         },
         async () => {
-          const prompt = `Generate 1-2 commit messages. Format: <type>: <desc>
-Types: feat|fix|refactor|perf|style|docs|test|chore. One per line, max 72 chars.
-
-${diff}`;
-
           const commitRecommendations = await aiService.generateCommitMessages([
-            { role: 'user', content: prompt },
+            {
+              role: 'system',
+              content:
+                'You write Conventional Commit messages. Output ONLY 1-2 candidate messages, ' +
+                'one per line, in the form "type: short description". Types: feat, fix, refactor, ' +
+                'perf, style, docs, test, chore. Use the imperative mood, keep each line under 72 ' +
+                'characters, and never add commentary, explanations, quotes or markdown.',
+            },
+            {
+              role: 'user',
+              content: `Write commit messages for this diff:\n\n${diff}`,
+            },
           ]);
 
           // Show options

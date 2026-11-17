@@ -218,6 +218,21 @@ describe('Extension Activation', () => {
     }
   });
 
+  it('should save the OpenRouter model entered by the user', async () => {
+    (vscode.window.showInputBox as any).mockResolvedValue('anthropic/claude-3.5-sonnet');
+    activate(mockContext);
+    const handler = (vscode.commands.registerCommand as any).mock.calls.find(
+      (call: any[]) => call[0] === 'gitorbit.ai.setModel'
+    )[1];
+
+    await handler();
+    expect(vscode.workspace.getConfiguration().update).toHaveBeenCalledWith(
+      'model',
+      'anthropic/claude-3.5-sonnet',
+      1
+    );
+  });
+
   it('should reject an empty API key without storing it', async () => {
     (vscode.window.showInputBox as any).mockResolvedValue('   ');
     activate(mockContext);
