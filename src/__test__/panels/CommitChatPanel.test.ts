@@ -40,7 +40,8 @@ vi.mock('../../services/AIService', () => ({
     getInstance: vi.fn().mockReturnValue({
       streamChat: vi.fn().mockResolvedValue({
         getReader: () => ({
-          read: vi.fn()
+          read: vi
+            .fn()
             .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode('Hello') })
             .mockResolvedValueOnce({ done: true }),
         }),
@@ -70,7 +71,7 @@ describe('CommitChatPanel', () => {
     const messageHandler = panel.webview.onDidReceiveMessage.mock.calls[0][0];
 
     await messageHandler({ type: 'sendMessage', text: 'How are you?' });
-    
+
     expect(AIService.getInstance().streamChat).toHaveBeenCalled();
     expect(panel.webview.postMessage).toHaveBeenCalledWith({
       type: 'receiveToken',
@@ -86,9 +87,9 @@ describe('CommitChatPanel', () => {
 
     // Simulate an active abort controller by starting a sendMessage
     const streamChatPromise = messageHandler({ type: 'sendMessage', text: 'How are you?' });
-    
+
     await messageHandler({ type: 'stopGeneration' });
-    
+
     // The abort controller should be triggered (not easily testable without exposing it, but we can check if it finishes)
     await streamChatPromise;
   });

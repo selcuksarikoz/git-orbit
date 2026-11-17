@@ -6,7 +6,6 @@ import { md5 } from '../utils/Hash';
 export class CommitChatPanel {
   public static currentPanel: CommitChatPanel | undefined;
   private readonly _panel: vscode.WebviewPanel;
-  private readonly _extensionUri: vscode.Uri;
   private _disposables: vscode.Disposable[] = [];
   private _commitHash: string;
   private _messages: Message[] = [];
@@ -14,7 +13,6 @@ export class CommitChatPanel {
 
   private constructor(
     panel: vscode.WebviewPanel,
-    extensionUri: vscode.Uri,
     commitHash: string,
     commitMessage: string,
     diff: string,
@@ -22,7 +20,6 @@ export class CommitChatPanel {
     initialPrompt?: string
   ) {
     this._panel = panel;
-    this._extensionUri = extensionUri;
     this._commitHash = commitHash;
 
     // Build context message for AI
@@ -158,7 +155,6 @@ export class CommitChatPanel {
 
     CommitChatPanel.currentPanel = new CommitChatPanel(
       panel,
-      extensionUri,
       commitHash,
       message,
       diff,
@@ -195,10 +191,6 @@ export class CommitChatPanel {
     userData: { name: string; avatarUrl: string },
     initialPrompt?: string
   ) {
-    const kuultoIcon = this._panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionUri, 'assets', 'icons', 'kuulto.png')
-    );
-
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -270,8 +262,15 @@ export class CommitChatPanel {
         }
 
         .ai-avatar {
-            background-image: url('${kuultoIcon}');
-            background-color: transparent;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(129, 140, 248, 0.25));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ai-avatar::before {
+            content: '✨';
+            font-size: 1rem;
         }
 
         .user-avatar {
@@ -510,7 +509,7 @@ export class CommitChatPanel {
 
     <div class="input-area">
         <div class="input-container d-flex align-items-end">
-            <textarea id="messageInput" placeholder="Message Kuulto AI..."></textarea>
+            <textarea id="messageInput" placeholder="Message AI..."></textarea>
             <div class="input-footer flex-shrink-0 p-1">
                 <button id="sendBtn" class="send-btn" style="padding: 6px 12px;">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
@@ -524,7 +523,7 @@ export class CommitChatPanel {
                 </button>
             </div>
         </div>
-        <div class="footer-note">Kuulto AI can make mistakes. Consider checking important information.</div>
+        <div class="footer-note">AI can make mistakes. Consider checking important information.</div>
     </div>
 
     <script>
@@ -586,7 +585,7 @@ export class CommitChatPanel {
 
             const info = document.createElement('div');
             info.className = 'message-info';
-            info.innerHTML = \`<span class="message-name">\${isUser ? '${userData.name}' : 'Kuulto AI (Beta)'}</span><span>\${getCurrentTime()}</span>\`;
+            info.innerHTML = \`<span class="message-name">\${isUser ? '${userData.name}' : 'AI'}</span><span>\${getCurrentTime()}</span>\`;
 
             const bubble = document.createElement('div');
             bubble.className = 'bubble';
@@ -626,7 +625,7 @@ export class CommitChatPanel {
 
             const aiInfo = document.createElement('div');
             aiInfo.className = 'message-info';
-            aiInfo.innerHTML = \`<span class="message-name">Kuulto AI (Beta)</span><span>\${getCurrentTime()}</span>\`;
+            aiInfo.innerHTML = \`<span class="message-name">AI</span><span>\${getCurrentTime()}</span>\`;
 
             currentAiBubble = document.createElement('div');
             currentAiBubble.className = 'bubble';

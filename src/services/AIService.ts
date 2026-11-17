@@ -1,14 +1,15 @@
-import * as vscode from 'vscode';
-import { AuthService } from './AuthService';
+import { AIMessage } from './ai/AIProvider';
+import { AIProviderRegistry } from './ai/AIProviderRegistry';
 
-export interface Message {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
+/** Backwards-compatible alias for the provider-agnostic message shape. */
+export type Message = AIMessage;
 
+/**
+ * Thin facade kept for existing callers. All behavior is delegated to the
+ * currently active provider from the registry.
+ */
 export class AIService {
   private static instance: AIService;
-  private readonly _apiKey = process.env.X_API_KEY || ''; // Load API key from environment variable, the old one is deprecated
 
   private constructor() {}
 
@@ -19,104 +20,25 @@ export class AIService {
     return AIService.instance;
   }
 
-  private get apiUrl() {
-    return process.env.DOMAIN_URL;
+  private get registry(): AIProviderRegistry {
+    return AIProviderRegistry.getInstance();
   }
 
-  private async ensureAuthenticatedToken(): Promise<string> {
-    let token = await AuthService.getInstance().getAccessToken();
-
-    if (!token) {
-      vscode.window
-        .showErrorMessage(
-          'Please sign in to your Kuulto AI account to continue using this feature.',
-          'Sign In'
-        )
-        .then((selection) => {
-          if (selection === 'Sign In') {
-            vscode.commands.executeCommand('gitorbit.login');
-          }
-        });
-      throw new Error('Unauthorized: Authentication required.');
-    }
-    return token;
+  public async streamChat(
+    messages: Message[],
+    abortSignal?: AbortSignal
+  ): Promise<ReadableStream<Uint8Array>> {
+    const provider = await this.registry.getActiveProvider();
+    return provider.streamChat(messages, abortSignal);
   }
 
-  private async refreshTokenIfNeeded(): Promise<boolean> {
-    const refreshed = await AuthService.getInstance().refreshAccessToken();
-    return refreshed;
-  }
-
-  /**
-   * Streams chat completion from the centralized API.
-   */
-  public async streamChat(messages: Message[], abortSignal?: AbortSignal) {
-    const token = await this.ensureAuthenticatedToken();
-
-    const response = await fetch(this.apiUrl!, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        'x-api-key': this._apiKey,
-      },
-      body: JSON.stringify({
-        messages,
-        stream: true,
-        type: 'chat',
-      }),
-      signal: abortSignal,
-    });
-
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
-    }
-
-    if (!response.body) {
-      throw new Error('Response body is null');
-    }
-
-    return response.body;
-  }
-
-  public validateConfig(): boolean {
-    return true;
+  public async validateConfig(): Promise<boolean> {
+    const provider = await this.registry.getActiveProvider();
+    return provider.isConfigured();
   }
 
   public async generateCommitMessages(messages: Message[]): Promise<string[]> {
-    const token = await this.ensureAuthenticatedToken();
-
-    try {
-      const response = await fetch(this.apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          'x-api-key': this._apiKey,
-        },
-        body: JSON.stringify({
-          messages,
-          stream: false,
-          type: 'commit-message',
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const text = (data.text || '').trim();
-
-      return text
-        .split('\n')
-        .map((line: string) => line.trim())
-        .filter((line: string) => line.length > 0 && !line.startsWith('#'))
-        .map((line: string) => line.replace(/^[\d\-\*\.]+\s*/, '').replace(/^[`"']|[`"']$/g, ''))
-        .filter((line: string) => line.length > 0);
-    } catch (error: any) {
-      console.error('AI Generation failed:', error);
-      throw new Error(`AI Generation failed: ${error.message}`);
-    }
+    const provider = await this.registry.getActiveProvider();
+    return provider.generateCommitMessages(messages);
   }
 }

@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 import { GitExecutor } from '../utils/GitExecutor';
 import { clearMemoizedCache, memoize } from '../utils/Memoize';
 
@@ -75,6 +77,9 @@ export class GitService {
     // Discover all git repositories in workspace
     for (const folder of workspaceFolders) {
       await this.discoverRepositories(folder.uri.fsPath);
+      // A workspace folder may point inside a larger repository (monorepos),
+      // where no `.git` exists directly in the folder.
+      await this.discoverEnclosingRepository(folder.uri.fsPath);
     }
 
     // Discover worktrees for each discovered repository
@@ -194,6 +199,27 @@ export class GitService {
   }
 
   /**
+   * Discover the repository enclosing a workspace folder. Workspaces are often
+   * opened at a sub-directory of a larger repository (monorepos), where no
+   * `.git` exists directly in the folder. Avoid duplicates by checking the map.
+   */
+  private async discoverEnclosingRepository(startPath: string): Promise<void> {
+    try {
+      const executor = new GitExecutor(startPath);
+      const result = await executor.exec(['rev-parse', '--show-toplevel']);
+      const topLevel = result.stdout.trim();
+      if (!topLevel || topLevel === startPath || this.repositories.has(topLevel)) return;
+
+      const repo = await this.createRepository(topLevel);
+      if (repo) {
+        this.repositories.set(repo.rootDir, repo);
+      }
+    } catch {
+      // Folder is not inside a git repository - nothing to discover.
+    }
+  }
+
+  /**
    * Create a GitRepository object for a given root directory.
    */
   private async createRepository(rootDir: string): Promise<GitRepository | null> {
@@ -252,7 +278,19 @@ export class GitService {
   public async refreshRepositories(): Promise<void> {
     this.repositories.clear();
     this.clearCache();
-    await this.initialize();
+    this._initializePromise = this.initialize();
+    await this._initializePromise;
+
+    // Repositories are recreated on refresh, so revalidate the selected one.
+    if (this._selectedRepo) {
+      const refreshed = this.repositories.get(this._selectedRepo.rootDir);
+      if (refreshed) {
+        this._selectedRepo = refreshed;
+      } else {
+        this._selectedRepo = undefined;
+        this._onDidChangeSelectedRepo.fire(undefined);
+      }
+    }
   }
 
   /**
@@ -361,15 +399,27 @@ export class GitService {
     return repo?.executor;
   }
 
+  /**
+   * Await initialization and return the executor for the default repository.
+   * Other services should prefer this over reaching into private members.
+   */
+  public async getActiveExecutor(): Promise<GitExecutor | undefined> {
+    await this._ensureInitialized();
+    return this.getDefaultRepository()?.executor;
+  }
+
   public getRelativePath(inputPath: string | undefined, repoRoot?: string): string {
     if (!inputPath) return '';
 
     const root =
       repoRoot || this.rootDir || (vscode.workspace.workspaceFolders?.[0].uri.fsPath ?? '');
     let normalizedInput = inputPath.replace(/\\/g, '/');
-    const normalizedRoot = root.replace(/\\/g, '/');
+    const normalizedRoot = root.replace(/\\/g, '/').replace(/\/$/, '');
+    const rootLower = normalizedRoot.toLowerCase();
+    const inputLower = normalizedInput.toLowerCase();
 
-    if (normalizedRoot && normalizedInput.toLowerCase().startsWith(normalizedRoot.toLowerCase())) {
+    // Require a path-segment boundary so /x/repo does not match /x/repo2/file.ts.
+    if (normalizedRoot && (inputLower === rootLower || inputLower.startsWith(rootLower + '/'))) {
       normalizedInput = normalizedInput.substring(normalizedRoot.length);
     }
 
@@ -450,7 +500,7 @@ export class GitService {
 
   private parseLogOutput(output: string): CommitInfo[] {
     return output
-      .split('--END--\n')
+      .split('--END--')
       .filter(Boolean)
       .map((block) => {
         const lines = block.trim().split('\n');
@@ -578,6 +628,29 @@ export class GitService {
     if (message) args.push('-m', message);
 
     const result = await targetRepo.executor.exec(args);
+    this.clearCache();
+    return result;
+  }
+
+  /**
+   * Stash only a single file, keeping other working-tree changes intact.
+   */
+  public async stashFile(filePath: string, repo?: GitRepository) {
+    await this._ensureInitialized();
+    const targetRepo = repo || this.getRepositoryForPath(filePath);
+    if (!targetRepo) return;
+
+    const relativePath = this.getRelativePath(filePath, targetRepo.rootDir);
+    if (!relativePath) return;
+
+    const result = await targetRepo.executor.exec([
+      'stash',
+      'push',
+      '-m',
+      `GitOrbit: ${relativePath}`,
+      '--',
+      relativePath,
+    ]);
     this.clearCache();
     return result;
   }
@@ -1328,6 +1401,65 @@ export class GitService {
     return result;
   }
 
+  /**
+   * Resolve the parent of a commit, used as the upstream for an interactive rebase.
+   */
+  public async getParentCommit(hash: string, repo?: GitRepository): Promise<string | undefined> {
+    await this._ensureInitialized();
+    const targetRepo = repo || this.getDefaultRepository();
+    if (!targetRepo) return undefined;
+
+    try {
+      const result = await targetRepo.executor.exec(['rev-parse', `${hash}^`]);
+      return result.stdout.trim() || undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Run a real `git rebase -i` using a generated todo list. Two temporary helper
+   * scripts replace git's interactive editors so the operation is non-interactive:
+   * one writes the todo, the other accepts combined squash messages verbatim.
+   */
+  public async runInteractiveRebase(
+    todo: string,
+    upstream: string,
+    repo?: GitRepository
+  ): Promise<void> {
+    await this._ensureInitialized();
+    const targetRepo = repo || this.getDefaultRepository();
+    if (!targetRepo) throw new Error('No Git repository is available.');
+
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const todoScript = path.join(os.tmpdir(), `gitorbit-todo-${id}.js`);
+    const noopScript = path.join(os.tmpdir(), `gitorbit-editor-${id}.js`);
+    const quoteScript = (p: string) => `"${p.replace(/(["$`\\])/g, '\\$1')}"`;
+
+    fs.writeFileSync(
+      todoScript,
+      `require('fs').writeFileSync(process.argv[2], ${JSON.stringify(todo)});`,
+      'utf8'
+    );
+    fs.writeFileSync(noopScript, '', 'utf8');
+
+    try {
+      await targetRepo.executor.exec([
+        '-c',
+        `sequence.editor=node ${quoteScript(todoScript)}`,
+        '-c',
+        `core.editor=node ${quoteScript(noopScript)}`,
+        'rebase',
+        '-i',
+        upstream,
+      ]);
+      this.clearCache();
+    } finally {
+      fs.unlinkSync(todoScript);
+      fs.unlinkSync(noopScript);
+    }
+  }
+
   public async abortMerge(repo?: GitRepository) {
     await this._ensureInitialized();
     const targetRepo = repo || this.getDefaultRepository();
@@ -1400,6 +1532,88 @@ export class GitService {
     const args = ['tag', tagName];
     if (target) args.push(target);
     const result = await targetRepo.executor.exec(args);
+    this.clearCache();
+    return result;
+  }
+
+  /** Merge a branch into the current branch of the target repository. */
+  public async mergeBranch(branchName: string, repo?: GitRepository) {
+    await this._ensureInitialized();
+    const targetRepo = repo || this.getDefaultRepository();
+    if (!targetRepo) return;
+
+    const result = await targetRepo.executor.exec(['merge', branchName]);
+    this.clearCache();
+    return result;
+  }
+
+  public async rebaseContinue(repo?: GitRepository) {
+    await this._ensureInitialized();
+    const targetRepo = repo || this.getDefaultRepository();
+    if (!targetRepo) return;
+
+    const result = await targetRepo.executor.exec(['rebase', '--continue']);
+    this.clearCache();
+    return result;
+  }
+
+  public async rebaseSkip(repo?: GitRepository) {
+    await this._ensureInitialized();
+    const targetRepo = repo || this.getDefaultRepository();
+    if (!targetRepo) return;
+
+    const result = await targetRepo.executor.exec(['rebase', '--skip']);
+    this.clearCache();
+    return result;
+  }
+
+  public async cherryPickContinue(repo?: GitRepository) {
+    await this._ensureInitialized();
+    const targetRepo = repo || this.getDefaultRepository();
+    if (!targetRepo) return;
+
+    const result = await targetRepo.executor.exec(['cherry-pick', '--continue']);
+    this.clearCache();
+    return result;
+  }
+
+  public async cherryPickAbort(repo?: GitRepository) {
+    await this._ensureInitialized();
+    const targetRepo = repo || this.getDefaultRepository();
+    if (!targetRepo) return;
+
+    const result = await targetRepo.executor.exec(['cherry-pick', '--abort']);
+    this.clearCache();
+    return result;
+  }
+
+  public async deleteTag(tagName: string, repo?: GitRepository) {
+    await this._ensureInitialized();
+    const targetRepo = repo || this.getDefaultRepository();
+    if (!targetRepo) return;
+
+    const result = await targetRepo.executor.exec(['tag', '-d', tagName]);
+    this.clearCache();
+    return result;
+  }
+
+  public async pushTag(tagName: string, remote: string = 'origin', repo?: GitRepository) {
+    await this._ensureInitialized();
+    const targetRepo = repo || this.getDefaultRepository();
+    if (!targetRepo) return;
+
+    const result = await targetRepo.executor.exec(['push', remote, tagName]);
+    this.clearCache();
+    return result;
+  }
+
+  /** Fetch from the given remote, or from all remotes when none is supplied. */
+  public async fetchRemote(remote?: string, repo?: GitRepository) {
+    await this._ensureInitialized();
+    const targetRepo = repo || this.getDefaultRepository();
+    if (!targetRepo) return;
+
+    const result = await targetRepo.executor.exec(['fetch', remote || '--all']);
     this.clearCache();
     return result;
   }

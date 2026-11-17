@@ -1,7 +1,5 @@
-import { URLSearchParams } from 'url';
 import * as vscode from 'vscode';
-import { AIService } from './services/AIService';
-import { AuthService } from './services/AuthService';
+import { AIProviderRegistry } from './services/ai/AIProviderRegistry';
 import { BisectService } from './services/BisectService';
 import { GitflowService } from './services/GitflowService';
 import { GitService } from './services/GitService';
@@ -15,6 +13,7 @@ import { FeedbackView } from './webviews/FeedbackView';
 import { BlameCommands } from './commands/BlameCommands';
 import { BranchCommands } from './commands/BranchCommands';
 import { CherryPickCommand } from './commands/CherryPickCommand';
+import { AdvancedGitCommands } from './commands/AdvancedGitCommands';
 import { StashCommands } from './commands/StashCommands';
 import { CopyCommands } from './commands/CopyCommands';
 import { FileBlameDecorator } from './decorators/FileBlameDecorator';
@@ -69,60 +68,75 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // Authentication Commands
-  AuthService.getInstance().init(context);
-  AuthService.getInstance()
-    .isLoggedIn()
-    .then((loggedIn) => {
-      vscode.commands.executeCommand('setContext', 'gitorbit.isLoggedIn', loggedIn);
-    });
+  // AI provider commands (BYOB - bring your own key)
+  const aiProviderRegistry = AIProviderRegistry.getInstance(context.secrets);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitorbit.login', () => {
-      const appName = vscode.env.uriScheme;
-      vscode.env.openExternal(
-        vscode.Uri.parse(`https://kuulto.app/signin?app=gitorbit&appname=${appName}`)
-      );
+    vscode.commands.registerCommand('gitorbit.ai.setApiKey', async () => {
+      const input = await vscode.window.showInputBox({
+        prompt: 'OpenRouter API key (stored privately in VS Code SecretStorage)',
+        password: true,
+        ignoreFocusOut: true,
+      });
+      const key = input?.trim();
+      if (!key) return;
+
+      try {
+        await aiProviderRegistry.setApiKey('openrouter', key);
+        // Never echo the key itself, not even in error paths.
+        vscode.window.showInformationMessage('OpenRouter API key saved privately.');
+      } catch {
+        vscode.window.showErrorMessage('Failed to save API key.');
+      }
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('gitorbit.logout', async () => {
-      await AuthService.getInstance().logout();
-      vscode.window.showInformationMessage('Logged out from Kuulto AI.');
+    vscode.commands.registerCommand('gitorbit.ai.clearApiKey', async () => {
+      try {
+        await aiProviderRegistry.clearApiKey('openrouter');
+        vscode.window.showInformationMessage('OpenRouter API key cleared.');
+      } catch (error: any) {
+        vscode.window.showErrorMessage(`Failed to clear API key: ${error.message}`);
+      }
     })
   );
 
-  // Handle auth callback
   context.subscriptions.push(
-    vscode.window.registerUriHandler({
-      handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
-        if (uri.path === '/auth-callback') {
-          const params = new URLSearchParams(uri.query);
-          let accessToken = params.get('access_token') || params.get('token');
-          const refreshToken = params.get('refresh_token');
+    vscode.commands.registerCommand('gitorbit.ai.selectProvider', async () => {
+      try {
+        const providers = await aiProviderRegistry.getProviders();
+        const items = providers.map((provider) => ({
+          label: provider.displayName,
+          description: provider.configured ? '$(check) Configured' : 'Not configured',
+          providerId: provider.id,
+        }));
+        const selected = await vscode.window.showQuickPick(items, {
+          placeHolder: 'Select AI provider',
+        });
+        if (!selected) return;
 
-          if (accessToken && refreshToken) {
-            AuthService.getInstance().storeTokens(accessToken, refreshToken);
-            vscode.window.showInformationMessage('Successfully logged into Kuulto AI!');
-          } else if (accessToken) {
-            AuthService.getInstance().storeTokens(accessToken, '');
-            vscode.window.showInformationMessage('Successfully logged into Kuulto AI!');
-          }
-        }
-      },
+        await aiProviderRegistry.setActiveProvider(selected.providerId);
+        vscode.window.showInformationMessage(`AI provider set to ${selected.label}.`);
+      } catch (error: any) {
+        vscode.window.showErrorMessage(`Failed to select AI provider: ${error.message}`);
+      }
     })
   );
 
   // Initialize Services
   const gitService = GitService.getInstance();
-  const aiService = AIService.getInstance();
   IconService.getInstance(context.extensionUri);
 
   // Initialize filter contexts
   vscode.commands.executeCommand('setContext', 'gitorbit.graph.isFiltered', false);
   vscode.commands.executeCommand('setContext', 'gitorbit.commits.isFiltered', false);
   vscode.commands.executeCommand('setContext', 'gitorbit.fileHistory.isFiltered', false);
+  vscode.commands.executeCommand(
+    'setContext',
+    'gitorbit.changes.viewMode',
+    ConfigService.getInstance().changesViewMode
+  );
 
   // Register Content Providers
   context.subscriptions.push(
@@ -182,6 +196,7 @@ export function activate(context: vscode.ExtensionContext) {
   const changesTreeView = vscode.window.createTreeView('gitorbit.views.changes', {
     treeDataProvider: changesProvider,
   });
+  context.subscriptions.push(changesTreeView);
 
   const updateBadge = () => {
     const total = changesProvider.stagedCount + changesProvider.unstagedCount;
@@ -189,9 +204,11 @@ export function activate(context: vscode.ExtensionContext) {
       total > 0 ? { value: total, tooltip: `${total} pending changes` } : undefined;
   };
 
-  changesProvider.onDidChangeTreeData(() => {
-    updateBadge();
-  });
+  context.subscriptions.push(
+    changesProvider.onDidChangeTreeData(() => {
+      updateBadge();
+    })
+  );
 
   // Initial badge update
   updateBadge();
@@ -346,6 +363,30 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.changes.unstageAll', () =>
       changesProvider.unstageAll()
+    )
+  );
+
+  const applyChangesViewMode = async (mode: 'list' | 'tree') => {
+    try {
+      await ConfigService.getInstance().setChangesViewMode(mode);
+      await vscode.commands.executeCommand('setContext', 'gitorbit.changes.viewMode', mode);
+      refreshAll();
+      vscode.window.showInformationMessage(
+        mode === 'tree' ? 'Changes shown as a tree.' : 'Changes shown as a list.'
+      );
+    } catch (error: any) {
+      vscode.window.showErrorMessage(`Failed to change view mode: ${error.message}`);
+    }
+  };
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.changes.viewAsList', () =>
+      applyChangesViewMode('list')
+    )
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitorbit.changes.viewAsTree', () =>
+      applyChangesViewMode('tree')
     )
   );
 
@@ -543,7 +584,7 @@ export function activate(context: vscode.ExtensionContext) {
       if (!pr) return;
 
       // Import and show the PR webview
-      const { PullRequestView } = await import('./webviews/PullRequestView');
+      const { PullRequestView } = await import('./webviews/PullRequestView.js');
       await PullRequestView.show(context, pr);
     })
   );
@@ -558,6 +599,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
   StashCommands.getInstance(refreshAll).register(context);
   CopyCommands.getInstance().register(context);
+  AdvancedGitCommands.getInstance(refreshAll).register(context);
 
   context.subscriptions.push(
     vscode.commands.registerCommand('gitorbit.startRemoteBranch', (node?: any) => {
@@ -1027,11 +1069,25 @@ export function activate(context: vscode.ExtensionContext) {
     }
   };
 
+  context.subscriptions.push({
+    dispose: () => {
+      if (syncInterval) clearInterval(syncInterval);
+    },
+  });
+
   setupAutoSync();
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('gitorbit.sync.autoSyncInterval')) {
         setupAutoSync();
+      }
+      if (e.affectsConfiguration('gitorbit.views.changesViewMode')) {
+        vscode.commands.executeCommand(
+          'setContext',
+          'gitorbit.changes.viewMode',
+          ConfigService.getInstance().changesViewMode
+        );
+        refreshAll();
       }
     })
   );
@@ -1045,35 +1101,50 @@ export function activate(context: vscode.ExtensionContext) {
     if (refreshTimeout) clearTimeout(refreshTimeout);
     refreshTimeout = setTimeout(() => refreshAll(), 1000);
   };
+  context.subscriptions.push({
+    dispose: () => {
+      if (refreshTimeout) clearTimeout(refreshTimeout);
+    },
+  });
 
   // 1. Manual File Watcher (Fallback for environments without built-in Git extension)
   const watcher = vscode.workspace.createFileSystemWatcher(
     '**/.git/{HEAD,index,refs/heads/**,refs/remotes/**}'
   );
-  watcher.onDidChange(triggerRefresh);
-  watcher.onDidCreate(triggerRefresh);
-  watcher.onDidDelete(triggerRefresh);
-  context.subscriptions.push(watcher);
+  context.subscriptions.push(
+    watcher.onDidChange(triggerRefresh),
+    watcher.onDidCreate(triggerRefresh),
+    watcher.onDidDelete(triggerRefresh),
+    watcher
+  );
 
   // 2. Native VS Code Git API Integration (Primary for Cursor/Antigravity/VSCode)
   try {
     const gitExtension = vscode.extensions.getExtension('vscode.git');
     if (gitExtension) {
       const initGitApi = (api: any) => {
-        api.onDidOpenRepository((repo: any) => {
-          repo.state.onDidChange(() => triggerRefresh());
-        });
+        context.subscriptions.push(
+          api.onDidOpenRepository((repo: any) => {
+            context.subscriptions.push(repo.state.onDidChange(() => triggerRefresh()));
+          })
+        );
         api.repositories.forEach((repo: any) => {
-          repo.state.onDidChange(() => triggerRefresh());
+          context.subscriptions.push(repo.state.onDidChange(() => triggerRefresh()));
         });
       };
 
       if (gitExtension.isActive) {
         initGitApi(gitExtension.exports.getAPI(1));
       } else {
-        gitExtension.activate().then((api) => {
-          initGitApi(api.getAPI(1));
-        });
+        // Extension.activate() returns a Thenable, which has no .catch().
+        gitExtension.activate().then(
+          (api) => {
+            initGitApi(api.getAPI(1));
+          },
+          (error: unknown) => {
+            console.warn('GitOrbit: Failed to activate native Git extension', error);
+          }
+        );
       }
     }
   } catch (e) {

@@ -11,6 +11,10 @@ vi.mock('vscode', () => ({
   ExtensionContext: class MockExtensionContext {
     subscriptions: any[] = [];
   },
+  Uri: {
+    file: (p: string) => ({ fsPath: p }),
+    joinPath: (base: any, relative: string) => ({ fsPath: `${base.fsPath}/${relative}` }),
+  },
 }));
 
 vi.mock('../../services/GitService', () => ({
@@ -20,6 +24,7 @@ vi.mock('../../services/GitService', () => ({
       stashApply: vi.fn(),
       stashPop: vi.fn(),
       stashDrop: vi.fn(),
+      stashFile: vi.fn(),
     }),
   },
 }));
@@ -69,7 +74,7 @@ describe('StashCommands', () => {
     it('should register all stash commands', () => {
       const context = new vscode.ExtensionContext();
       stashCommands.register(context);
-      expect(vscode.commands.registerCommand).toHaveBeenCalledTimes(4);
+      expect(vscode.commands.registerCommand).toHaveBeenCalledTimes(5);
       expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
         'gitorbit.saveStash',
         expect.any(Function)
@@ -86,6 +91,30 @@ describe('StashCommands', () => {
         'gitorbit.stashDrop',
         expect.any(Function)
       );
+      expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
+        'gitorbit.changes.stashFile',
+        expect.any(Function)
+      );
+    });
+  });
+
+  describe('stashFile', () => {
+    it('should stash only the selected file', async () => {
+      const context = new vscode.ExtensionContext();
+      stashCommands.register(context);
+      const stashFileFn = (vscode.commands.registerCommand as any).mock.calls.find(
+        (call: any[]) => call[0] === 'gitorbit.changes.stashFile'
+      )[1];
+      const repo = { rootDir: '/repo' };
+
+      await stashFileFn({
+        resourceUri: { fsPath: '/repo/src/file.ts' },
+        path: 'src/file.ts',
+        repo,
+      });
+
+      expect(mockGitService.stashFile).toHaveBeenCalledWith('/repo/src/file.ts', repo);
+      expect(mockRefreshCallback).toHaveBeenCalled();
     });
   });
 

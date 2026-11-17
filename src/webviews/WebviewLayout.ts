@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { escapeHtml, getNonce } from '../utils/HtmlUtils';
 
 export interface WebviewLayoutOptions {
   title: string;
@@ -37,32 +38,28 @@ export function getWebviewLayout(
 
 export function getLoadingHtml(message: string = 'Loading...'): string {
   return `<!DOCTYPE html>
-<html><head><style>
+<html><head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
+<style>
 ${getBaseStyles()}
 .loader { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
 .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style></head>
-<body><div class="loader"><div class="spinner"></div><p>${message}</p></div></body></html>`;
+<body><div class="loader"><div class="spinner"></div><p>${escapeHtml(message)}</p></div></body></html>`;
 }
 
 export function getErrorHtml(error: any): string {
+  const message = error?.message || error;
   return `<!DOCTYPE html>
-<html><head><style>
+<html><head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
+<style>
 ${getBaseStyles()}
 .error-container { padding: 40px; text-align: center; }
 .error-container h2 { color: var(--danger); }
 </style></head>
-<body><div class="error-container"><h2>Error</h2><p>${error?.message || error}</p></div></body></html>`;
-}
-
-function getNonce(): string {
-  let text = '';
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-  return text;
+<body><div class="error-container"><h2>Error</h2><p>${escapeHtml(message)}</p></div></body></html>`;
 }
 
 function getBaseStyles(): string {

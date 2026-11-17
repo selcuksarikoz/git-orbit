@@ -11,6 +11,8 @@ vi.mock('vscode', () => ({
       webview: {
         onDidReceiveMessage: vi.fn(),
         html: '',
+        cspSource: 'vscode-resource:',
+        postMessage: vi.fn(),
       },
       dispose: vi.fn(),
     }),
@@ -68,7 +70,9 @@ describe('BlamePanel', () => {
     const firstPanel = BlamePanel.currentPanel;
     BlamePanel.createOrShow(mockExtensionUri, mockBlameInfo);
     expect(vscode.window.createWebviewPanel).toHaveBeenCalledTimes(1);
-    expect(firstPanel?.[Object.getOwnPropertySymbols(firstPanel as any)[0]]?.reveal).toBeUndefined(); // reveal is on the panel
+    expect(
+      firstPanel?.[Object.getOwnPropertySymbols(firstPanel as any)[0]]?.reveal
+    ).toBeUndefined(); // reveal is on the panel
   });
 
   it('should handle messages from webview', async () => {
@@ -82,7 +86,10 @@ describe('BlamePanel', () => {
     });
 
     await messageHandler({ command: 'copyHash', hash: 'abc123' });
-    expect(vscode.commands.executeCommand).toHaveBeenCalledWith('gitorbit.copyCommitHash', 'abc123');
+    expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+      'gitorbit.copyCommitHash',
+      'abc123'
+    );
   });
 
   it('should dispose correctly', () => {
@@ -90,5 +97,43 @@ describe('BlamePanel', () => {
     const panel = BlamePanel.currentPanel;
     panel?.dispose();
     expect(BlamePanel.currentPanel).toBeUndefined();
+  });
+
+  it('should render a nonce-based CSP without inline event handlers', () => {
+    BlamePanel.createOrShow(mockExtensionUri, mockBlameInfo);
+    const html = (BlamePanel.currentPanel as any)._getHtmlForWebview(mockBlameInfo, []);
+    expect(html).toContain('Content-Security-Policy');
+    expect(html).toContain("script-src 'nonce-");
+    expect(html).toContain('<script nonce=');
+    expect(html).not.toContain('onclick=');
+  });
+
+  it('should escape blame author in text and attributes', () => {
+    BlamePanel.createOrShow(mockExtensionUri, mockBlameInfo);
+    const malicious = { ...mockBlameInfo, author: '"><img src=x onerror=alert(1)>' };
+    const html = (BlamePanel.currentPanel as any)._getHtmlForWebview(malicious, []);
+    expect(html).not.toContain('alt=""><img');
+    expect(html).toContain('alt="&quot;&gt;&lt;img src=x onerror=alert(1)&gt;"');
+    expect(html).toContain(
+      'class="author-name">&quot;&gt;&lt;img src=x onerror=alert(1)&gt;</div>'
+    );
+  });
+
+  it('should escape file history commit author', () => {
+    BlamePanel.createOrShow(mockExtensionUri, mockBlameInfo);
+    const fileBlameData = [
+      {
+        hash: 'a'.repeat(40),
+        shortHash: 'aaaaaaa',
+        author: '"><script>alert(1)</script>',
+        authorEmail: 'a@b.c',
+        authorTime: 1234567890,
+        summary: 'summary',
+        lines: [1],
+      },
+    ];
+    const html = (BlamePanel.currentPanel as any)._getHtmlForWebview(mockBlameInfo, fileBlameData);
+    expect(html).not.toContain('alt=""><script>');
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
   });
 });

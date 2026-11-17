@@ -35,10 +35,10 @@ vi.mock('../../services/GitService', () => ({
       ensureInitialized: vi.fn(),
       getSelectedRepository: vi.fn(),
       getDefaultRepository: vi.fn().mockReturnValue({
-          rootDir: '/test',
-          executor: {
-              exec: vi.fn().mockResolvedValue({ stdout: '' })
-          }
+        rootDir: '/test',
+        executor: {
+          exec: vi.fn().mockResolvedValue({ stdout: '' }),
+        },
       }),
       getBranches: vi.fn().mockResolvedValue({ all: ['main'], current: 'main' }),
       pull: vi.fn(),
@@ -70,12 +70,14 @@ describe('GitGraphPanel', () => {
     const messageHandler = panel.webview.onDidReceiveMessage.mock.calls[0][0];
 
     await messageHandler({ command: 'ready' });
-    
+
     expect(mockGitService.getBranches).toHaveBeenCalled();
-    expect(panel.webview.postMessage).toHaveBeenCalledWith(expect.objectContaining({
-      command: 'updateBranches',
-      branches: expect.any(Array),
-    }));
+    expect(panel.webview.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: 'updateBranches',
+        branches: expect.any(Array),
+      })
+    );
   });
 
   it('should handle loadBranch message and load commits', async () => {
@@ -84,18 +86,20 @@ describe('GitGraphPanel', () => {
     const messageHandler = panel.webview.onDidReceiveMessage.mock.calls[0][0];
 
     const repo = mockGitService.getDefaultRepository();
-    repo.executor.exec.mockResolvedValueOnce({ 
-        stdout: 'hash1|short1|parent1|author1|1234567890|message1\n' 
+    repo.executor.exec.mockResolvedValueOnce({
+      stdout: 'hash1|short1|parent1|author1|1234567890|message1\n',
     });
     repo.executor.exec.mockResolvedValueOnce({ stdout: '' }); // files for commit
 
     await messageHandler({ command: 'loadBranch', branch: 'main' });
-    
+
     expect(repo.executor.exec).toHaveBeenCalledWith(expect.arrayContaining(['log', 'main']));
-    expect(panel.webview.postMessage).toHaveBeenCalledWith(expect.objectContaining({
-      command: 'updateCommits',
-      commits: expect.any(Array),
-    }));
+    expect(panel.webview.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: 'updateCommits',
+        commits: expect.any(Array),
+      })
+    );
   });
 
   it('should handle pull, push, and sync messages', async () => {

@@ -47,6 +47,19 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem | vscode.TreeI
     );
   }
 
+  private filterCommits<T extends { message: string; hash: string; author_name: string }>(
+    commits: T[]
+  ): T[] {
+    if (!this.filterText) return commits;
+    const search = this.filterText.toLowerCase();
+    return commits.filter(
+      (c) =>
+        c.message.toLowerCase().includes(search) ||
+        c.hash.toLowerCase().includes(search) ||
+        c.author_name.toLowerCase().includes(search)
+    );
+  }
+
   resolveTreeItem(
     item: vscode.TreeItem,
     element: GraphItem | vscode.TreeItem
@@ -88,7 +101,9 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem | vscode.TreeI
         const repo = this.resolveRepo(repoRoot);
         const log = await this.gitService.getAllLog(this.limit, repo);
 
-        return log.all.slice(0, this.limit).map((commit, index) => this.createCommitItem(commit, index, repo));
+        return log.all
+          .slice(0, this.limit)
+          .map((commit, index) => this.createCommitItem(commit, index, repo));
       }
 
       return [];
@@ -106,18 +121,10 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem | vscode.TreeI
 
         // Get main repo commits
         const log = await this.gitService.getAllLog(this.limit, repo);
+        const commits = this.filterCommits(log.all);
 
-        if (log.all.length > 0) {
-          const repoItem = new vscode.TreeItem(
-            repo.rootDir.split(/[/\\]/).pop() || 'Repository',
-            vscode.TreeItemCollapsibleState.Expanded
-          );
-          repoItem.contextValue = 'repo';
-          repoItem.iconPath = new vscode.ThemeIcon('repo');
-          (repoItem as any).repoRoot = repo.rootDir;
-
-          // Add commits as children of repo
-          const commitItems: (GraphItem | vscode.TreeItem)[] = log.all
+        if (commits.length > 0) {
+          const commitItems: (GraphItem | vscode.TreeItem)[] = commits
             .slice(0, this.limit)
             .map((commit, index) => this.createCommitItem(commit, index, repo));
           items.push(...commitItems);
@@ -135,8 +142,9 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem | vscode.TreeI
 
           // Get worktree commits
           const wtLog = await this.gitService.getAllLog(this.limit, wt);
+          const wtCommits = this.filterCommits(wtLog.all);
 
-          const wtCommitItems: (GraphItem | vscode.TreeItem)[] = wtLog.all
+          const wtCommitItems: (GraphItem | vscode.TreeItem)[] = wtCommits
             .slice(0, this.limit)
             .map((commit, index) => this.createCommitItem(commit, index, wt));
           items.push(wtItem, ...wtCommitItems);
@@ -157,8 +165,9 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem | vscode.TreeI
         (wtItem as any).repoRoot = wt.rootDir;
 
         const wtLog = await this.gitService.getAllLog(this.limit, wt);
+        const wtCommits = this.filterCommits(wtLog.all);
 
-        const wtCommitItems: (GraphItem | vscode.TreeItem)[] = wtLog.all
+        const wtCommitItems: (GraphItem | vscode.TreeItem)[] = wtCommits
           .slice(0, this.limit)
           .map((commit, index) => this.createCommitItem(commit, index, wt));
         items.push(wtItem, ...wtCommitItems);
@@ -166,43 +175,6 @@ export class GraphTreeProvider extends BaseTreeProvider<GraphItem | vscode.TreeI
 
       if (items.length === 0) {
         return [new vscode.TreeItem('No commits found')];
-      }
-
-      return items;
-    }
-
-    // Handle repo item - show its commits
-    if ((graphElement as any).contextValue === 'repo') {
-      const repoRoot = (graphElement as any).repoRoot;
-      const targetRepo = this.resolveRepo(repoRoot);
-      const log = await this.gitService.getAllLog(this.limit, targetRepo);
-
-      let commits = log.all;
-      if (this.filterText) {
-        const search = this.filterText.toLowerCase();
-        commits = commits.filter(
-          (c) =>
-            c.message.toLowerCase().includes(search) ||
-            c.hash.toLowerCase().includes(search) ||
-            c.author_name.toLowerCase().includes(search)
-        );
-      }
-
-      const items: (GraphItem | vscode.TreeItem)[] = commits.map(
-        (commit, index) => this.createCommitItem(commit, index, targetRepo)
-      );
-
-      if (log.all.length >= this.limit && !this.filterText) {
-        const loadMoreItem = new vscode.TreeItem(
-          'Load More...',
-          vscode.TreeItemCollapsibleState.None
-        );
-        loadMoreItem.command = {
-          command: 'gitorbit.graph.loadMore',
-          title: 'Load More',
-        };
-        loadMoreItem.iconPath = new vscode.ThemeIcon('add');
-        items.push(loadMoreItem);
       }
 
       return items;

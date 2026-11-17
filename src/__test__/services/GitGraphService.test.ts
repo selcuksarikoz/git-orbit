@@ -60,10 +60,9 @@ describe('GitGraphService', () => {
 
     const gitService = GitService.getInstance();
     await gitService.ensureInitialized();
-    Object.defineProperty(gitService, 'executor', {
-      get: () => ({ exec: mockExecutorExec }),
-      configurable: true,
-    });
+    vi.spyOn(gitService, 'getActiveExecutor').mockResolvedValue({
+      exec: mockExecutorExec,
+    } as any);
 
     gitGraphService = new GitGraphService();
   });
@@ -84,8 +83,18 @@ describe('GitGraphService', () => {
       mockExecutorExec.mockResolvedValue({ stdout: '', stderr: '', exitCode: 0 });
       await gitGraphService.getGraphData(100);
       expect(mockExecutorExec).toHaveBeenCalledWith(
-        expect.arrayContaining(['log', '--graph', '--pretty=format:%H|%h|%P|%an|%ae|%at|%s|%D'])
+        expect.arrayContaining([
+          'log',
+          '--graph',
+          '--pretty=format:%H%x1f%h%x1f%P%x1f%an%x1f%ae%x1f%at%x1f%s%x1f%D',
+        ])
       );
+    });
+
+    it('should use the public getActiveExecutor API', async () => {
+      const gitService = GitService.getInstance();
+      await gitGraphService.getGraphData(10);
+      expect(gitService.getActiveExecutor).toHaveBeenCalled();
     });
 
     it('should throw error when executor not initialized', async () => {
@@ -93,10 +102,7 @@ describe('GitGraphService', () => {
       const service = new GitGraphService();
       const gitService = GitService.getInstance();
       await gitService.ensureInitialized();
-      Object.defineProperty(gitService, 'executor', {
-        get: () => null,
-        configurable: true,
-      });
+      vi.spyOn(gitService, 'getActiveExecutor').mockResolvedValue(undefined);
       await expect(service.getGraphData(100)).rejects.toThrow('Git executor not initialized');
     });
   });

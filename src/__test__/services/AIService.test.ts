@@ -1,90 +1,74 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AIService } from '../../services/AIService';
-import { AuthService } from '../../services/AuthService';
-import * as vscode from 'vscode';
+import { AIService, Message } from '../../services/AIService';
+import { AIProviderRegistry } from '../../services/ai/AIProviderRegistry';
 
-// Mock vscode
-vi.mock('vscode', () => ({
-  window: {
-    showErrorMessage: vi.fn().mockResolvedValue(undefined),
-  },
-  commands: {
-    executeCommand: vi.fn(),
+vi.mock('../../services/ai/AIProviderRegistry', () => ({
+  AIProviderRegistry: {
+    getInstance: vi.fn(),
   },
 }));
-
-// Mock AuthService
-vi.mock('../../services/AuthService', () => ({
-  AuthService: {
-    getInstance: vi.fn().mockReturnValue({
-      getAccessToken: vi.fn(),
-      refreshAccessToken: vi.fn(),
-    }),
-  },
-}));
-
-// Mock fetch
-global.fetch = vi.fn();
 
 describe('AIService', () => {
   let aiService: AIService;
-  let authService: any;
+  let provider: {
+    id: string;
+    isConfigured: ReturnType<typeof vi.fn>;
+    streamChat: ReturnType<typeof vi.fn>;
+    generateCommitMessages: ReturnType<typeof vi.fn>;
+  };
+  let registry: { getActiveProvider: ReturnType<typeof vi.fn> };
+  const messages: Message[] = [{ role: 'user', content: 'hello' }];
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (AIService as any).instance = undefined;
+    (AIService as unknown as { instance: undefined }).instance = undefined;
+
+    provider = {
+      id: 'openrouter',
+      isConfigured: vi.fn().mockResolvedValue(true),
+      streamChat: vi.fn().mockResolvedValue(new ReadableStream<Uint8Array>()),
+      generateCommitMessages: vi.fn().mockResolvedValue(['feat: test']),
+    };
+    registry = { getActiveProvider: vi.fn().mockResolvedValue(provider) };
+    vi.mocked(AIProviderRegistry.getInstance).mockReturnValue(
+      registry as unknown as AIProviderRegistry
+    );
+
     aiService = AIService.getInstance();
-    authService = AuthService.getInstance();
-    
-    // Set environment variables for tests
-    process.env.DOMAIN_URL = 'https://api.test.com';
-    process.env.X_API_KEY = 'test-api-key';
   });
 
-  it('should be a singleton', () => {
-    const instance2 = AIService.getInstance();
-    expect(aiService).toBe(instance2);
+  it('is a singleton', () => {
+    expect(aiService).toBe(AIService.getInstance());
   });
 
-  it('should generate commit messages', async () => {
-    authService.getAccessToken.mockResolvedValue('test-token');
-    
-    const mockResponse = {
-      ok: true,
-      json: async () => ({ text: '1. feat: initial commit\n2. fix: bugs' }),
-    };
-    vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+  it('delegates streamChat to the active provider with the abort signal', async () => {
+    const controller = new AbortController();
+    const stream = await aiService.streamChat(messages, controller.signal);
+    expect(registry.getActiveProvider).toHaveBeenCalled();
+    expect(provider.streamChat).toHaveBeenCalledWith(messages, controller.signal);
+    expect(stream).toBeInstanceOf(ReadableStream);
+  });
 
-    const messages = [{ role: 'user' as const, content: 'test' }];
+  it('delegates generateCommitMessages to the active provider', async () => {
     const result = await aiService.generateCommitMessages(messages);
-
-    expect(result).toEqual(['feat: initial commit', 'fix: bugs']);
-    expect(fetch).toHaveBeenCalledWith('https://api.test.com', expect.objectContaining({
-      method: 'POST',
-      headers: expect.objectContaining({
-        Authorization: 'Bearer test-token',
-      }),
-    }));
+    expect(provider.generateCommitMessages).toHaveBeenCalledWith(messages);
+    expect(result).toEqual(['feat: test']);
   });
 
-  it('should throw error if not authenticated', async () => {
-    authService.getAccessToken.mockResolvedValue(null);
-    
-    const messages = [{ role: 'user' as const, content: 'test' }];
-    await expect(aiService.generateCommitMessages(messages)).rejects.toThrow('Unauthorized: Authentication required.');
-    expect(vscode.window.showErrorMessage).toHaveBeenCalled();
+  it('validateConfig is async and reflects the provider configuration', async () => {
+    const result = aiService.validateConfig();
+    expect(result).toBeInstanceOf(Promise);
+    await expect(result).resolves.toBe(true);
+    expect(provider.isConfigured).toHaveBeenCalled();
   });
 
-  it('should throw error if API fails', async () => {
-    authService.getAccessToken.mockResolvedValue('test-token');
-    
-    const mockResponse = {
-      ok: false,
-      statusText: 'Bad Request',
-    };
-    vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+  it('validateConfig resolves false when the provider is unconfigured', async () => {
+    provider.isConfigured.mockResolvedValue(false);
+    await expect(aiService.validateConfig()).resolves.toBe(false);
+  });
 
-    const messages = [{ role: 'user' as const, content: 'test' }];
-    await expect(aiService.generateCommitMessages(messages)).rejects.toThrow('API request failed: Bad Request');
+  it('propagates provider errors', async () => {
+    provider.generateCommitMessages.mockRejectedValue(new Error('provider failed'));
+    await expect(aiService.generateCommitMessages(messages)).rejects.toThrow('provider failed');
   });
 });

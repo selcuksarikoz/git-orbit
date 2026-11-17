@@ -95,7 +95,7 @@ Right-click any commit to copy:
 
 - Smart commit message suggestions
 - Code smell detection
-- Works with OpenAI, Gemini, Anthropic, or Kuulto AI
+- AI providers (OpenRouter available now; bring your own key)
 
 ---
 
@@ -108,6 +108,10 @@ Right-click any commit to copy:
 | `gitorbit.blame.file.enabled`    | Enable file blame view             |
 | `gitorbit.sync.autoSyncInterval` | Auto-fetch interval (minutes)      |
 | `gitorbit.general.selectedRepo`  | Currently selected repository path |
+| `gitorbit.ai.provider`           | AI provider to use for AI features |
+| `gitorbit.ai.openrouter.model`   | OpenRouter model id                |
+
+To enable AI features, run **GitOrbit: Set AI Provider API Key...** from the Command Palette and paste your OpenRouter API key. It is stored securely in VS Code's SecretStorage. You can change or clear it with **Select AI Provider...** and **Clear AI Provider API Key**.
 
 ---
 
@@ -119,6 +123,12 @@ Right-click any commit to copy:
 2. Open a Git repository
 3. Click the GitOrbit icon in the Activity Bar
 4. Start managing your Git worktree!
+
+### AI Features (Optional)
+
+1. Run **GitOrbit: Set AI Provider API Key...** from the Command Palette
+2. Paste your OpenRouter API key (stored securely via VS Code SecretStorage)
+3. Optionally run **GitOrbit: Select AI Provider...** to choose your provider
 
 ### Multiple Repositories (Mono-repo / Multi-root)
 

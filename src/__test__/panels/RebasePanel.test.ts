@@ -39,6 +39,8 @@ vi.mock('../../services/GitService', () => ({
     getInstance: vi.fn().mockReturnValue({
       getLog: vi.fn().mockResolvedValue({ all: [{ hash: 'abc123', message: 'test' }] }),
       abortRebase: vi.fn(),
+      getParentCommit: vi.fn().mockResolvedValue('parent-hash'),
+      runInteractiveRebase: vi.fn().mockResolvedValue(undefined),
     }),
   },
 }));
@@ -81,7 +83,11 @@ describe('RebasePanel', () => {
 
     expect(vscode.window.showWarningMessage).toHaveBeenCalled();
     expect(vscode.window.withProgress).toHaveBeenCalled();
-    // Note: dispose is called after 2 second timeout in actual implementation
-    // For testing purposes, we just verify the flow was triggered
+    expect(mockGitService.getParentCommit).toHaveBeenCalledWith('abc123');
+    expect(mockGitService.runInteractiveRebase).toHaveBeenCalledWith(
+      'pick abc123\n',
+      'parent-hash'
+    );
+    expect(RebasePanel.currentPanel).toBeUndefined();
   });
 });

@@ -329,6 +329,26 @@ describe('CopyCommands', () => {
       );
     });
 
+    it.each([
+      ['https://github.com/user/repo.git', 'https://github.com/user/repo/commit/abc123'],
+      ['https://gitlab.com/user/repo.git', 'https://gitlab.com/user/repo/-/commit/abc123'],
+      ['git@bitbucket.org:user/repo.git', 'https://bitbucket.org/user/repo/commits/abc123'],
+    ])('should build the right commit URL for %s', async (remote, expected) => {
+      const { GitService } = await import('../../services/GitService');
+      const mockGitService = GitService.getInstance() as any;
+      mockGitService.getRemoteUrl.mockResolvedValue(remote);
+
+      const context = new vscode.ExtensionContext();
+      copyCommands.register(context);
+      const copyUrlFn = (vscode.commands.registerCommand as any).mock.calls.find(
+        (call: any[]) => call[0] === 'gitorbit.copy.url'
+      )[1];
+
+      await copyUrlFn({ hash: 'abc123' });
+
+      expect(mockClipboard.writeText).toHaveBeenCalledWith(expected);
+    });
+
     it('should show warning when no remote URL', async () => {
       const { GitService } = await import('../../services/GitService');
       const mockGitService = GitService.getInstance() as any;

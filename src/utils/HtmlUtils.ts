@@ -4,12 +4,19 @@ import * as crypto from 'crypto';
  * Escape HTML special characters to prevent XSS
  */
 export function escapeHtml(text: string): string {
-  return text
+  return String(text)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+/**
+ * Generate a nonce for webview Content-Security-Policy headers.
+ */
+export function getNonce(): string {
+  return crypto.randomBytes(16).toString('hex');
 }
 
 /**

@@ -5,6 +5,7 @@ import { getAgeBasedColor, formatRelativeTime } from '../utils/BlameUtils';
 import { BlamePanel } from '../panels/BlamePanel';
 
 interface LineBlameInfo {
+  line: number;
   authorTime: number;
   author: string;
   authorEmail: string;
@@ -18,6 +19,8 @@ export class GutterBlameDecorator {
   private gitService: GitService;
   private configService: ConfigService;
   private lineBlameMap: Map<string, Map<number, LineBlameInfo>> = new Map(); // filePath -> line -> blame info
+  private previousEditor: vscode.TextEditor | undefined;
+  private updateToken = 0;
   private extensionUri: vscode.Uri;
 
   constructor(extensionUri: vscode.Uri) {
@@ -46,24 +49,49 @@ export class GutterBlameDecorator {
   }
 
   public dispose() {
+    this.updateToken++;
+    this.clearAllDecorations();
     this.decorationTypes.forEach((type) => type.dispose());
     this.decorationTypes.clear();
     this.lineBlameMap.clear();
+    this.previousEditor = undefined;
+  }
+
+  private clearDecorations(editor: vscode.TextEditor | undefined) {
+    if (!editor) return;
+    this.decorationTypes.forEach((type) => editor.setDecorations(type, []));
+  }
+
+  private clearAllDecorations() {
+    this.clearDecorations(this.previousEditor);
+    this.clearDecorations(vscode.window.activeTextEditor);
+    const visible = (vscode.window as any).visibleTextEditors as vscode.TextEditor[] | undefined;
+    visible?.forEach((editor) => this.clearDecorations(editor));
   }
 
   private async update(editor: vscode.TextEditor | undefined) {
     if (!editor) return;
 
+    if (this.previousEditor && this.previousEditor !== editor) {
+      this.clearDecorations(this.previousEditor);
+    }
+    this.previousEditor = editor;
+    const token = ++this.updateToken;
+
     if (!this.configService.isGutterBlameEnabled) {
-      this.decorationTypes.forEach((type) => {
-        editor.setDecorations(type, []);
-      });
+      this.clearAllDecorations();
       return;
     }
 
     const filePath = editor.document.uri.fsPath;
     try {
       const blameOutput = await this.gitService.getBlame(filePath);
+      if (
+        token !== this.updateToken ||
+        (vscode.window.activeTextEditor && vscode.window.activeTextEditor !== editor)
+      ) {
+        return;
+      }
       const decorations = this.generateHeatmapDecorations(
         blameOutput,
         editor.document.lineCount,
@@ -87,10 +115,10 @@ export class GutterBlameDecorator {
         editor.setDecorations(decorationType, decorationGroup);
       });
     } catch {
-      // Clear all decorations on error
-      this.decorationTypes.forEach((type, color) => {
-        editor.setDecorations(type, []);
-      });
+      if (token !== this.updateToken) {
+        return;
+      }
+      this.clearDecorations(editor);
     }
   }
 
@@ -128,6 +156,7 @@ export class GutterBlameDecorator {
       } else if (text.startsWith('\t')) {
         if (currentInfo.authorTime && currentInfo.author && currentInfo.hash) {
           const info = currentInfo as LineBlameInfo;
+          info.line = currentLine;
           lineInfos.push(info);
           blameMap.set(currentLine, info);
         }
@@ -141,7 +170,8 @@ export class GutterBlameDecorator {
     // Group decorations by color
     const decorationsByColor = new Map<string, vscode.DecorationOptions[]>();
 
-    lineInfos.forEach((info, index) => {
+    lineInfos.forEach((info) => {
+      const line = info.line;
       const colors = getAgeBasedColor(info.authorTime);
 
       // Create rich hover message similar to inline blame
@@ -162,7 +192,7 @@ export class GutterBlameDecorator {
       hoverMessage.appendMarkdown(`**Commit:** \`${info.shortHash}\`\n\n`);
       hoverMessage.appendMarkdown(`---\n\n`);
       hoverMessage.appendMarkdown(
-        `[Show Blame Panel](command:gitorbit.showBlameDetails?${encodeURIComponent(JSON.stringify({ filePath, line: index }))}) | `
+        `[Show Blame Panel](command:gitorbit.showBlameDetails?${encodeURIComponent(JSON.stringify({ filePath, line }))}) | `
       );
       hoverMessage.appendMarkdown(`[Toggle File Blame](command:gitorbit.toggleFileBlame) | `);
       hoverMessage.appendMarkdown(
@@ -174,7 +204,7 @@ export class GutterBlameDecorator {
       hoverMessage.isTrusted = true;
 
       const decoration: vscode.DecorationOptions = {
-        range: new vscode.Range(index, 0, index, 0),
+        range: new vscode.Range(line, 0, line, 0),
         hoverMessage,
       };
 

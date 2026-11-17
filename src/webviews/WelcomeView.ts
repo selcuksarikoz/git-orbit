@@ -37,8 +37,11 @@ export class WelcomeView {
           case 'openSettings':
             vscode.commands.executeCommand('gitorbit.openSettings');
             break;
-          case 'login':
-            vscode.commands.executeCommand('gitorbit.login');
+          case 'setApiKey':
+            vscode.commands.executeCommand('gitorbit.ai.setApiKey');
+            break;
+          case 'selectProvider':
+            vscode.commands.executeCommand('gitorbit.ai.selectProvider');
             break;
           case 'donate':
             vscode.commands.executeCommand('gitorbit.donate');
@@ -63,11 +66,7 @@ export class WelcomeView {
     context.globalState.update('welcomeVersion', version);
   }
 
-  private static getHtmlContent(webview: vscode.Webview, extensionUri: vscode.Uri): string {
-    const logoUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(extensionUri, 'assets', 'icons', 'kuulto.png')
-    );
-
+  private static getHtmlContent(_webview: vscode.Webview, _extensionUri: vscode.Uri): string {
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -179,10 +178,23 @@ export class WelcomeView {
             animation: fadeInUp 0.6s ease-out 0.5s backwards;
         }
 
-        .ai-logo {
+        .ai-icon {
             width: 56px;
             height: 56px;
             border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            background: var(--surface-hover);
+            border: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .ai-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
 
         .ai-content {
@@ -269,12 +281,15 @@ export class WelcomeView {
         </div>
 
         <div class="ai-banner">
-            <img src="${logoUri}" alt="Kuulto" class="ai-logo" />
+            <div class="ai-icon">✨</div>
             <div class="ai-content">
                 <div class="ai-title">Optional AI Features</div>
-                <div class="ai-desc">Smart commit messages, code smell detection, and AI chat. Powered by <a href="https://kuulto.app" style="color: var(--primary);">Kuulto</a>, OpenAI, Gemini, or Anthropic.</div>
+                <div class="ai-desc">Smart commit messages, code smell detection, and AI chat. Bring your own key — OpenRouter is available now.</div>
             </div>
-            <button class="btn btn-primary btn-sm" onclick="login()">Login</button>
+            <div class="ai-actions">
+                <button class="btn btn-primary btn-sm" onclick="setApiKey()">🔑 Set API Key</button>
+                <button class="btn btn-secondary btn-sm" onclick="selectProvider()">🖥️ Select Provider</button>
+            </div>
         </div>
 
         <div class="quick-links">
@@ -286,7 +301,8 @@ export class WelcomeView {
     <script>
         const vscode = acquireVsCodeApi();
         function openSettings() { vscode.postMessage({ command: 'openSettings' }); }
-        function login() { vscode.postMessage({ command: 'login' }); }
+        function setApiKey() { vscode.postMessage({ command: 'setApiKey' }); }
+        function selectProvider() { vscode.postMessage({ command: 'selectProvider' }); }
         function donate() { vscode.postMessage({ command: 'donate' }); }
         function feedback() { vscode.postMessage({ command: 'feedback' }); }
     </script>

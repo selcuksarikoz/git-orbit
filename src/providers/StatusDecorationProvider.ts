@@ -2,11 +2,11 @@ import * as vscode from 'vscode';
 
 export class StatusDecorationProvider implements vscode.FileDecorationProvider {
   private static statusMap: Map<string, string> = new Map();
-
-  private _onDidChangeFileDecorations: vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined> =
+  private static readonly emitter: vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined> =
     new vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined>();
+
   readonly onDidChangeFileDecorations: vscode.Event<vscode.Uri | vscode.Uri[] | undefined> =
-    this._onDidChangeFileDecorations.event;
+    StatusDecorationProvider.emitter.event;
 
   public static updateStatus(statuses: { path: string; status: string; rootDir: string }[]) {
     this.statusMap.clear();
@@ -15,15 +15,8 @@ export class StatusDecorationProvider implements vscode.FileDecorationProvider {
       const absPath = vscode.Uri.joinPath(vscode.Uri.file(s.rootDir), s.path).fsPath;
       this.statusMap.set(absPath, s.status);
     }
-  }
-
-  // Trigger an update notification to VS Code
-  public fireUpdate() {
-    // Fire for all keys in map
-    const uris = Array.from(StatusDecorationProvider.statusMap.keys()).map((p) =>
-      vscode.Uri.file(p)
-    );
-    this._onDidChangeFileDecorations.fire(uris);
+    // An undefined URI makes VS Code re-query every file, clearing stale decorations.
+    StatusDecorationProvider.emitter.fire(undefined);
   }
 
   provideFileDecoration(

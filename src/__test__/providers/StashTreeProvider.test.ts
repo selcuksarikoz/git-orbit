@@ -6,14 +6,27 @@ import { GitService } from '../../services/GitService';
 // Mock vscode
 vi.mock('vscode', () => {
   const TreeItem = class {
-    constructor(public label: string, public collapsibleState: number) {}
+    constructor(
+      public label: string,
+      public collapsibleState: number
+    ) {}
   };
   return {
     TreeItem,
     TreeItemCollapsibleState: { None: 0, Collapsed: 1, Expanded: 2 },
-    ThemeIcon: class { constructor(public id: string, public color?: any) {} },
-    ThemeColor: class { constructor(public id: string) {} },
-    EventEmitter: class { event = vi.fn(); fire = vi.fn(); },
+    ThemeIcon: class {
+      constructor(
+        public id: string,
+        public color?: any
+      ) {}
+    },
+    ThemeColor: class {
+      constructor(public id: string) {}
+    },
+    EventEmitter: class {
+      event = vi.fn();
+      fire = vi.fn();
+    },
     Uri: {
       file: (p: string) => ({ fsPath: p, scheme: 'file' }),
     },
@@ -44,7 +57,7 @@ describe('StashTreeProvider', () => {
 
   it('should list stashes at root', async () => {
     const children = await provider.getChildren();
-    
+
     expect(children.length).toBe(1);
     expect(children[0].label).toBe('stash1');
     expect(children[0].type).toBe('stash');
@@ -53,7 +66,7 @@ describe('StashTreeProvider', () => {
   it('should list stash files for a stash item', async () => {
     const stashItem = new StashItem('stash1', 'stash', 0);
     const children = await provider.getChildren(stashItem);
-    
+
     expect(children.length).toBe(1);
     expect(children[0].label).toBe('file1.ts');
     expect(children[0].type).toBe('file');

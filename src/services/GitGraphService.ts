@@ -59,8 +59,7 @@ export class GitGraphService {
    * Execute git log command with graph information
    */
   private async getGitLog(limit: number): Promise<string> {
-    await this.gitService['_ensureInitialized']();
-    const executor = this.gitService['executor'];
+    const executor = await this.gitService.getActiveExecutor();
 
     if (!executor) {
       throw new Error('Git executor not initialized');
@@ -70,7 +69,7 @@ export class GitGraphService {
       'log',
       '--all',
       '--graph',
-      '--pretty=format:%H|%h|%P|%an|%ae|%at|%s|%D',
+      '--pretty=format:%H%x1f%h%x1f%P%x1f%an%x1f%ae%x1f%at%x1f%s%x1f%D',
       `--max-count=${limit}`,
       '--date-order',
     ]);
@@ -98,10 +97,11 @@ export class GitGraphService {
       const dataLine = line.substring(graphPart.length);
 
       // Skip lines without commit data
-      if (!dataLine.includes('|')) return;
+      const separator = '\x1f';
+      if (!dataLine.includes(separator)) return;
 
-      // Parse commit data: hash|shortHash|parents|author|email|timestamp|message|refs
-      const parts = dataLine.split('|');
+      // Parse commit data with an unambiguous delimiter (subjects may contain '|').
+      const parts = dataLine.split(separator);
       if (parts.length < 7) return;
 
       const [hash, shortHash, parentsStr, author, authorEmail, timestampStr, message, refsStr] =

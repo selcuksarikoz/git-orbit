@@ -7,7 +7,10 @@ import { ConfigService } from '../../services/ConfigService';
 // Mock vscode
 vi.mock('vscode', () => ({
   TreeItem: class {
-    constructor(public label: string, public collapsibleState: any) {}
+    constructor(
+      public label: string,
+      public collapsibleState: any
+    ) {}
   },
   TreeItemCollapsibleState: {
     None: 0,
@@ -15,7 +18,10 @@ vi.mock('vscode', () => ({
     Expanded: 2,
   },
   ThemeIcon: class {
-    constructor(public id: string, public color?: any) {}
+    constructor(
+      public id: string,
+      public color?: any
+    ) {}
   },
   ThemeColor: class {
     constructor(public id: string) {}
@@ -48,8 +54,20 @@ vi.mock('../../services/GitService', () => ({
       getWorktrees: vi.fn().mockReturnValue([]),
       getLog: vi.fn().mockResolvedValue({
         all: [
-          { hash: 'abcdef1', message: 'feat: add stuff', author_name: 'John', author_email: 'john@test.com', date: '2023-01-01' },
-          { hash: '1234567', message: 'fix: bug', author_name: 'Jane', author_email: 'jane@test.com', date: '2023-01-02' },
+          {
+            hash: 'abcdef1',
+            message: 'feat: add stuff',
+            author_name: 'John',
+            author_email: 'john@test.com',
+            date: '2023-01-01',
+          },
+          {
+            hash: '1234567',
+            message: 'fix: bug',
+            author_name: 'Jane',
+            author_email: 'jane@test.com',
+            date: '2023-01-02',
+          },
         ],
       }),
     }),
@@ -86,5 +104,35 @@ describe('CommitTreeProvider', () => {
   it('should increment limit', () => {
     provider.incrementLimit();
     expect((provider as any).limit).toBe(70);
+  });
+
+  describe('root-level filtering', () => {
+    it('should filter root commits by message', async () => {
+      provider.setFilter('bug');
+      const children = await provider.getChildren();
+
+      expect(children.length).toBe(1);
+      expect((children[0] as any).label).toBe('fix: bug');
+    });
+
+    it('should filter root commits by author and hash', async () => {
+      provider.setFilter('jane');
+      let children = await provider.getChildren();
+      expect(children.length).toBe(1);
+      expect((children[0] as any).label).toBe('fix: bug');
+
+      provider.setFilter('abcdef1');
+      children = await provider.getChildren();
+      expect(children.length).toBe(1);
+      expect((children[0] as any).label).toBe('feat: add stuff');
+    });
+
+    it('should return a placeholder when no root commits match', async () => {
+      provider.setFilter('no-such-commit');
+      const children = await provider.getChildren();
+
+      expect(children.length).toBe(1);
+      expect((children[0] as any).label).toBe('No commits found');
+    });
   });
 });

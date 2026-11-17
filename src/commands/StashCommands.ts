@@ -31,7 +31,7 @@ export class StashCommands {
   }
 
   /**
-   * Registers stash commands to the extension context. oasiduoia udoiasudoisau
+   * Registers stash commands to the extension context.
    * @param context - The extension context.
    */
   public register(context: vscode.ExtensionContext) {
@@ -39,7 +39,8 @@ export class StashCommands {
       vscode.commands.registerCommand('gitorbit.saveStash', this.saveStash.bind(this)),
       vscode.commands.registerCommand('gitorbit.stashApply', this.stashApply.bind(this)),
       vscode.commands.registerCommand('gitorbit.stashPop', this.stashPop.bind(this)),
-      vscode.commands.registerCommand('gitorbit.stashDrop', this.stashDrop.bind(this))
+      vscode.commands.registerCommand('gitorbit.stashDrop', this.stashDrop.bind(this)),
+      vscode.commands.registerCommand('gitorbit.changes.stashFile', this.stashFile.bind(this))
     );
   }
 
@@ -51,9 +52,12 @@ export class StashCommands {
     const message = await vscode.window.showInputBox({
       prompt: 'Stash message (optional)',
     });
-    if (message !== undefined) {
+    if (message === undefined) return;
+    try {
       await this.gitService.stashSave(message, true);
       this.refreshCallback();
+    } catch (e: any) {
+      vscode.window.showErrorMessage(`Failed to save stash: ${e.message}`);
     }
   }
 
@@ -63,8 +67,12 @@ export class StashCommands {
    */
   private async stashApply(item: any) {
     if (!item || item.index === undefined) return;
-    await this.gitService.stashApply(item.index);
-    this.refreshCallback();
+    try {
+      await this.gitService.stashApply(item.index);
+      this.refreshCallback();
+    } catch (e: any) {
+      vscode.window.showErrorMessage(`Failed to apply stash: ${e.message}`);
+    }
   }
 
   /**
@@ -73,8 +81,12 @@ export class StashCommands {
    */
   private async stashPop(item: any) {
     if (!item || item.index === undefined) return;
-    await this.gitService.stashPop(item.index);
-    this.refreshCallback();
+    try {
+      await this.gitService.stashPop(item.index);
+      this.refreshCallback();
+    } catch (e: any) {
+      vscode.window.showErrorMessage(`Failed to pop stash: ${e.message}`);
+    }
   }
 
   /**
@@ -89,9 +101,33 @@ export class StashCommands {
       'Delete',
       'Cancel'
     );
-    if (confirm === 'Delete') {
+    if (confirm !== 'Delete') return;
+    try {
       await this.gitService.stashDrop(item.index);
       this.refreshCallback();
+    } catch (e: any) {
+      vscode.window.showErrorMessage(`Failed to delete stash: ${e.message}`);
+    }
+  }
+
+  /**
+   * Stash a single changed file from the Changes view.
+   * @param item - The ChangeItem whose resourceUri points at the file.
+   */
+  private async stashFile(item: any) {
+    const filePath: string | undefined =
+      item?.resourceUri?.fsPath ??
+      (item?.rootPath && item?.path
+        ? vscode.Uri.joinPath(vscode.Uri.file(item.rootPath), item.path).fsPath
+        : undefined);
+    if (!filePath) return;
+
+    try {
+      await this.gitService.stashFile(filePath, item?.repo);
+      vscode.window.showInformationMessage(`Stashed ${item.path || filePath}`);
+      this.refreshCallback();
+    } catch (e: any) {
+      vscode.window.showErrorMessage(`Failed to stash file: ${e.message}`);
     }
   }
 }

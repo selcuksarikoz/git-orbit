@@ -28,7 +28,10 @@ export function memoize(
 
     if (result instanceof Promise) {
       result.catch(() => {
-        cache.delete(key);
+        // A newer call may already have replaced this entry after a cache clear.
+        if (cache.get(key) === result) {
+          cache.delete(key);
+        }
       });
     }
 

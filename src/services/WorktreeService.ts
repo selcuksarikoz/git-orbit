@@ -191,7 +191,7 @@ export class WorktreeService {
     if (!targetRepo) return false;
 
     try {
-      await targetRepo.executor.exec(['worktree', 'lock', worktreePath, '-m', reason]);
+      await targetRepo.executor.exec(['worktree', 'lock', '--reason', reason, worktreePath]);
       vscode.window.showInformationMessage('Worktree locked');
       return true;
     } catch (error: any) {

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as vscode from 'vscode';
 import { activate } from '../extension';
-import { AuthService } from './services/AuthService';
 import { GitService } from './services/GitService';
+import { AIProviderRegistry } from '@/services/ai/AIProviderRegistry';
 
 // Mock vscode
 vi.mock('vscode', () => {
@@ -30,7 +30,10 @@ vi.mock('vscode', () => {
         },
         dispose: vi.fn(),
       }),
-      registerUriHandler: vi.fn().mockReturnValue({ dispose: vi.fn() }),
+      showInputBox: vi.fn().mockResolvedValue(undefined),
+      showQuickPick: vi.fn().mockResolvedValue(undefined),
+      showInformationMessage: vi.fn(),
+      showErrorMessage: vi.fn(),
       onDidChangeTextEditorSelection: vi.fn().mockReturnValue({ dispose: vi.fn() }),
       onDidChangeActiveTextEditor: vi.fn().mockReturnValue({ dispose: vi.fn() }),
       activeTextEditor: undefined,
@@ -98,7 +101,10 @@ vi.mock('vscode', () => {
       getExtension: vi.fn().mockReturnValue({
         isActive: true,
         exports: {
-          getAPI: vi.fn().mockReturnValue({ onDidOpenRepository: vi.fn(), repositories: [] }),
+          getAPI: vi.fn().mockReturnValue({
+            onDidOpenRepository: vi.fn().mockReturnValue({ dispose: vi.fn() }),
+            repositories: [],
+          }),
         },
         packageJSON: { version: '1.2.1' },
       }),
@@ -134,11 +140,15 @@ vi.mock('./services/GitService', () => ({
   },
 }));
 
-vi.mock('./services/AuthService', () => ({
-  AuthService: {
+vi.mock('@/services/ai/AIProviderRegistry', () => ({
+  AIProviderRegistry: {
     getInstance: vi.fn().mockReturnValue({
-      init: vi.fn(),
-      isLoggedIn: vi.fn().mockResolvedValue(true),
+      getProviders: vi
+        .fn()
+        .mockResolvedValue([{ id: 'openrouter', displayName: 'OpenRouter', configured: true }]),
+      setApiKey: vi.fn().mockResolvedValue(undefined),
+      clearApiKey: vi.fn().mockResolvedValue(undefined),
+      setActiveProvider: vi.fn().mockResolvedValue(undefined),
     }),
   },
 }));
@@ -151,6 +161,11 @@ describe('Extension Activation', () => {
     mockContext = {
       subscriptions: [],
       extensionUri: { fsPath: '/extension' },
+      secrets: {
+        get: vi.fn(),
+        store: vi.fn(),
+        delete: vi.fn(),
+      },
       globalState: {
         get: vi.fn(),
         update: vi.fn().mockResolvedValue(undefined),
@@ -161,5 +176,58 @@ describe('Extension Activation', () => {
   it('should register commands and providers upon activation', () => {
     // Just verify activation doesn't throw
     expect(() => activate(mockContext)).not.toThrow();
+  });
+
+  it('should register the AI provider and view mode commands', () => {
+    activate(mockContext);
+    const registered = (vscode.commands.registerCommand as any).mock.calls.map(
+      (call: any[]) => call[0]
+    );
+
+    expect(registered).toContain('gitorbit.ai.setApiKey');
+    expect(registered).toContain('gitorbit.ai.clearApiKey');
+    expect(registered).toContain('gitorbit.ai.selectProvider');
+    expect(registered).toContain('gitorbit.changes.viewAsList');
+    expect(registered).toContain('gitorbit.changes.viewAsTree');
+    expect(registered).not.toContain('gitorbit.login');
+    expect(registered).not.toContain('gitorbit.logout');
+  });
+
+  it('should initialize the registry with the extension SecretStorage', () => {
+    activate(mockContext);
+    expect(AIProviderRegistry.getInstance).toHaveBeenCalledWith(mockContext.secrets);
+  });
+
+  it('should save the OpenRouter API key when provided', async () => {
+    (vscode.window.showInputBox as any).mockResolvedValue('sk-or-test');
+    activate(mockContext);
+    const handler = (vscode.commands.registerCommand as any).mock.calls.find(
+      (call: any[]) => call[0] === 'gitorbit.ai.setApiKey'
+    )[1];
+
+    await handler();
+    expect(
+      (AIProviderRegistry.getInstance as any).mock.results[0].value.setApiKey
+    ).toHaveBeenCalledWith('openrouter', 'sk-or-test');
+    expect(vscode.window.showInputBox).toHaveBeenCalledWith(
+      expect.objectContaining({ password: true })
+    );
+    // The secret must never be echoed back to the user.
+    for (const call of vi.mocked(vscode.window.showInformationMessage).mock.calls) {
+      expect(String(call[0])).not.toContain('sk-or-test');
+    }
+  });
+
+  it('should reject an empty API key without storing it', async () => {
+    (vscode.window.showInputBox as any).mockResolvedValue('   ');
+    activate(mockContext);
+    const handler = (vscode.commands.registerCommand as any).mock.calls.find(
+      (call: any[]) => call[0] === 'gitorbit.ai.setApiKey'
+    )[1];
+
+    await handler();
+    expect(
+      (AIProviderRegistry.getInstance as any).mock.results[0].value.setApiKey
+    ).not.toHaveBeenCalled();
   });
 });

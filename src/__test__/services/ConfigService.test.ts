@@ -5,12 +5,14 @@ const { workspace } = vi.hoisted(() => ({
   workspace: {
     getConfiguration: vi.fn().mockReturnValue({
       get: vi.fn(),
+      update: vi.fn(),
     }),
   },
 }));
 
 vi.mock('vscode', () => ({
   workspace,
+  ConfigurationTarget: { Global: 1 },
 }));
 
 describe('ConfigService', () => {
@@ -225,6 +227,32 @@ describe('ConfigService', () => {
     it('should return default value when not configured', () => {
       mockGet.mockReturnValue(undefined);
       expect(configService.autoSyncInterval).toBe(10);
+    });
+
+    it('should allow 0 to disable auto sync', () => {
+      mockGet.mockReturnValue(0);
+      expect(configService.autoSyncInterval).toBe(0);
+    });
+  });
+
+  describe('changesViewMode', () => {
+    it('should default to list', () => {
+      mockGet.mockReturnValue(undefined);
+      expect(configService.changesViewMode).toBe('list');
+    });
+
+    it('should read the configured mode', () => {
+      mockGet.mockReturnValue('tree');
+      expect(configService.changesViewMode).toBe('tree');
+    });
+
+    it('should persist the selected mode globally', async () => {
+      await configService.setChangesViewMode('tree');
+      expect(workspace.getConfiguration('gitorbit').update).toHaveBeenCalledWith(
+        'views.changesViewMode',
+        'tree',
+        1
+      );
     });
   });
 });

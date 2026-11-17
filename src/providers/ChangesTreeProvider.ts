@@ -5,6 +5,8 @@ import { StatusDecorationProvider } from './StatusDecorationProvider';
 import { AIService } from '../services/AIService';
 import { BisectService, BisectState } from '../services/BisectService';
 import { WorktreeService } from '../services/WorktreeService';
+import { ConfigService } from '../services/ConfigService';
+import { buildChangeNodes, ChangeEntry, FolderItem } from './ChangeTreeBuilder';
 import { toStrikethrough } from '../utils/HtmlUtils';
 
 class BisectLogItem extends vscode.TreeItem {
@@ -131,11 +133,9 @@ class RepoHeaderItem extends vscode.TreeItem {
       iconName,
       isSelected ? new vscode.ThemeColor('charts.green') : new vscode.ThemeColor('foreground')
     );
-    this.contextValue = isSelected
-      ? 'repoHeaderSelected'
-      : isWorktree
-        ? 'worktreeHeader'
-        : 'repoHeader';
+    // Keep the manifest's repoHeader contextValue for selected repos so inline
+    // Stage All / Discard All actions remain available; selection is shown via icon/tooltip.
+    this.contextValue = isWorktree ? 'worktreeHeader' : 'repoHeader';
 
     // Click to select this repo
     this.command = {
@@ -274,6 +274,19 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       this._repoStatus.set(entry.repo.rootDir, existing);
     }
 
+    StatusDecorationProvider.updateStatus([
+      ...this._staged.map((s) => ({
+        path: s.path,
+        status: s.status,
+        rootDir: s.repo.rootDir,
+      })),
+      ...this._unstaged.map((s) => ({
+        path: s.path,
+        status: s.status,
+        rootDir: s.repo.rootDir,
+      })),
+    ]);
+
     // Update context keys
     vscode.commands.executeCommand(
       'setContext',
@@ -344,24 +357,43 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
         const logs = await BisectService.getInstance().getLog();
         return logs.map((l) => new BisectLogItem(l.status, l.hash));
       }
-      if (element.label === 'Staged Changes') {
-        const repoStaged = element.repo
-          ? this._staged.filter((s) => s.repo.rootDir === element.repo!.rootDir)
-          : this._staged;
-        return repoStaged.map(
-          (s) => new ChangeItem(s.path, s.status, true, s.repo.rootDir, s.repo)
-        );
-      } else if (element.label === 'Changes') {
-        const repoUnstaged = element.repo
-          ? this._unstaged.filter((s) => s.repo.rootDir === element.repo!.rootDir)
-          : this._unstaged;
-        return repoUnstaged.map(
-          (s) => new ChangeItem(s.path, s.status, false, s.repo.rootDir, s.repo)
-        );
+      if (element.label === 'Staged Changes' || element.label === 'Changes') {
+        return this.getChangeGroupChildren(element);
       }
     }
 
+    if (element instanceof FolderItem) {
+      const source = element.isStaged ? this._staged : this._unstaged;
+      const entries = element.repo
+        ? source.filter((s) => s.repo.rootDir === element.repo!.rootDir)
+        : source;
+      const prefix = `${element.dirPath}/`;
+      return buildChangeNodes(
+        entries.filter((s) => s.path.startsWith(prefix)),
+        prefix,
+        element.repo,
+        element.isStaged,
+        (s) => new ChangeItem(s.path, s.status, element.isStaged, s.repo.rootDir, s.repo)
+      );
+    }
+
     return [];
+  }
+
+  /** Render a staged/unstaged group either flat or grouped into directories. */
+  private getChangeGroupChildren(element: GroupItem): vscode.TreeItem[] {
+    const isStaged = element.label === 'Staged Changes';
+    const source: ChangeEntry[] = isStaged ? this._staged : this._unstaged;
+    const entries = element.repo
+      ? source.filter((s) => s.repo.rootDir === element.repo!.rootDir)
+      : source;
+    const toItem = (s: ChangeEntry) =>
+      new ChangeItem(s.path, s.status, isStaged, s.repo.rootDir, s.repo);
+
+    if (ConfigService.getInstance().changesViewMode === 'tree') {
+      return buildChangeNodes(entries, '', element.repo, isStaged, toItem);
+    }
+    return entries.map(toItem);
   }
 
   private async getSingleRepoChildren(gitService: GitService): Promise<vscode.TreeItem[]> {
@@ -387,29 +419,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       items.push(new GroupItem('Staged Changes', this._staged.length, 'stagedGroup'));
     }
 
-    items.push(
-      new GroupItem(
-        'Changes',
-        this._unstaged.length,
-        this._unstaged.length > 0 ? 'changesGroup' : 'changesGroupEmpty'
-      )
-    );
-
-    // Update decorations
-    const allStatus = [
-      ...this._staged.map((s) => ({
-        path: s.path,
-        status: s.status,
-        rootDir: s.repo.rootDir,
-      })),
-      ...this._unstaged.map((s) => ({
-        path: s.path,
-        status: s.status,
-        rootDir: s.repo.rootDir,
-      })),
-    ];
-    StatusDecorationProvider.updateStatus(allStatus);
-    new StatusDecorationProvider().fireUpdate();
+    items.push(new GroupItem('Changes', this._unstaged.length, 'changesGroup'));
 
     return items;
   }
@@ -432,14 +442,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
       items.push(new GroupItem('Staged Changes', repoStaged.length, 'stagedGroup', repo));
     }
 
-    items.push(
-      new GroupItem(
-        'Changes',
-        repoUnstaged.length,
-        repoUnstaged.length > 0 ? 'changesGroup' : 'changesGroupEmpty',
-        repo
-      )
-    );
+    items.push(new GroupItem('Changes', repoUnstaged.length, 'changesGroup', repo));
 
     return items;
   }
@@ -962,7 +965,7 @@ export class ChangesTreeProvider implements vscode.TreeDataProvider<vscode.TreeI
     }
 
     // Call AI
-    if (!aiService.validateConfig()) return;
+    if (!(await aiService.validateConfig())) return;
 
     try {
       await vscode.window.withProgress(

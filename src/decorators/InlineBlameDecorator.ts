@@ -23,7 +23,14 @@ export class InlineBlameDecorator {
   private gitService: GitService;
   private configService: ConfigService;
   private hoverProvider: vscode.Disposable;
-  private currentBlameInfo: Map<number, BlameInfo> = new Map();
+  private currentBlameInfo: Map<string, BlameInfo> = new Map();
+  private updateToken = 0;
+  private activeEditor: vscode.TextEditor | undefined;
+  private disposables: vscode.Disposable[] = [];
+
+  private static blameKey(filePath: string, line: number): string {
+    return `${filePath}:${line}`;
+  }
 
   constructor() {
     this.gitService = GitService.getInstance();
@@ -40,9 +47,24 @@ export class InlineBlameDecorator {
       provideHover: (document, position) => this.provideHover(document, position),
     });
 
-    vscode.window.onDidChangeTextEditorSelection((e) => this.update(e.textEditor));
+    const selectionListener = vscode.window.onDidChangeTextEditorSelection?.((e) =>
+      this.update(e.textEditor)
+    );
+    if (selectionListener) {
+      this.disposables.push(selectionListener);
+    }
 
-    vscode.workspace.onDidChangeConfiguration((e) => {
+    const editorListener = vscode.window.onDidChangeActiveTextEditor?.((editor) => {
+      this.clearState();
+      if (editor) {
+        this.update(editor);
+      }
+    });
+    if (editorListener) {
+      this.disposables.push(editorListener);
+    }
+
+    const configListener = vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('gitorbit.blame.inline.enabled')) {
         const editor = vscode.window.activeTextEditor;
         if (editor) {
@@ -50,34 +72,59 @@ export class InlineBlameDecorator {
         }
       }
     });
+    if (configListener) {
+      this.disposables.push(configListener);
+    }
   }
 
   public dispose() {
+    this.updateToken++;
+    this.currentBlameInfo.clear();
     this.decorationType.dispose();
     this.hoverProvider.dispose();
+    this.disposables.forEach((d) => d.dispose());
+    this.disposables = [];
+  }
+
+  /** Drop all cached blame and clear decorations on the previously decorated editor. */
+  private clearState() {
+    this.updateToken++;
+    this.currentBlameInfo.clear();
+    if (this.activeEditor) {
+      this.activeEditor.setDecorations(this.decorationType, []);
+      this.activeEditor = undefined;
+    }
   }
 
   private async update(editor: vscode.TextEditor) {
+    const token = ++this.updateToken;
+    this.currentBlameInfo.clear();
+    editor.setDecorations(this.decorationType, []);
+    this.activeEditor = editor;
+
     if (!this.configService.isInlineBlameEnabled) {
-      editor.setDecorations(this.decorationType, []);
-      this.currentBlameInfo.clear();
       return;
     }
 
     const line = editor.selection.active.line;
     const filePath = editor.document.uri.fsPath;
+    const key = InlineBlameDecorator.blameKey(filePath, line);
 
     // Don't show blame on empty lines
     if (editor.document.lineAt(line).isEmptyOrWhitespace) {
-      editor.setDecorations(this.decorationType, []);
       return;
     }
 
     try {
       const blameOutput = await this.gitService.getBlame(filePath);
 
-      // If the user has moved to a different line, discard this update
-      if (editor.selection.active.line !== line) {
+      // Abort if the editor, line, or update generation changed while awaiting.
+      if (
+        token !== this.updateToken ||
+        (vscode.window.activeTextEditor && vscode.window.activeTextEditor !== editor) ||
+        editor.selection.active.line !== line ||
+        editor.document.uri.fsPath !== filePath
+      ) {
         return;
       }
 
@@ -88,8 +135,8 @@ export class InlineBlameDecorator {
         lineBlame.author === 'Not Committed Yet';
 
       if (!isUncommitted) {
-        // Store blame info for hover provider
-        this.currentBlameInfo.set(line, lineBlame);
+        // Store blame info for hover provider, keyed by file and line
+        this.currentBlameInfo.set(key, lineBlame);
 
         // Calculate age-based color
         const color = getAgeBasedColor(lineBlame.authorTime).rgba;
@@ -113,11 +160,14 @@ export class InlineBlameDecorator {
         editor.setDecorations(this.decorationType, [decoration]);
       } else {
         editor.setDecorations(this.decorationType, []);
-        this.currentBlameInfo.delete(line);
+        this.currentBlameInfo.delete(key);
       }
     } catch {
+      if (token !== this.updateToken) {
+        return;
+      }
       editor.setDecorations(this.decorationType, []);
-      this.currentBlameInfo.clear();
+      this.currentBlameInfo.delete(key);
     }
   }
 
@@ -129,7 +179,8 @@ export class InlineBlameDecorator {
       return undefined;
     }
 
-    const blameInfo = this.currentBlameInfo.get(position.line);
+    const key = InlineBlameDecorator.blameKey(document.uri.fsPath, position.line);
+    const blameInfo = this.currentBlameInfo.get(key);
     if (!blameInfo) {
       return undefined;
     }

@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { BaseTreeProvider } from './BaseTreeProvider';
 import { GitService, GitRepository } from '../services/GitService';
-import { IconService } from '../services/IconService';
 import { toStrikethrough } from '../utils/HtmlUtils';
 
 /**

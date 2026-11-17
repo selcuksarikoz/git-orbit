@@ -51,6 +51,12 @@ vi.mock('vscode', () => ({
   },
 }));
 
+const mockConfig = vi.hoisted(() => ({ changesViewMode: 'list' as 'list' | 'tree' }));
+
+vi.mock('../../services/ConfigService', () => ({
+  ConfigService: { getInstance: () => mockConfig },
+}));
+
 // Mock GitService
 vi.mock('../../services/GitService', () => ({
   GitService: {
@@ -59,6 +65,8 @@ vi.mock('../../services/GitService', () => ({
       ensureInitialized: vi.fn(),
       getRepositories: vi.fn().mockReturnValue([{ rootDir: '/test/repo' }]),
       getSelectedRepository: vi.fn().mockReturnValue({ rootDir: '/test/repo' }),
+      getBranches: vi.fn().mockResolvedValue({ all: [], current: '' }),
+      getBranchStatus: vi.fn().mockResolvedValue({ isGone: false }),
       getAllStatus: vi.fn().mockResolvedValue([
         {
           path: 'file1.ts',
@@ -103,6 +111,7 @@ describe('ChangesTreeProvider', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockConfig.changesViewMode = 'list';
     provider = new ChangesTreeProvider({} as any);
     mockGitService = GitService.getInstance();
   });
@@ -131,5 +140,50 @@ describe('ChangesTreeProvider', () => {
     await provider.stage(mockItem);
 
     expect(mockGitService.stage).toHaveBeenCalledWith('file2.ts', mockItem.repo);
+  });
+
+  it('should render flat change items in list mode', async () => {
+    mockGitService.getAllStatus.mockResolvedValue([
+      {
+        path: 'src/nested/file.ts',
+        stagedStatus: ' ',
+        workingTreeStatus: 'M',
+        repo: { rootDir: '/test/repo' },
+      },
+    ]);
+    await provider.refresh();
+    const repoHeader = (await provider.getChildren())[0];
+    const groups = await provider.getChildren(repoHeader);
+    const changesGroup = groups.find((g: any) => g.label === 'Changes');
+    const items = await provider.getChildren(changesGroup);
+
+    expect(items[0].label).toBe('file.ts');
+    expect(items[0].contextValue).toBe('change');
+  });
+
+  it('should group changes into folders in tree mode', async () => {
+    mockConfig.changesViewMode = 'tree';
+    mockGitService.getAllStatus.mockResolvedValue([
+      {
+        path: 'src/nested/file.ts',
+        stagedStatus: ' ',
+        workingTreeStatus: 'M',
+        repo: { rootDir: '/test/repo' },
+      },
+    ]);
+    await provider.refresh();
+    const repoHeader = (await provider.getChildren())[0];
+    const groups = await provider.getChildren(repoHeader);
+    const changesGroup = groups.find((g: any) => g.label === 'Changes');
+    const items = await provider.getChildren(changesGroup);
+
+    expect(items[0].label).toBe('src');
+    expect(items[0].contextValue).toBe('changesFolder');
+
+    const nested = await provider.getChildren(items[0]);
+    expect(nested[0].label).toBe('nested');
+    const files = await provider.getChildren(nested[0]);
+    expect(files[0].label).toBe('file.ts');
+    expect(files[0].contextValue).toBe('change');
   });
 });

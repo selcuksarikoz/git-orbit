@@ -6,10 +6,18 @@ import { GitService } from '../../services/GitService';
 // Mock vscode
 vi.mock('vscode', () => ({
   CodeLens: class {
-    constructor(public range: any, public command: any) {}
+    constructor(
+      public range: any,
+      public command: any
+    ) {}
   },
   Range: class {
-    constructor(public startLine: number, public startChar: number, public endLine: number, public endChar: number) {}
+    constructor(
+      public startLine: number,
+      public startChar: number,
+      public endLine: number,
+      public endChar: number
+    ) {}
   },
   commands: {
     executeCommand: vi.fn(),

@@ -89,11 +89,17 @@ export class GitContentProvider implements vscode.TextDocumentContentProvider {
     filePath: string,
     status: string,
     repoRoot?: string
-  ): { original: vscode.Uri | undefined; modified: vscode.Uri | undefined } {
+  ): { original: vscode.Uri; modified: vscode.Uri } {
+    // The multi-diff editor requires both URIs; use an empty document for
+    // added/deleted files instead of undefined.
     const original =
-      status === 'A' ? undefined : GitContentProvider.getUri(`${hash}^`, filePath, repoRoot);
+      status === 'A'
+        ? GitContentProvider.getUri('EMPTY', filePath, repoRoot)
+        : GitContentProvider.getUri(`${hash}^`, filePath, repoRoot);
     const modified =
-      status === 'D' ? undefined : GitContentProvider.getUri(hash, filePath, repoRoot);
+      status === 'D'
+        ? GitContentProvider.getUri('EMPTY', filePath, repoRoot)
+        : GitContentProvider.getUri(hash, filePath, repoRoot);
 
     return { original, modified };
   }

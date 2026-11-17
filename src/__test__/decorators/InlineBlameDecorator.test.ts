@@ -7,13 +7,14 @@ import { ConfigService } from '../../services/ConfigService';
 vi.mock('vscode', () => ({
   window: {
     onDidChangeTextEditorSelection: vi.fn(),
+    onDidChangeActiveTextEditor: vi.fn(),
     activeTextEditor: {
-      document: { 
+      document: {
         uri: { fsPath: '/test/file.ts' },
         lineCount: 10,
-        lineAt: (line: number) => ({ 
-            text: 'line content',
-            isEmptyOrWhitespace: false
+        lineAt: (line: number) => ({
+          text: 'line content',
+          isEmptyOrWhitespace: false,
         }),
       },
       setDecorations: vi.fn(),
@@ -33,7 +34,7 @@ vi.mock('vscode', () => ({
   MarkdownString: vi.fn().mockImplementation(() => ({
     appendMarkdown: vi.fn(),
     isTrusted: false,
-    supportHtml: false
+    supportHtml: false,
   })),
 }));
 
@@ -62,6 +63,8 @@ describe('InlineBlameDecorator', () => {
     vi.clearAllMocks();
     mockGitService = GitService.getInstance();
     mockConfigService = ConfigService.getInstance();
+    mockConfigService.isInlineBlameEnabled = true;
+    (vscode.window.activeTextEditor as any).selection.active.line = 0;
     decorator = new InlineBlameDecorator();
   });
 
@@ -72,33 +75,77 @@ describe('InlineBlameDecorator', () => {
   });
 
   it('should update inline blame when selection changes', async () => {
-    const blameOutput = 
+    const blameOutput =
       '4927f1b74581c7f9999999999999999999999999 1 1 1\n' +
       'author John Doe\n' +
       'author-mail <john@example.com>\n' +
       'author-time 1672531200\n' +
       'summary feat: initial commit\n' +
       '\tline content\n';
-    
+
     mockGitService.getBlame.mockResolvedValue(blameOutput);
-    
+
     // Manually trigger the private update method
     await (decorator as any).update(vscode.window.activeTextEditor);
-    
+
     expect(mockGitService.getBlame).toHaveBeenCalledWith('/test/file.ts');
     expect(vscode.window.activeTextEditor?.setDecorations).toHaveBeenCalled();
   });
 
   it('should clear decorations if inline blame is disabled', async () => {
     mockConfigService.isInlineBlameEnabled = false;
-    
+
     await (decorator as any).update(vscode.window.activeTextEditor);
-    
-    expect(vscode.window.activeTextEditor?.setDecorations).toHaveBeenCalledWith(expect.anything(), []);
+
+    expect(vscode.window.activeTextEditor?.setDecorations).toHaveBeenCalledWith(
+      expect.anything(),
+      []
+    );
   });
 
   it('should dispose correctly', () => {
     decorator.dispose();
     // Verify decorationType and hoverProvider are disposed
+  });
+
+  it('should clear cached blame when the active editor changes', async () => {
+    const blameOutput =
+      '4927f1b74581c7f9999999999999999999999999 1 1 1\n' +
+      'author John Doe\n' +
+      'author-mail <john@example.com>\n' +
+      'author-time 1672531200\n' +
+      'summary feat: initial commit\n' +
+      '\tline content\n';
+    mockGitService.getBlame.mockResolvedValue(blameOutput);
+    await (decorator as any).update(vscode.window.activeTextEditor);
+
+    const editorListener = vi.mocked(vscode.window.onDidChangeActiveTextEditor).mock.calls[0][0];
+    editorListener(undefined);
+    expect((decorator as any).currentBlameInfo.size).toBe(0);
+  });
+
+  it('should not apply stale blame after the selection moves during the await', async () => {
+    const blameOutput =
+      '4927f1b74581c7f9999999999999999999999999 1 1 1\n' +
+      'author John Doe\n' +
+      'author-mail <john@example.com>\n' +
+      'author-time 1672531200\n' +
+      'summary feat: initial commit\n' +
+      '\tline content\n';
+    let resolveBlame: (value: string) => void = () => {};
+    mockGitService.getBlame.mockReturnValue(
+      new Promise<string>((resolve) => {
+        resolveBlame = resolve;
+      })
+    );
+
+    const editor = vscode.window.activeTextEditor!;
+    const pending = (decorator as any).update(editor);
+    editor.selection.active.line = 2;
+    resolveBlame(blameOutput);
+    await pending;
+
+    expect((decorator as any).currentBlameInfo.size).toBe(0);
+    editor.selection.active.line = 0;
   });
 });

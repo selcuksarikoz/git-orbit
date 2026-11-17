@@ -99,7 +99,11 @@ describe('GitflowService', () => {
     await gitflowService.startBranch(undefined, customRepo);
 
     expect(mockGitService.getBranches).toHaveBeenCalledWith(customRepo);
-    expect(mockGitService.createBranch).toHaveBeenCalledWith('custom-feature', 'develop', customRepo);
+    expect(mockGitService.createBranch).toHaveBeenCalledWith(
+      'custom-feature',
+      'develop',
+      customRepo
+    );
   });
 
   it('should start a gitflow branch (feature)', async () => {

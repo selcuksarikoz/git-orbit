@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { GitService } from './GitService';
+import { GitRepository, GitService } from './GitService';
+import { GitExecutor } from '../utils/GitExecutor';
 
 export enum BisectState {
   Idle,
@@ -12,6 +13,8 @@ export class BisectService {
   private state: BisectState = BisectState.Idle;
   private statusBarItem: vscode.StatusBarItem;
   private gitService: GitService;
+  private activeRepo: GitRepository | undefined;
+  private autoStashRef: string | undefined;
 
   private constructor() {
     this.gitService = GitService.getInstance();
@@ -28,6 +31,25 @@ export class BisectService {
 
   public get currentState(): BisectState {
     return this.state;
+  }
+
+  /** Select the repository that bisect operations should target. */
+  public setActiveRepo(repo?: GitRepository): void {
+    this.activeRepo = repo;
+  }
+
+  public getActiveRepo(): GitRepository | undefined {
+    return this.activeRepo;
+  }
+
+  /**
+   * Resolve the executor for the active repository, falling back to the
+   * default repository and finally to the legacy default executor.
+   */
+  private getExecutor(): GitExecutor | undefined {
+    if (this.activeRepo) return this.activeRepo.executor;
+    const defaultRepo = this.gitService.getDefaultRepository?.();
+    return defaultRepo?.executor ?? this.gitService.executor;
   }
 
   public dispose() {
@@ -60,6 +82,13 @@ export class BisectService {
       return;
     }
 
+    // The UI may invoke bisect from a tree item; honour its repository.
+    const itemRepo =
+      item?.repo ||
+      (item?.repoRoot ? this.gitService.getRepositoryByRoot?.(item.repoRoot) : undefined);
+    if (itemRepo) this.setActiveRepo(itemRepo);
+    this.autoStashRef = undefined;
+
     try {
       // Pre-fill if item provided (from context menu)
       const initialBad = item?.hash; // undefined if not from context menu
@@ -81,11 +110,11 @@ export class BisectService {
 
       if (!goodCommit) return;
 
-      const git = this.gitService.executor;
+      const git = this.getExecutor();
       if (!git) return;
 
       // Check for uncommitted changes
-      const status = await this.gitService.getStatus();
+      const status = await this.gitService.getStatus(this.activeRepo);
       const hasChanges = status.length > 0;
 
       if (hasChanges) {
@@ -97,6 +126,14 @@ export class BisectService {
 
         if (choice === 'Stash Changes & Continue') {
           await git.exec(['stash', 'push', '-m', 'GitOrbit: Auto-stash before bisect']);
+          // Record the exact stash commit so reset can restore only this one,
+          // even if other stashes are created during the bisect session.
+          try {
+            const refResult = await git.exec(['rev-parse', '--verify', 'refs/stash']);
+            this.autoStashRef = refResult.stdout.trim() || undefined;
+          } catch {
+            this.autoStashRef = undefined;
+          }
           vscode.window.showInformationMessage(
             'Changes stashed. Will be restored after bisect reset.'
           );
@@ -144,7 +181,7 @@ export class BisectService {
 
   private async pickCommit(title: string, placeholder: string): Promise<string | undefined> {
     try {
-      const branches = await this.gitService.getBranches();
+      const branches = await this.gitService.getBranches(this.activeRepo);
 
       const items: vscode.QuickPickItem[] = [];
 
@@ -251,20 +288,20 @@ export class BisectService {
 
   public async reset() {
     try {
-      const git = this.gitService.executor;
+      const git = this.getExecutor();
       if (git) {
         await git.exec(['bisect', 'reset']);
 
-        // Check for auto-stashed changes
-        const stashList = await git.exec(['stash', 'list']);
-        if (stashList.stdout.includes('GitOrbit: Auto-stash before bisect')) {
+        // Restore only the stash we created at start - never pop stash@{0}
+        // based on a message match, which could target an unrelated stash.
+        if (this.autoStashRef) {
           const restore = await vscode.window.showInformationMessage(
             'Bisect ended. Restore your stashed changes?',
             'Restore',
             'Keep Stashed'
           );
           if (restore === 'Restore') {
-            await git.exec(['stash', 'pop']);
+            await git.exec(['stash', 'pop', this.autoStashRef]);
             vscode.window.showInformationMessage('Changes restored.');
           }
         }
@@ -272,6 +309,7 @@ export class BisectService {
     } catch (e) {
       // Ignore if inactive
     } finally {
+      this.autoStashRef = undefined;
       this.state = BisectState.Idle;
       await this.updateStatus();
       vscode.commands.executeCommand('gitorbit.refreshViews');
@@ -281,7 +319,7 @@ export class BisectService {
   public async getLog(): Promise<
     { status: 'bad' | 'good' | 'skip'; hash: string; subject?: string }[]
   > {
-    const git = this.gitService.executor;
+    const git = this.getExecutor();
     if (!git || this.state === BisectState.Idle) return [];
 
     try {
@@ -314,7 +352,7 @@ export class BisectService {
   }
 
   private async runBisectCommand(cmd: 'good' | 'bad' | 'skip', hash?: string): Promise<string> {
-    const git = this.gitService.executor;
+    const git = this.getExecutor();
     if (!git) throw new Error('Git not initialized');
 
     const args = ['bisect', cmd];

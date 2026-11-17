@@ -20,7 +20,10 @@ vi.mock('vscode', () => {
     ViewColumn: { One: 1 },
     Uri: {
       file: (p: string) => ({ fsPath: p, scheme: 'file' }),
-      joinPath: (base: any, ...parts: string[]) => ({ fsPath: `${base.fsPath}/${parts.join('/')}`, scheme: 'file' }),
+      joinPath: (base: any, ...parts: string[]) => ({
+        fsPath: `${base.fsPath}/${parts.join('/')}`,
+        scheme: 'file',
+      }),
     },
     extensions: {
       getExtension: vi.fn().mockReturnValue({
@@ -39,7 +42,7 @@ describe('WelcomeView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (WelcomeView as any).currentPanel = undefined;
-    
+
     mockContext = {
       globalState: {
         get: vi.fn(),
@@ -52,26 +55,53 @@ describe('WelcomeView', () => {
 
   it('should create and show welcome panel if version changed', () => {
     mockContext.globalState.get.mockReturnValue('1.0.0');
-    
+
     WelcomeView.show(mockContext);
-    
+
     expect(vscode.window.createWebviewPanel).toHaveBeenCalled();
     expect(mockContext.globalState.update).toHaveBeenCalledWith('welcomeVersion', '1.2.1');
   });
 
   it('should not show welcome panel if version is the same', () => {
     mockContext.globalState.get.mockReturnValue('1.2.1');
-    
+
     WelcomeView.show(mockContext);
-    
+
     expect(vscode.window.createWebviewPanel).not.toHaveBeenCalled();
   });
 
   it('should show welcome panel if forced even if version is the same', () => {
     mockContext.globalState.get.mockReturnValue('1.2.1');
-    
+
     WelcomeView.show(mockContext, true);
-    
+
     expect(vscode.window.createWebviewPanel).toHaveBeenCalled();
+  });
+
+  it('should open AI provider commands instead of login', () => {
+    mockContext.globalState.get.mockReturnValue('1.0.0');
+    WelcomeView.show(mockContext);
+
+    const panel = (vscode.window.createWebviewPanel as any).mock.results[0].value;
+    const handler = panel.webview.onDidReceiveMessage.mock.calls[0][0];
+    const executeCommand = vscode.commands.executeCommand as any;
+
+    handler({ command: 'setApiKey' });
+    expect(executeCommand).toHaveBeenCalledWith('gitorbit.ai.setApiKey');
+
+    handler({ command: 'selectProvider' });
+    expect(executeCommand).toHaveBeenCalledWith('gitorbit.ai.selectProvider');
+
+    handler({ command: 'login' });
+    expect(executeCommand).not.toHaveBeenCalledWith('gitorbit.login');
+  });
+
+  it('should not render Kuulto branding in the welcome page', () => {
+    mockContext.globalState.get.mockReturnValue('1.0.0');
+    WelcomeView.show(mockContext);
+
+    const panel = (vscode.window.createWebviewPanel as any).mock.results[0].value;
+    expect(panel.webview.html).not.toContain('Kuulto');
+    expect(panel.webview.html).toContain('Set API Key');
   });
 });

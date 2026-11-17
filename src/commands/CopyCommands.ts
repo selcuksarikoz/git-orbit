@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/GitService';
+import { buildCommitWebUrl } from './BlameCommands';
 
 export class CopyCommands {
   private static instance: CopyCommands;
@@ -108,16 +109,11 @@ export class CopyCommands {
         return;
       }
 
-      // Convert git@github.com:user/repo.git -> https://github.com/user/repo
-      // or https://github.com/user/repo.git -> https://github.com/user/repo
-      let httpUrl = remoteUrl
-        .trim()
-        .replace(/^git@([^:]+):/, 'https://$1/')
-        .replace(/\.git$/, '');
-
-      // Transform remote URL to web URL (heuristic for standard interfaces)
-
-      const commitUrl = `${httpUrl}/commit/${hash}`;
+      const commitUrl = buildCommitWebUrl(remoteUrl.trim(), hash);
+      if (!commitUrl) {
+        vscode.window.showWarningMessage('Unable to determine web URL for this repository');
+        return;
+      }
       await this.copyToClipboard(commitUrl, 'Commit URL');
     } catch (e: any) {
       vscode.window.showErrorMessage(`Failed to generate URL: ${e.message}`);

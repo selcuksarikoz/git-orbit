@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { PullRequest, PullRequestService } from '../services/PullRequestService';
 import { getBaseStyles, getLoadingHtml, getErrorHtml } from './WebviewLayout';
+import { escapeHtml, getNonce } from '../utils/HtmlUtils';
 
 export interface PRDetails extends PullRequest {
   body: string;
@@ -40,132 +41,145 @@ export class PullRequestView {
     try {
       const details = await PullRequestService.getInstance().getPRDetails(pr.repo!, pr.number);
       const collaborators = await PullRequestService.getInstance().getCollaborators(pr.repo!);
-      panel.webview.html = PullRequestView.getHtmlContent(details, collaborators, pr.number);
+      panel.webview.html = PullRequestView.getHtmlContent(
+        details,
+        collaborators,
+        pr.number,
+        panel.webview
+      );
     } catch (e) {
       panel.webview.html = getErrorHtml(e);
     }
 
-    panel.webview.onDidReceiveMessage(
-      async (message) => {
-        const showLoading = (msg: string) =>
-          panel.webview.postMessage({ command: 'showLoading', message: msg });
-        const hideLoading = () => panel.webview.postMessage({ command: 'hideLoading' });
-        const refreshPage = async () => {
-          const data = await PullRequestService.getInstance().getPRDetails(pr.repo!, pr.number);
-          const collabs = await PullRequestService.getInstance().getCollaborators(pr.repo!);
-          panel.webview.html = PullRequestView.getHtmlContent(data, collabs, pr.number);
-        };
+    // Listeners are scoped to this panel, not the global extension subscriptions,
+    // so they are released on every close/reopen cycle.
+    const disposables: vscode.Disposable[] = [];
+    const messageListener = panel.webview.onDidReceiveMessage(async (message) => {
+      const showLoading = (msg: string) =>
+        panel.webview.postMessage({ command: 'showLoading', message: msg });
+      const hideLoading = () => panel.webview.postMessage({ command: 'hideLoading' });
+      const refreshPage = async () => {
+        const data = await PullRequestService.getInstance().getPRDetails(pr.repo!, pr.number);
+        const collabs = await PullRequestService.getInstance().getCollaborators(pr.repo!);
+        panel.webview.html = PullRequestView.getHtmlContent(
+          data,
+          collabs,
+          pr.number,
+          panel.webview
+        );
+      };
 
-        try {
-          switch (message.command) {
-            case 'addReviewers':
-              showLoading('Adding reviewers...');
-              for (const username of message.usernames) {
-                await PullRequestService.getInstance().addReviewer(pr.repo!, pr.number, username);
-              }
-              vscode.window.showInformationMessage(`Added ${message.usernames.length} reviewer(s)`);
+      try {
+        switch (message.command) {
+          case 'addReviewers':
+            showLoading('Adding reviewers...');
+            for (const username of message.usernames) {
+              await PullRequestService.getInstance().addReviewer(pr.repo!, pr.number, username);
+            }
+            vscode.window.showInformationMessage(`Added ${message.usernames.length} reviewer(s)`);
+            await refreshPage();
+            break;
+          case 'removeReviewer':
+            showLoading('Removing reviewer...');
+            await PullRequestService.getInstance().removeReviewer(
+              pr.repo!,
+              pr.number,
+              message.username
+            );
+            vscode.window.showInformationMessage(`Removed ${message.username}`);
+            await refreshPage();
+            break;
+          case 'updateDescription':
+            showLoading('Saving description...');
+            await PullRequestService.getInstance().updatePRDescription(
+              pr.repo!,
+              pr.number,
+              message.body
+            );
+            vscode.window.showInformationMessage('Description updated');
+            await refreshPage();
+            break;
+          case 'approve':
+            showLoading('Approving PR...');
+            await PullRequestService.getInstance().reviewPR(
+              pr.repo!,
+              pr.number,
+              'APPROVE',
+              message.body
+            );
+            vscode.window.showInformationMessage('PR Approved!');
+            await refreshPage();
+            break;
+          case 'requestChanges':
+            showLoading('Requesting changes...');
+            await PullRequestService.getInstance().reviewPR(
+              pr.repo!,
+              pr.number,
+              'REQUEST_CHANGES',
+              message.body
+            );
+            vscode.window.showInformationMessage('Changes requested.');
+            await refreshPage();
+            break;
+          case 'comment':
+            showLoading('Adding comment...');
+            await PullRequestService.getInstance().commentPR(pr.repo!, pr.number, message.body);
+            vscode.window.showInformationMessage('Comment added.');
+            await refreshPage();
+            break;
+          case 'merge':
+            showLoading('Merging PR...');
+            const merged = await PullRequestService.getInstance().mergePR(
+              pr.repo!,
+              pr.number,
+              message.method
+            );
+            if (merged) {
+              vscode.window.showInformationMessage('PR Merged!');
+              panel.dispose();
+            } else {
               await refreshPage();
-              break;
-            case 'removeReviewer':
-              showLoading('Removing reviewer...');
-              await PullRequestService.getInstance().removeReviewer(
-                pr.repo!,
-                pr.number,
-                message.username
-              );
-              vscode.window.showInformationMessage(`Removed ${message.username}`);
-              await refreshPage();
-              break;
-            case 'updateDescription':
-              showLoading('Saving description...');
-              await PullRequestService.getInstance().updatePRDescription(
-                pr.repo!,
-                pr.number,
-                message.body
-              );
-              vscode.window.showInformationMessage('Description updated');
-              await refreshPage();
-              break;
-            case 'approve':
-              showLoading('Approving PR...');
-              await PullRequestService.getInstance().reviewPR(
-                pr.repo!,
-                pr.number,
-                'APPROVE',
-                message.body
-              );
-              vscode.window.showInformationMessage('PR Approved!');
-              await refreshPage();
-              break;
-            case 'requestChanges':
-              showLoading('Requesting changes...');
-              await PullRequestService.getInstance().reviewPR(
-                pr.repo!,
-                pr.number,
-                'REQUEST_CHANGES',
-                message.body
-              );
-              vscode.window.showInformationMessage('Changes requested.');
-              await refreshPage();
-              break;
-            case 'comment':
-              showLoading('Adding comment...');
-              await PullRequestService.getInstance().commentPR(pr.repo!, pr.number, message.body);
-              vscode.window.showInformationMessage('Comment added.');
-              await refreshPage();
-              break;
-            case 'merge':
-              showLoading('Merging PR...');
-              const merged = await PullRequestService.getInstance().mergePR(
-                pr.repo!,
-                pr.number,
-                message.method
-              );
-              if (merged) {
-                vscode.window.showInformationMessage('PR Merged!');
-                panel.dispose();
-              } else {
-                await refreshPage();
-              }
-              break;
-            case 'openFile':
-              const gitService = (await import('../services/GitService')).GitService.getInstance();
-              const filePath = vscode.Uri.file(
-                `${(pr.repo || gitService.getDefaultRepository())?.rootDir || ''}/${message.filename}`
-              );
-              await vscode.commands.executeCommand('vscode.open', filePath);
-              break;
-            case 'openInBrowser':
-              vscode.env.openExternal(vscode.Uri.parse(pr.url));
-              break;
-            case 'refresh':
-              showLoading('Refreshing...');
-              await refreshPage();
-              break;
-          }
-        } catch (e: any) {
-          hideLoading();
-          vscode.window.showErrorMessage(`Error: ${e.message}`);
+            }
+            break;
+          case 'openFile':
+            const gitService = (await import('../services/GitService.js')).GitService.getInstance();
+            const filePath = vscode.Uri.file(
+              `${(pr.repo || gitService.getDefaultRepository())?.rootDir || ''}/${message.filename}`
+            );
+            await vscode.commands.executeCommand('vscode.open', filePath);
+            break;
+          case 'openInBrowser':
+            vscode.env.openExternal(vscode.Uri.parse(pr.url));
+            break;
+          case 'refresh':
+            showLoading('Refreshing...');
+            await refreshPage();
+            break;
         }
-      },
-      null,
-      context.subscriptions
-    );
+      } catch (e: any) {
+        hideLoading();
+        vscode.window.showErrorMessage(`Error: ${e.message}`);
+      }
+    }, null);
+    disposables.push(messageListener);
 
-    panel.onDidDispose(
-      () => {
+    disposables.push(
+      panel.onDidDispose(() => {
         PullRequestView.panels.delete(pr.number);
-      },
-      null,
-      context.subscriptions
+        while (disposables.length) {
+          disposables.pop()?.dispose();
+        }
+      })
     );
   }
 
   private static getHtmlContent(
     pr: PRDetails,
     collaborators: { login: string; avatarUrl: string }[],
-    prNumber: number
+    prNumber: number,
+    webview: vscode.Webview
   ): string {
+    const nonce = getNonce();
     const currentReviewerLogins = new Set(pr.reviewers.map((r) => r.login));
     const availableCollaborators = collaborators.filter((c) => !currentReviewerLogins.has(c.login));
 
@@ -173,10 +187,10 @@ export class PullRequestView {
       .map(
         (r) => `
       <div class="reviewer-chip">
-        <img class="avatar-sm" src="${r.avatarUrl}" alt="${r.login}" />
-        <span>${r.login}</span>
-        <span class="badge ${r.state === 'APPROVED' ? 'badge-success' : r.state === 'CHANGES_REQUESTED' ? 'badge-danger' : 'badge-muted'}">${r.state || 'Pending'}</span>
-        <button class="btn-icon" onclick="removeReviewer('${r.login}')" title="Remove">×</button>
+        <img class="avatar-sm" src="${escapeHtml(r.avatarUrl)}" alt="${escapeHtml(r.login)}" />
+        <span>${escapeHtml(r.login)}</span>
+        <span class="badge ${r.state === 'APPROVED' ? 'badge-success' : r.state === 'CHANGES_REQUESTED' ? 'badge-danger' : 'badge-muted'}">${escapeHtml(r.state || 'Pending')}</span>
+        <button class="btn-icon" data-remove-reviewer="${escapeHtml(r.login)}" title="Remove">×</button>
       </div>
     `
       )
@@ -186,9 +200,9 @@ export class PullRequestView {
       .map(
         (c) => `
       <label class="collab-option">
-        <input type="checkbox" value="${c.login}" />
-        <img class="avatar-sm" src="${c.avatarUrl}" alt="${c.login}" />
-        <span>${c.login}</span>
+        <input type="checkbox" value="${escapeHtml(c.login)}" />
+        <img class="avatar-sm" src="${escapeHtml(c.avatarUrl)}" alt="${escapeHtml(c.login)}" />
+        <span>${escapeHtml(c.login)}</span>
       </label>
     `
       )
@@ -197,9 +211,9 @@ export class PullRequestView {
     const filesHtml = pr.files
       .map(
         (f) => `
-      <div class="file-item" onclick="openFile('${f.filename}')">
-        <span class="file-status ${f.status}">${f.status[0].toUpperCase()}</span>
-        <span class="file-name">${f.filename}</span>
+      <div class="file-item" data-file="${escapeHtml(f.filename)}">
+        <span class="file-status ${escapeHtml(f.status)}">${escapeHtml(f.status[0].toUpperCase())}</span>
+        <span class="file-name">${escapeHtml(f.filename)}</span>
         <span class="file-stats"><span class="add">+${f.additions}</span> <span class="del">-${f.deletions}</span></span>
       </div>
     `
@@ -213,8 +227,8 @@ export class PullRequestView {
               (c) => `
       <div class="comment-item">
         <div class="comment-header">
-          <strong>${c.author}</strong>
-          <span class="comment-date">${new Date(c.createdAt).toLocaleString()}</span>
+          <strong>${escapeHtml(c.author)}</strong>
+          <span class="comment-date">${escapeHtml(new Date(c.createdAt).toLocaleString())}</span>
         </div>
         <div class="comment-body">${escapeHtml(c.body)}</div>
       </div>
@@ -228,6 +242,7 @@ export class PullRequestView {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} https:;">
     <title>PR #${pr.number}</title>
     <style>
         ${getBaseStyles()}
@@ -301,17 +316,17 @@ export class PullRequestView {
         <div class="header-content">
             <h1>${escapeHtml(pr.title)}</h1>
             <div class="meta">
-                <span class="badge ${pr.state === 'open' ? 'badge-success' : pr.state === 'merged' ? 'badge-primary' : 'badge-danger'}">${pr.state.toUpperCase()}</span>
-                #${pr.number} by <a href="https://github.com/${pr.author.login}" target="_blank">${pr.author.login}</a>
-                • ${new Date(pr.createdAt).toLocaleDateString()}
+                <span class="badge ${pr.state === 'open' ? 'badge-success' : pr.state === 'merged' ? 'badge-primary' : 'badge-danger'}">${escapeHtml(pr.state.toUpperCase())}</span>
+                #${pr.number} by <a href="https://github.com/${escapeHtml(pr.author.login)}" target="_blank">${escapeHtml(pr.author.login)}</a>
+                • ${escapeHtml(new Date(pr.createdAt).toLocaleDateString())}
             </div>
             <div class="mt-sm">
-                <code>${pr.headRef}</code> → <code>${pr.baseRef}</code>
+                <code>${escapeHtml(pr.headRef)}</code> → <code>${escapeHtml(pr.baseRef)}</code>
             </div>
         </div>
         <div class="header-actions">
-            <button class="btn btn-secondary" onclick="openInBrowser()">🔗 Browser</button>
-            <button class="btn btn-secondary" onclick="refresh()">↻ Refresh</button>
+            <button class="btn btn-secondary" data-action="openInBrowser">🔗 Browser</button>
+            <button class="btn btn-secondary" data-action="refresh">↻ Refresh</button>
         </div>
     </div>
 
@@ -334,7 +349,7 @@ export class PullRequestView {
         <div class="section-title">Description</div>
         <textarea id="descriptionInput" class="description-edit">${escapeHtml(pr.body || '')}</textarea>
         <div class="actions-row">
-            <button class="btn btn-secondary" id="saveDescBtn" onclick="saveDescription()">Save Description</button>
+            <button class="btn btn-secondary" id="saveDescBtn" data-action="saveDescription">Save Description</button>
         </div>
     </div>
 
@@ -343,11 +358,11 @@ export class PullRequestView {
         <div class="mb-md">${reviewersHtml || '<span class="empty-state">No reviewers assigned</span>'}</div>
 
         <div class="collab-dropdown">
-            <button class="btn btn-secondary" onclick="toggleCollabList()">+ Add Reviewers</button>
+            <button class="btn btn-secondary" data-action="toggleCollabList">+ Add Reviewers</button>
             <div id="collabList" class="collab-list">
                 ${collaboratorOptionsHtml || '<div class="empty-state">No collaborators available</div>'}
                 <div class="divider"></div>
-                <button class="btn btn-primary" style="width: 100%;" onclick="addSelectedReviewers()">Add Selected</button>
+                <button class="btn btn-primary" style="width: 100%;" data-action="addSelectedReviewers">Add Selected</button>
             </div>
         </div>
     </div>
@@ -361,28 +376,28 @@ export class PullRequestView {
         <div class="section-title">Comments (${pr.comments.length})</div>
         <div class="scrollable mb-md">${commentsHtml}</div>
         <textarea id="commentInput" placeholder="Write a comment..."></textarea>
-        <button class="btn btn-secondary" id="commentBtn" onclick="submitComment()">💬 Comment</button>
+        <button class="btn btn-secondary" id="commentBtn" data-action="submitComment">💬 Comment</button>
     </div>
 
     <div class="section animate-fadeInUp">
         <div class="section-title">Review Actions</div>
         <textarea id="reviewBody" placeholder="Leave a review comment (optional for approve)..."></textarea>
         <div class="actions-row">
-            <button class="btn btn-success" id="approveBtn" onclick="approve()">✓ Approve</button>
-            <button class="btn btn-danger" id="requestChangesBtn" onclick="requestChanges()">✗ Request Changes</button>
+            <button class="btn btn-success" id="approveBtn" data-action="approve">✓ Approve</button>
+            <button class="btn btn-danger" id="requestChangesBtn" data-action="requestChanges">✗ Request Changes</button>
             ${
               pr.mergeable
                 ? `
-            <button class="btn btn-primary" id="mergeBtn" onclick="merge('merge')">Merge</button>
-            <button class="btn btn-secondary" onclick="merge('squash')">Squash</button>
-            <button class="btn btn-secondary" onclick="merge('rebase')">Rebase</button>
+            <button class="btn btn-primary" id="mergeBtn" data-action="merge" data-merge-method="merge">Merge</button>
+            <button class="btn btn-secondary" data-action="merge" data-merge-method="squash">Squash</button>
+            <button class="btn btn-secondary" data-action="merge" data-merge-method="rebase">Rebase</button>
             `
                 : '<span class="badge badge-warning">⚠ Cannot merge</span>'
             }
         </div>
     </div>
 
-    <script>
+    <script nonce="${nonce}">
         const vscode = acquireVsCodeApi();
 
         // Loading overlay control
@@ -462,17 +477,39 @@ export class PullRequestView {
                 vscode.postMessage({ command: 'merge', method });
             }
         }
+
+        // The nonce-based CSP blocks inline handlers, so dispatch via data-* attributes.
+        document.addEventListener('click', (event) => {
+            const removeEl = event.target.closest('[data-remove-reviewer]');
+            if (removeEl) {
+                removeReviewer(removeEl.getAttribute('data-remove-reviewer'));
+                return;
+            }
+            const fileEl = event.target.closest('[data-file]');
+            if (fileEl) {
+                openFile(fileEl.getAttribute('data-file'));
+                return;
+            }
+            const actionEl = event.target.closest('[data-action]');
+            if (!actionEl) return;
+            const action = actionEl.getAttribute('data-action');
+            if (action === 'merge') {
+                merge(actionEl.getAttribute('data-merge-method'));
+                return;
+            }
+            switch (action) {
+                case 'openInBrowser': openInBrowser(); break;
+                case 'refresh': refresh(); break;
+                case 'saveDescription': saveDescription(); break;
+                case 'toggleCollabList': toggleCollabList(); break;
+                case 'addSelectedReviewers': addSelectedReviewers(); break;
+                case 'submitComment': submitComment(); break;
+                case 'approve': approve(); break;
+                case 'requestChanges': requestChanges(); break;
+            }
+        });
     </script>
 </body>
 </html>`;
   }
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }

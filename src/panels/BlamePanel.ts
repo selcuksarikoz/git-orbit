@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/GitService';
 import { formatRelativeTime } from '../utils/BlameUtils';
-import { escapeHtml, getGravatarUrl, formatLineRanges } from '../utils/HtmlUtils';
+import { escapeHtml, getGravatarUrl, formatLineRanges, getNonce } from '../utils/HtmlUtils';
 
 interface BlameLineInfo {
   hash: string;
@@ -109,8 +109,12 @@ export class BlamePanel {
   }
 
   private _getHtmlForWebview(blameInfo: BlameLineInfo, fileBlameData: any[]): string {
+    const nonce = getNonce();
+    const escapedAuthor = this._escapeHtml(blameInfo.author);
+    const escapedHash = this._escapeHtml(blameInfo.hash);
+    const escapedShortHash = this._escapeHtml(blameInfo.shortHash);
     const gravatarUrl = this._getGravatarUrl(blameInfo.authorEmail);
-    const relativeTime = formatRelativeTime(blameInfo.authorTime);
+    const relativeTime = this._escapeHtml(formatRelativeTime(blameInfo.authorTime));
     const fullDate = new Date(blameInfo.authorTime * 1000).toLocaleString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -122,23 +126,25 @@ export class BlamePanel {
     // Generate file history HTML
     const fileHistoryHtml = fileBlameData
       .map((commit, index) => {
-        const commitRelativeTime = formatRelativeTime(commit.authorTime);
-        const lineRanges = this._formatLineRanges(commit.lines);
+        const commitRelativeTime = this._escapeHtml(formatRelativeTime(commit.authorTime));
+        const lineRanges = this._escapeHtml(this._formatLineRanges(commit.lines));
         const commitGravatarUrl = this._getGravatarUrl(commit.authorEmail);
+        const escapedAuthor = this._escapeHtml(commit.author);
+        const escapedHash = this._escapeHtml(commit.hash);
 
         return `
         <div class="commit-item">
-          <div class="commit-header" onclick="toggleCommit(${index})">
-            <img class="commit-avatar" src="${commitGravatarUrl}" alt="${commit.author}">
+          <div class="commit-header" data-toggle-index="${index}">
+            <img class="commit-avatar" src="${commitGravatarUrl}" alt="${escapedAuthor}">
             <div class="commit-info">
-              <div class="commit-author">${this._escapeHtml(commit.author)}</div>
+              <div class="commit-author">${escapedAuthor}</div>
               <div class="commit-meta">
-                <span class="commit-hash-small">${commit.shortHash}</span>
+                <span class="commit-hash-small">${this._escapeHtml(commit.shortHash)}</span>
                 <span class="commit-time">${commitRelativeTime}</span>
                 <span class="commit-lines">${commit.lines.length} line${commit.lines.length > 1 ? 's' : ''}</span>
               </div>
             </div>
-            <button class="detail-btn" onclick="event.stopPropagation(); toggleCommit(${index})" title="View Details">
+            <button class="detail-btn" data-toggle-index="${index}" title="View Details">
               <span class="icon">ℹ️</span>
             </button>
             <span class="toggle-icon" id="toggle-${index}">▶</span>
@@ -146,7 +152,7 @@ export class BlamePanel {
           <div class="commit-details" id="details-${index}" style="display: none;">
             <div class="commit-message-small">${this._escapeHtml(commit.summary)}</div>
             <div class="commit-line-ranges">Lines: ${lineRanges}</div>
-            <button class="commit-action-btn" onclick="viewCommitDiff('${commit.hash}')">
+            <button class="commit-action-btn" data-diff-hash="${escapedHash}">
               <span class="icon">📊</span> View Diff
             </button>
           </div>
@@ -160,6 +166,7 @@ export class BlamePanel {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${this._panel.webview.cspSource} https: data:;">
     <title>Git Blame Details</title>
     <style>
         body {
@@ -362,16 +369,16 @@ export class BlamePanel {
 </head>
 <body>
     <div class="header">
-        <img class="avatar" src="${gravatarUrl}" alt="${blameInfo.author}">
+        <img class="avatar" src="${gravatarUrl}" alt="${escapedAuthor}">
         <div class="author-info">
-            <div class="author-name">${blameInfo.author}</div>
+            <div class="author-name">${escapedAuthor}</div>
             <div class="commit-time">${relativeTime} • ${fullDate}</div>
         </div>
     </div>
 
     <div class="section">
         <div class="section-title">Commit</div>
-        <div class="commit-hash">${blameInfo.shortHash} (${blameInfo.hash})</div>
+        <div class="commit-hash">${escapedShortHash} (${escapedHash})</div>
     </div>
 
     <div class="section">
@@ -388,15 +395,15 @@ export class BlamePanel {
     </div>
 
     <div class="actions">
-        <button onclick="viewDiff()">
+        <button data-action="viewDiff">
             <span class="icon">📊</span>
             View Diff
         </button>
-        <button class="secondary" onclick="copyHash()">
+        <button class="secondary" data-action="copyHash">
             <span class="icon">📋</span>
             Copy Hash
         </button>
-        <button class="secondary" onclick="openOnWeb()">
+        <button class="secondary" data-action="openOnWeb">
             <span class="icon">🌐</span>
             Open on Web
         </button>
@@ -407,35 +414,24 @@ export class BlamePanel {
         ${fileHistoryHtml}
     </div>
 
-    <script>
+    <script nonce="${nonce}">
         const vscode = acquireVsCodeApi();
+        const commitHash = '${escapedHash}';
 
         function viewDiff() {
-            vscode.postMessage({
-                command: 'viewDiff',
-                hash: '${blameInfo.hash}'
-            });
+            vscode.postMessage({ command: 'viewDiff', hash: commitHash });
         }
 
         function copyHash() {
-            vscode.postMessage({
-                command: 'copyHash',
-                hash: '${blameInfo.hash}'
-            });
+            vscode.postMessage({ command: 'copyHash', hash: commitHash });
         }
 
         function openOnWeb() {
-            vscode.postMessage({
-                command: 'openOnWeb',
-                hash: '${blameInfo.hash}'
-            });
+            vscode.postMessage({ command: 'openOnWeb', hash: commitHash });
         }
 
         function viewCommitDiff(hash) {
-            vscode.postMessage({
-                command: 'viewDiff',
-                hash: hash
-            });
+            vscode.postMessage({ command: 'viewDiff', hash: hash });
         }
 
         function toggleCommit(index) {
@@ -450,6 +446,28 @@ export class BlamePanel {
                 toggle.classList.remove('open');
             }
         }
+
+        // A nonce-based CSP blocks inline handlers, so route clicks through data-* attributes.
+        document.addEventListener('click', (event) => {
+            const actionEl = event.target.closest('[data-action]');
+            if (actionEl) {
+                switch (actionEl.getAttribute('data-action')) {
+                    case 'viewDiff': viewDiff(); break;
+                    case 'copyHash': copyHash(); break;
+                    case 'openOnWeb': openOnWeb(); break;
+                }
+                return;
+            }
+            const diffEl = event.target.closest('[data-diff-hash]');
+            if (diffEl) {
+                viewCommitDiff(diffEl.getAttribute('data-diff-hash'));
+                return;
+            }
+            const toggleEl = event.target.closest('[data-toggle-index]');
+            if (toggleEl) {
+                toggleCommit(toggleEl.getAttribute('data-toggle-index'));
+            }
+        });
     </script>
 </body>
 </html>`;

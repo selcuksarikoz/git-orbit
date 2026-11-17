@@ -120,9 +120,9 @@ describe('WorktreeService', () => {
     expect(mockExecutor.exec).toHaveBeenCalledWith([
       'worktree',
       'lock',
-      '/test/wt1',
-      '-m',
+      '--reason',
       'test reason',
+      '/test/wt1',
     ]);
   });
 

@@ -160,34 +160,42 @@ export class BlameCommands {
    * Build web URL for commit based on remote URL
    */
   private buildCommitWebUrl(remoteUrl: string, hash: string): string | null {
-    // Remove .git suffix
-    remoteUrl = remoteUrl.replace(/\.git$/, '');
-
-    // Convert SSH to HTTPS
-    if (remoteUrl.startsWith('git@')) {
-      remoteUrl = remoteUrl.replace(/^git@([^:]+):/, 'https://$1/');
-    }
-
-    // GitHub
-    if (remoteUrl.includes('github.com')) {
-      return `${remoteUrl}/commit/${hash}`;
-    }
-
-    // GitLab
-    if (remoteUrl.includes('gitlab.com')) {
-      return `${remoteUrl}/-/commit/${hash}`;
-    }
-
-    // Bitbucket
-    if (remoteUrl.includes('bitbucket.org')) {
-      return `${remoteUrl}/commits/${hash}`;
-    }
-
-    // Azure DevOps
-    if (remoteUrl.includes('dev.azure.com') || remoteUrl.includes('visualstudio.com')) {
-      return `${remoteUrl}/commit/${hash}`;
-    }
-
-    return null;
+    return buildCommitWebUrl(remoteUrl, hash);
   }
+}
+
+/**
+ * Build a host-aware commit web URL from a remote URL.
+ * Shared with other commands so host detection stays consistent.
+ */
+export function buildCommitWebUrl(remoteUrl: string, hash: string): string | null {
+  // Remove .git suffix
+  remoteUrl = remoteUrl.replace(/\.git$/, '');
+
+  // Convert SSH to HTTPS
+  if (remoteUrl.startsWith('git@')) {
+    remoteUrl = remoteUrl.replace(/^git@([^:]+):/, 'https://$1/');
+  }
+
+  // GitHub
+  if (remoteUrl.includes('github.com')) {
+    return `${remoteUrl}/commit/${hash}`;
+  }
+
+  // GitLab
+  if (remoteUrl.includes('gitlab.com')) {
+    return `${remoteUrl}/-/commit/${hash}`;
+  }
+
+  // Bitbucket
+  if (remoteUrl.includes('bitbucket.org')) {
+    return `${remoteUrl}/commits/${hash}`;
+  }
+
+  // Azure DevOps
+  if (remoteUrl.includes('dev.azure.com') || remoteUrl.includes('visualstudio.com')) {
+    return `${remoteUrl}/commit/${hash}`;
+  }
+
+  return null;
 }

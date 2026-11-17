@@ -10,6 +10,7 @@ export class FileBlameDecorator {
   private gitService: GitService;
   private configService: ConfigService;
   private isVisible: boolean = false;
+  private generation = 0;
   private blameBlocks: { start: number; end: number; hash: string }[] = [];
   private currentEditor: vscode.TextEditor | undefined;
   private disposables: vscode.Disposable[] = [];
@@ -73,6 +74,7 @@ export class FileBlameDecorator {
   }
 
   public hide() {
+    this.generation++;
     if (this.decorationType) {
       this.decorationType.dispose();
       this.decorationType = undefined;
@@ -89,12 +91,16 @@ export class FileBlameDecorator {
 
   public async show(editor: vscode.TextEditor) {
     this.hide();
+    const generation = ++this.generation;
     this.isVisible = true;
     this.currentEditor = editor;
 
     const filePath = editor.document.uri.fsPath;
     try {
       const blameOutput = await this.gitService.getBlame(filePath);
+      if (generation !== this.generation || this.currentEditor !== editor || !this.isVisible) {
+        return;
+      }
       if (!blameOutput) return;
 
       const blameInfo = this.parsePorcelainBlame(blameOutput);
@@ -162,6 +168,9 @@ export class FileBlameDecorator {
         }
       });
 
+      if (generation !== this.generation || this.currentEditor !== editor || !this.isVisible) {
+        return;
+      }
       editor.setDecorations(this.decorationType, decorations);
 
       // Listen for selection changes to highlight the block
@@ -176,6 +185,9 @@ export class FileBlameDecorator {
       // Initial highlight
       this.highlightCurrentBlock(editor);
     } catch (error) {
+      if (generation !== this.generation) {
+        return;
+      }
       console.error('Failed to show file blame:', error);
       this.isVisible = false;
     }

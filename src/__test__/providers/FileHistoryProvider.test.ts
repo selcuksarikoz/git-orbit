@@ -19,7 +19,10 @@ vi.mock('vscode', () => ({
     onDidChangeConfiguration: vi.fn(),
   },
   TreeItem: class {
-    constructor(public label: string, public collapsibleState: any) {}
+    constructor(
+      public label: string,
+      public collapsibleState: any
+    ) {}
   },
   TreeItemCollapsibleState: {
     None: 0,
@@ -27,7 +30,10 @@ vi.mock('vscode', () => ({
     Expanded: 2,
   },
   ThemeIcon: class {
-    constructor(public id: string, public color?: any) {}
+    constructor(
+      public id: string,
+      public color?: any
+    ) {}
   },
   ThemeColor: class {
     constructor(public id: string) {}
@@ -53,7 +59,13 @@ vi.mock('../../services/GitService', () => ({
       getSelectedRepository: vi.fn().mockReturnValue({ rootDir: '/test/repo' }),
       getFileHistory: vi.fn().mockResolvedValue({
         all: [
-          { hash: 'abcdef1', message: 'feat: add stuff', author_name: 'John', author_email: 'john@test.com', date: '2023-01-01' },
+          {
+            hash: 'abcdef1',
+            message: 'feat: add stuff',
+            author_name: 'John',
+            author_email: 'john@test.com',
+            date: '2023-01-01',
+          },
         ],
       }),
     }),
@@ -84,14 +96,18 @@ describe('FileHistoryProvider', () => {
 
     expect(children.length).toBe(1);
     expect((children[0] as any).hash).toBe('abcdef1');
-    expect(mockGitService.getFileHistory).toHaveBeenCalledWith('/test/file.ts', 20, expect.any(Object));
+    expect(mockGitService.getFileHistory).toHaveBeenCalledWith(
+      '/test/file.ts',
+      20,
+      expect.any(Object)
+    );
   });
 
   it('should update current file when active editor changes', async () => {
     // Simulate editor change
     vi.mocked(vscode.window.activeTextEditor).document.uri.fsPath = '/test/newfile.ts';
     (provider as any).updateCurrentFile();
-    
+
     expect((provider as any).currentFilePath).toBe('/test/newfile.ts');
   });
 });

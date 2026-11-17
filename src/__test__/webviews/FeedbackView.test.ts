@@ -30,7 +30,7 @@ describe('FeedbackView', () => {
 
   it('should create and show feedback panel', () => {
     FeedbackView.show({ fsPath: '/extension' } as any);
-    
+
     expect(vscode.window.createWebviewPanel).toHaveBeenCalledWith(
       'gitorbit.feedback',
       'GitOrbit - Support & Feedback',
@@ -42,9 +42,9 @@ describe('FeedbackView', () => {
   it('should reveal existing panel', () => {
     const mockPanel = { reveal: vi.fn() };
     (FeedbackView as any).currentPanel = mockPanel;
-    
+
     FeedbackView.show({ fsPath: '/extension' } as any);
-    
+
     expect(mockPanel.reveal).toHaveBeenCalled();
     expect(vscode.window.createWebviewPanel).not.toHaveBeenCalled();
   });

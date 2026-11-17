@@ -44,7 +44,9 @@ describe('GitExecutor', () => {
     mockProcess.stderr.emit('data', Buffer.from('fatal: unknown command'));
     mockProcess.emit('close', 1);
 
-    await expect(execPromise).rejects.toThrow('Git command failed with exit code 1: fatal: unknown command');
+    await expect(execPromise).rejects.toThrow(
+      'Git command failed with exit code 1: fatal: unknown command'
+    );
   });
 
   it('should reject if spawn throws an error', async () => {

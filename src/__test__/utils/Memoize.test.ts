@@ -40,4 +40,32 @@ describe('Memoize', () => {
     instance.expensiveMethod('test', 1);
     expect(instance.callCount).toBe(2);
   });
+
+  it('should not let a stale rejection evict a newer cached promise', async () => {
+    class AsyncClass {
+      calls = 0;
+      rejectFirst = true;
+
+      @memoize
+      async load(): Promise<string> {
+        this.calls++;
+        if (this.rejectFirst) {
+          this.rejectFirst = false;
+          throw new Error('first failed');
+        }
+        return 'second';
+      }
+    }
+
+    const subject = new AsyncClass();
+    const first = subject.load().catch(() => 'first-failed');
+    clearMemoizedCache(subject);
+    subject.rejectFirst = false;
+    const second = subject.load();
+
+    expect(await first).toBe('first-failed');
+    expect(await second).toBe('second');
+    expect(await subject.load()).toBe('second');
+    expect(subject.calls).toBe(2);
+  });
 });

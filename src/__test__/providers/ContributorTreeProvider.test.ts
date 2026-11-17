@@ -6,7 +6,10 @@ import { GitService } from '../../services/GitService';
 // Mock vscode
 vi.mock('vscode', () => ({
   TreeItem: class {
-    constructor(public label: string, public collapsibleState: any) {}
+    constructor(
+      public label: string,
+      public collapsibleState: any
+    ) {}
   },
   TreeItemCollapsibleState: {
     None: 0,

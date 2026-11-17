@@ -130,6 +130,20 @@ describe('BlameCommands', () => {
       expect(uri).toBe('https://github.com/user/repo/commit/abc123');
     });
 
+    it.each([
+      ['https://gitlab.com/user/repo.git', 'https://gitlab.com/user/repo/-/commit/abc123'],
+      ['git@bitbucket.org:user/repo.git', 'https://bitbucket.org/user/repo/commits/abc123'],
+    ])('should build the right web URL for %s', async (remote, expected) => {
+      mockGitService.getRemoteUrl.mockResolvedValue(remote);
+      const openWebFn = (vscode.commands.registerCommand as any).mock.calls.find(
+        (call: any[]) => call[0] === 'gitorbit.openCommitOnWeb'
+      )[1];
+
+      await openWebFn('abc123');
+
+      expect(vi.mocked(vscode.Uri.parse).mock.calls[0][0]).toBe(expected);
+    });
+
     it('should show warning if no remote URL', async () => {
       mockGitService.getRemoteUrl.mockResolvedValue(null);
       const openWebFn = (vscode.commands.registerCommand as any).mock.calls.find(
@@ -159,9 +173,7 @@ describe('BlameCommands', () => {
   describe('showLineHistory', () => {
     it('should show quick pick with file history', async () => {
       const history = {
-        all: [
-          { hash: 'abc123', message: 'feat: test', author_name: 'John', date: '2023-01-01' },
-        ],
+        all: [{ hash: 'abc123', message: 'feat: test', author_name: 'John', date: '2023-01-01' }],
       };
       mockGitService.getFileHistory.mockResolvedValue(history);
       mockGitService.getRepositoryForPath.mockReturnValue({ rootDir: '/test' });

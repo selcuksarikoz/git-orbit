@@ -16,7 +16,9 @@ export class DiffContentProvider implements vscode.TextDocumentContentProvider {
       } catch {}
     }
 
-    const targetRepo = repoRoot ? GitService.getInstance().getRepositoryByRoot(repoRoot) : undefined;
+    const targetRepo = repoRoot
+      ? GitService.getInstance().getRepositoryByRoot(repoRoot)
+      : undefined;
     return GitService.getInstance().getDiff(hash, filePath, true, targetRepo);
   }
 
@@ -24,8 +26,7 @@ export class DiffContentProvider implements vscode.TextDocumentContentProvider {
     const queryPayload: { filePath?: string; repoRoot?: string } = {};
     if (filePath) queryPayload.filePath = filePath;
     if (repoRoot) queryPayload.repoRoot = repoRoot;
-    const query =
-      Object.keys(queryPayload).length > 0 ? `?${JSON.stringify(queryPayload)}` : '';
+    const query = Object.keys(queryPayload).length > 0 ? `?${JSON.stringify(queryPayload)}` : '';
     return vscode.Uri.parse(`${DiffContentProvider.scheme}://${encodeURIComponent(hash)}${query}`);
   }
 }

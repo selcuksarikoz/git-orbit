@@ -2,7 +2,7 @@
   "name": "gitorbit",
   "displayName": "Git Worktree Manager — Multi-Repo Support",
   "description": "Complete Git toolkit for VS Code with full multi-repository support. Work with unlimited nested repos, mono-repos, or multi-root workspaces. Features: visual git graph, bisect wizard, interactive rebase, blame annotations, PR management, stash, cherry-pick, and optional AI commit suggestions.",
-  "version": "1.2.2",
+  "version": "2.0.0",
   "publisher": "selcuksarikoz",
   "icon": "assets/icons/logo.png",
   "repository": {
@@ -56,7 +56,10 @@
     "package": "rm -rf ./dist && npm run test:unit && vsce package",
     "test": "vscode-test",
     "test:unit": "vitest run",
-    "prettier": "prettier --write . --cache"
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix ."
   },
   "contributes": {
     "views": {
@@ -360,6 +363,18 @@
         "icon": "$(dash)"
       },
       {
+        "command": "gitorbit.changes.viewAsList",
+        "title": "View as List",
+        "category": "GitOrbit",
+        "icon": "$(list-unordered)"
+      },
+      {
+        "command": "gitorbit.changes.viewAsTree",
+        "title": "View as Tree",
+        "category": "GitOrbit",
+        "icon": "$(files)"
+      },
+      {
         "command": "gitorbit.changes.discardAll",
         "title": "Discard All Changes",
         "category": "GitOrbit",
@@ -531,14 +546,21 @@
         "icon": "$(add)"
       },
       {
-        "command": "gitorbit.login",
-        "title": "Login with Kuulto AI",
+        "command": "gitorbit.ai.setApiKey",
+        "title": "Set AI Provider API Key...",
+        "category": "GitOrbit",
+        "icon": "$(key)"
+      },
+      {
+        "command": "gitorbit.ai.clearApiKey",
+        "title": "Clear AI Provider API Key",
         "category": "GitOrbit"
       },
       {
-        "command": "gitorbit.logout",
-        "title": "Logout from Kuulto AI",
-        "category": "GitOrbit"
+        "command": "gitorbit.ai.selectProvider",
+        "title": "Select AI Provider...",
+        "category": "GitOrbit",
+        "icon": "$(server)"
       },
       {
         "command": "gitorbit.bisect.start",
@@ -619,12 +641,6 @@
       },
       {
         "command": "gitorbit.copy.hash",
-        "title": "Open Worktree",
-        "category": "GitOrbit",
-        "icon": "$(folder-open)"
-      },
-      {
-        "command": "gitorbit.copy.hash",
         "title": "Copy Commit Hash",
         "category": "GitOrbit",
         "icon": "$(copy)"
@@ -664,6 +680,81 @@
         "title": "Feedback",
         "category": "GitOrbit",
         "icon": "$(comment)"
+      },
+      {
+        "command": "gitorbit.git.merge",
+        "title": "Merge Branch...",
+        "category": "GitOrbit",
+        "icon": "$(git-merge)"
+      },
+      {
+        "command": "gitorbit.git.rebaseContinue",
+        "title": "Rebase: Continue",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.git.rebaseSkip",
+        "title": "Rebase: Skip Commit",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.git.cherryPickContinue",
+        "title": "Cherry Pick: Continue",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.git.cherryPickAbort",
+        "title": "Cherry Pick: Abort",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.git.tagCreate",
+        "title": "Create Tag...",
+        "category": "GitOrbit",
+        "icon": "$(tag)"
+      },
+      {
+        "command": "gitorbit.git.tagDelete",
+        "title": "Delete Tag...",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.git.tagPush",
+        "title": "Push Tag...",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.git.fetch",
+        "title": "Fetch",
+        "category": "GitOrbit",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "gitorbit.changes.abortRebase",
+        "title": "Abort Rebase",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.changes.abortMerge",
+        "title": "Abort Merge",
+        "category": "GitOrbit"
+      },
+      {
+        "command": "gitorbit.gitflow.startFeature",
+        "title": "Start Feature...",
+        "category": "GitOrbit",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "gitorbit.gitflow.startHotfix",
+        "title": "Start Hotfix...",
+        "category": "GitOrbit",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "gitorbit.bisect.skip",
+        "title": "Bisect: Skip Commit",
+        "category": "GitOrbit"
       }
     ],
     "menus": {
@@ -699,6 +790,11 @@
           "group": "gitorbit_2_extras@4"
         },
         {
+          "command": "gitorbit.bisect.skip",
+          "when": "view == gitorbit.views.changes && gitorbit.ctx.bisectActive",
+          "group": "gitorbit_2_extras@5"
+        },
+        {
           "command": "gitorbit.changes.smartCommit",
           "when": "view == gitorbit.views.changes",
           "group": "navigation@2"
@@ -732,6 +828,31 @@
           "command": "gitorbit.changes.discardAll",
           "when": "view == gitorbit.views.changes && gitorbit.hasUnstagedChanges",
           "group": "gitorbit_1_actions@5"
+        },
+        {
+          "command": "gitorbit.changes.viewAsTree",
+          "when": "view == gitorbit.views.changes && gitorbit.changes.viewMode == 'list'",
+          "group": "gitorbit_1_actions@6"
+        },
+        {
+          "command": "gitorbit.changes.viewAsList",
+          "when": "view == gitorbit.views.changes && gitorbit.changes.viewMode == 'tree'",
+          "group": "gitorbit_1_actions@6"
+        },
+        {
+          "command": "gitorbit.ai.selectProvider",
+          "when": "view == gitorbit.views.changes",
+          "group": "gitorbit_4_ai@1"
+        },
+        {
+          "command": "gitorbit.ai.setApiKey",
+          "when": "view == gitorbit.views.changes",
+          "group": "gitorbit_4_ai@2"
+        },
+        {
+          "command": "gitorbit.ai.clearApiKey",
+          "when": "view == gitorbit.views.changes",
+          "group": "gitorbit_4_ai@3"
         },
         {
           "command": "gitorbit.openSettings",
@@ -817,6 +938,56 @@
           "command": "gitorbit.interactiveRebase",
           "when": "view == gitorbit.views.commits || view == gitorbit.views.graph",
           "group": "navigation"
+        },
+        {
+          "command": "gitorbit.git.fetch",
+          "when": "view == gitorbit.views.localBranches",
+          "group": "navigation@4"
+        },
+        {
+          "command": "gitorbit.git.tagCreate",
+          "when": "view == gitorbit.views.tags",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitorbit.git.rebaseContinue",
+          "when": "view == gitorbit.views.changes",
+          "group": "gitorbit_5_gitops@1"
+        },
+        {
+          "command": "gitorbit.git.rebaseSkip",
+          "when": "view == gitorbit.views.changes",
+          "group": "gitorbit_5_gitops@2"
+        },
+        {
+          "command": "gitorbit.git.cherryPickContinue",
+          "when": "view == gitorbit.views.changes",
+          "group": "gitorbit_5_gitops@3"
+        },
+        {
+          "command": "gitorbit.git.cherryPickAbort",
+          "when": "view == gitorbit.views.changes",
+          "group": "gitorbit_5_gitops@4"
+        },
+        {
+          "command": "gitorbit.changes.abortRebase",
+          "when": "view == gitorbit.views.changes",
+          "group": "gitorbit_5_gitops@5"
+        },
+        {
+          "command": "gitorbit.changes.abortMerge",
+          "when": "view == gitorbit.views.changes",
+          "group": "gitorbit_5_gitops@6"
+        },
+        {
+          "command": "gitorbit.gitflow.startFeature",
+          "when": "view == gitorbit.views.localBranches",
+          "group": "branchActions@3"
+        },
+        {
+          "command": "gitorbit.gitflow.startHotfix",
+          "when": "view == gitorbit.views.localBranches",
+          "group": "branchActions@4"
         },
         {
           "command": "gitorbit.contributors.refresh",
@@ -963,6 +1134,21 @@
           "command": "gitorbit.checkoutBranch",
           "when": "view == gitorbit.views.localBranches && viewItem == localBranchNotCurrent",
           "group": "inline@1"
+        },
+        {
+          "command": "gitorbit.git.merge",
+          "when": "view == gitorbit.views.localBranches && viewItem == localBranchNotCurrent",
+          "group": "branchActions@2"
+        },
+        {
+          "command": "gitorbit.git.tagDelete",
+          "when": "view == gitorbit.views.tags && viewItem == tag",
+          "group": "tagActions@1"
+        },
+        {
+          "command": "gitorbit.git.tagPush",
+          "when": "view == gitorbit.views.tags && viewItem == tag",
+          "group": "tagActions@2"
         },
         {
           "command": "gitorbit.pushBranch",
@@ -1161,11 +1347,18 @@
     "configuration": {
       "title": "GitOrbit",
       "properties": {
-        "gitorbit.ai.authInfo": {
+        "gitorbit.ai.provider": {
           "type": "string",
-          "default": "",
-          "markdownDescription": "Log in to access Kuulto AI features. [Login with Kuulto AI](command:gitorbit.login) | [Logout](command:gitorbit.logout)",
-          "order": 0
+          "enum": [
+            "openrouter"
+          ],
+          "default": "openrouter",
+          "description": "AI provider to use for AI features."
+        },
+        "gitorbit.ai.openrouter.model": {
+          "type": "string",
+          "default": "openai/gpt-4o-mini",
+          "description": "OpenRouter model id."
         },
         "gitorbit.blame.inline.enabled": {
           "type": "boolean",
@@ -1181,6 +1374,15 @@
           "type": "boolean",
           "default": true,
           "description": "Enable automatic vertical file blame view on file open."
+        },
+        "gitorbit.views.changesViewMode": {
+          "type": "string",
+          "enum": [
+            "list",
+            "tree"
+          ],
+          "default": "list",
+          "markdownDescription": "Display changed files as a flat list or grouped in a directory tree."
         },
         "gitorbit.views.showChanges": {
           "type": "boolean",
@@ -1303,14 +1505,11 @@
   "devDependencies": {
     "@types/node": "^25.3.3",
     "@types/vscode": "^1.107.0",
-    "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "@typescript-eslint/parser": "^6.21.0",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.7.1",
-    "dotenv": "^17.3.1",
     "esbuild": "^0.27.3",
-    "eslint": "^8.57.1",
-    "prettier": "^3.8.1",
+    "oxfmt": "^0.79.0",
+    "oxlint": "^1.94.0",
     "typescript": "^6.0.0-dev.20260304",
     "vitest": "^3.0.0"
   }

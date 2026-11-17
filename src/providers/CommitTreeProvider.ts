@@ -92,6 +92,19 @@ export class CommitTreeProvider extends BaseTreeProvider<CommitItem | vscode.Tre
     );
   }
 
+  private filterCommits<T extends { message: string; hash: string; author_name: string }>(
+    commits: T[]
+  ): T[] {
+    if (!this.filterText) return commits;
+    const search = this.filterText.toLowerCase();
+    return commits.filter(
+      (c) =>
+        c.message.toLowerCase().includes(search) ||
+        c.hash.toLowerCase().includes(search) ||
+        c.author_name.toLowerCase().includes(search)
+    );
+  }
+
   async getChildren(
     element?: CommitItem | vscode.TreeItem
   ): Promise<(CommitItem | vscode.TreeItem)[]> {
@@ -125,7 +138,9 @@ export class CommitTreeProvider extends BaseTreeProvider<CommitItem | vscode.Tre
         const repo = this.resolveRepo(repoRoot);
         const log = await this.gitService.getLog(this.limit, undefined, repo);
 
-        return log.all.slice(0, this.limit).map((commit, index) => this.createCommitItem(commit, index, repo));
+        return log.all
+          .slice(0, this.limit)
+          .map((commit, index) => this.createCommitItem(commit, index, repo));
       }
 
       return [];
@@ -141,10 +156,11 @@ export class CommitTreeProvider extends BaseTreeProvider<CommitItem | vscode.Tre
 
         // Get main repo commits
         const log = await this.gitService.getLog(this.limit, undefined, repo);
+        const commits = this.filterCommits(log.all);
 
-        if (log.all.length > 0) {
+        if (commits.length > 0) {
           // Add commits directly
-          const commitItems: (CommitItem | vscode.TreeItem)[] = log.all
+          const commitItems: (CommitItem | vscode.TreeItem)[] = commits
             .slice(0, this.limit)
             .map((commit, index) => this.createCommitItem(commit, index, repo));
           items.push(...commitItems);
@@ -162,8 +178,9 @@ export class CommitTreeProvider extends BaseTreeProvider<CommitItem | vscode.Tre
 
           // Get worktree commits
           const wtLog = await this.gitService.getLog(this.limit, undefined, wt);
+          const wtCommits = this.filterCommits(wtLog.all);
 
-          const wtCommitItems: (CommitItem | vscode.TreeItem)[] = wtLog.all
+          const wtCommitItems: (CommitItem | vscode.TreeItem)[] = wtCommits
             .slice(0, this.limit)
             .map((commit, index) => this.createCommitItem(commit, index, wt));
           items.push(wtItem, ...wtCommitItems);
@@ -184,8 +201,9 @@ export class CommitTreeProvider extends BaseTreeProvider<CommitItem | vscode.Tre
         (wtItem as any).repoRoot = wt.rootDir;
 
         const wtLog = await this.gitService.getLog(this.limit, undefined, wt);
+        const wtCommits = this.filterCommits(wtLog.all);
 
-        const wtCommitItems: (CommitItem | vscode.TreeItem)[] = wtLog.all
+        const wtCommitItems: (CommitItem | vscode.TreeItem)[] = wtCommits
           .slice(0, this.limit)
           .map((commit: any, index: number) => this.createCommitItem(commit, index, wt));
         items.push(wtItem, ...wtCommitItems);
@@ -204,19 +222,10 @@ export class CommitTreeProvider extends BaseTreeProvider<CommitItem | vscode.Tre
       const targetRepo = this.resolveRepo(repoRoot);
       const log = await this.gitService.getLog(this.limit, undefined, targetRepo);
 
-      let commits = log.all;
-      if (this.filterText) {
-        const search = this.filterText.toLowerCase();
-        commits = commits.filter(
-          (c) =>
-            c.message.toLowerCase().includes(search) ||
-            c.hash.toLowerCase().includes(search) ||
-            c.author_name.toLowerCase().includes(search)
-        );
-      }
+      const commits = this.filterCommits(log.all);
 
-      const items: (CommitItem | vscode.TreeItem)[] = commits.map(
-        (commit, index) => this.createCommitItem(commit, index, targetRepo)
+      const items: (CommitItem | vscode.TreeItem)[] = commits.map((commit, index) =>
+        this.createCommitItem(commit, index, targetRepo)
       );
 
       if (log.all.length >= this.limit && !this.filterText) {

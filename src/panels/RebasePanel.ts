@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { GitService } from '../services/GitService';
+import { escapeHtml, getNonce } from '../utils/HtmlUtils';
 
 export class RebasePanel {
   public static currentPanel: RebasePanel | undefined;
@@ -19,7 +20,7 @@ export class RebasePanel {
       async (message) => {
         switch (message.type) {
           case 'rebase':
-            this._handleRebase(message.commits);
+            await this._handleRebase(message.commits);
             return;
           case 'abort':
             try {
@@ -47,23 +48,70 @@ export class RebasePanel {
       { modal: true },
       'Yes, Start Rebase'
     );
-
     if (confirmation !== 'Yes, Start Rebase') return;
 
-    vscode.window.withProgress(
+    // The UI lists newest first; git's rebase todo must be oldest first.
+    const chronological = [...commits].reverse();
+    if (chronological.length === 0) return;
+
+    if (['squash', 'fixup'].includes(chronological[0].action)) {
+      vscode.window.showErrorMessage('The oldest commit cannot be squashed or fixed up.');
+      return;
+    }
+
+    const lines: string[] = [];
+    for (const commit of chronological) {
+      const action = commit.action || 'pick';
+      if (action === 'drop') continue;
+
+      let message = String(commit.message || '')
+        .replace(/[\r\n]+/g, ' ')
+        .trim();
+      if (action === 'reword') {
+        const newMessage = await vscode.window.showInputBox({
+          prompt: `New message for ${String(commit.hash).substring(0, 7)}`,
+          value: message,
+        });
+        if (newMessage === undefined) return;
+        message = newMessage.replace(/[\r\n]+/g, ' ').trim();
+      }
+
+      // A reworded commit is replayed as a pick with the new subject.
+      const gitAction = action === 'reword' ? 'pick' : action;
+      lines.push(`${gitAction} ${commit.hash} ${message}`.trim());
+    }
+
+    if (lines.length === 0) {
+      vscode.window.showInformationMessage('Nothing to rebase — all commits were dropped.');
+      this.dispose();
+      return;
+    }
+
+    const upstream = await GitService.getInstance().getParentCommit(chronological[0].hash);
+    if (!upstream) {
+      vscode.window.showErrorMessage('Cannot rebase the root commit with this tool.');
+      return;
+    }
+
+    const pausesForEdit = chronological.some((commit) => commit.action === 'edit');
+    await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
         title: 'Performing Interactive Rebase...',
         cancellable: false,
       },
-      async (progress) => {
-        // In a real implementation, we would generate a script and use GIT_SEQUENCE_EDITOR
-        // For this design task, we demonstrate the intent.
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        vscode.window.showInformationMessage(
-          'Rebase simulation complete. (Logic to be hooked to git rebase -i)'
-        );
-        this.dispose();
+      async () => {
+        try {
+          await GitService.getInstance().runInteractiveRebase(lines.join('\n') + '\n', upstream);
+          vscode.window.showInformationMessage(
+            pausesForEdit
+              ? 'Rebase paused at an edit commit. Use "git rebase --continue" when finished.'
+              : 'Interactive rebase completed.'
+          );
+          this.dispose();
+        } catch (e: any) {
+          vscode.window.showErrorMessage(`Rebase failed: ${e.message}`);
+        }
       }
     );
   }
@@ -120,15 +168,18 @@ export class RebasePanel {
   }
 
   private _getHtmlForWebview() {
-    const commitsJson = JSON.stringify(this._commits);
+    // Escape '<' so a commit message containing </script> cannot break out of the script tag.
+    const commitsJson = JSON.stringify(this._commits).replace(/</g, '\\u003c');
+    const nonce = getNonce();
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net; img-src ${this._panel.webview.cspSource} https:;">
     <title>Interactive Rebase</title>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         :root {
             --bg: var(--vscode-editor-background);
@@ -411,9 +462,15 @@ export class RebasePanel {
         </div>
     </div>
 
-    <script>
+    <script nonce="${nonce}">
         const vscode = acquireVsCodeApi();
         let commits = ${commitsJson};
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, function (ch) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+            });
+        }
 
         const listElement = document.getElementById('rebaseList');
 
@@ -444,11 +501,11 @@ export class RebasePanel {
                         <option value="drop" \${commit.action === 'drop' ? 'selected' : ''}>drop</option>
                     </select>
                     <div class="commit-content">
-                        <span class="commit-msg">\${commit.message}</span>
+                        <span class="commit-msg">\${escapeHtml(commit.message)}</span>
                         <div class="commit-meta">
-                            <span class="commit-hash">\${commit.hash.substring(0, 7)}</span>
-                            <span class="commit-author">\${commit.author_name}</span>
-                            <span class="commit-date">\${commit.date}</span>
+                            <span class="commit-hash">\${escapeHtml(commit.hash.substring(0, 7))}</span>
+                            <span class="commit-author">\${escapeHtml(commit.author_name)}</span>
+                            <span class="commit-date">\${escapeHtml(commit.date)}</span>
                         </div>
                     </div>
                 \`;

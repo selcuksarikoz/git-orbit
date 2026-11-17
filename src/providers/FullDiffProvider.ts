@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { GitService } from '../services/GitService';
 
 export class FullDiffProvider implements vscode.TextDocumentContentProvider {
-  static scheme = 'gitorbit-diff';
+  static scheme = 'gitorbit-full-diff';
 
   provideTextDocumentContent(uri: vscode.Uri): vscode.ProviderResult<string> {
     const params = new URLSearchParams(uri.query);
@@ -10,7 +10,9 @@ export class FullDiffProvider implements vscode.TextDocumentContentProvider {
     const repoRoot = params.get('repoRoot') || undefined;
     if (!hash) return '';
 
-    const targetRepo = repoRoot ? GitService.getInstance().getRepositoryByRoot(repoRoot) : undefined;
+    const targetRepo = repoRoot
+      ? GitService.getInstance().getRepositoryByRoot(repoRoot)
+      : undefined;
     return GitService.getInstance().getCommitFullDiff(hash, targetRepo);
   }
 }

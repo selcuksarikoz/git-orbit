@@ -68,7 +68,10 @@ describe('GitContentProvider', () => {
 
     await provider.provideTextDocumentContent(uri);
 
-    expect(gitService.showFileContentRaw).toHaveBeenCalledWith('abc1234:src/file.ts', expect.objectContaining({ rootDir: '/test/repo' }));
+    expect(gitService.showFileContentRaw).toHaveBeenCalledWith(
+      'abc1234:src/file.ts',
+      expect.objectContaining({ rootDir: '/test/repo' })
+    );
   });
 
   it('should generate URIs for diffing', () => {
@@ -76,8 +79,21 @@ describe('GitContentProvider', () => {
 
     expect(diff.original).toBeDefined();
     expect(diff.modified).toBeDefined();
-    expect(vscode.Uri.from).toHaveBeenCalledWith(expect.objectContaining({
-      authority: '/test/repo::HEAD',
-    }));
+    expect(vscode.Uri.from).toHaveBeenCalledWith(
+      expect.objectContaining({
+        authority: '/test/repo::HEAD',
+      })
+    );
+  });
+
+  it('should return both diff URIs for added and deleted commit files', () => {
+    const added = GitContentProvider.getCommitDiffUris('abc123', 'src/added.ts', 'A');
+    const deleted = GitContentProvider.getCommitDiffUris('abc123', 'src/deleted.ts', 'D');
+
+    expect(added.original).toBeDefined();
+    expect(added.modified).toBeDefined();
+    expect(deleted.original).toBeDefined();
+    expect(deleted.modified).toBeDefined();
+    expect(vscode.Uri.from).toHaveBeenCalledWith(expect.objectContaining({ authority: 'EMPTY' }));
   });
 });

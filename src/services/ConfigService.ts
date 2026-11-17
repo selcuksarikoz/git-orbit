@@ -49,7 +49,7 @@ export class ConfigService {
   }
 
   public get commitLimit(): number {
-    return this.get<number>('views.commitLimit') || 20;
+    return this.get<number>('views.commitLimit') ?? 20;
   }
 
   public get isInlineBlameEnabled(): boolean {
@@ -73,6 +73,16 @@ export class ConfigService {
   }
 
   public get autoSyncInterval(): number {
-    return this.get<number>('sync.autoSyncInterval') || 10;
+    return this.get<number>('sync.autoSyncInterval') ?? 10;
+  }
+
+  public get changesViewMode(): 'list' | 'tree' {
+    return this.get<'list' | 'tree'>('views.changesViewMode') ?? 'list';
+  }
+
+  public async setChangesViewMode(mode: 'list' | 'tree'): Promise<void> {
+    await vscode.workspace
+      .getConfiguration('gitorbit')
+      .update('views.changesViewMode', mode, vscode.ConfigurationTarget.Global);
   }
 }
