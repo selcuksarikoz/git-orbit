@@ -246,13 +246,13 @@ describe('ConfigService', () => {
       expect(configService.changesViewMode).toBe('tree');
     });
 
-    it('should persist the selected mode globally', async () => {
-      await configService.setChangesViewMode('tree');
-      expect(workspace.getConfiguration('gitorbit').update).toHaveBeenCalledWith(
-        'views.changesViewMode',
-        'tree',
-        1
-      );
+    it('should let the runtime toggle override the configured mode', () => {
+      mockGet.mockReturnValue('tree');
+      configService.setRuntimeViewMode('list');
+      expect(configService.changesViewMode).toBe('list');
+      configService.setRuntimeViewMode('tree');
+      expect(configService.changesViewMode).toBe('tree');
+      configService.setRuntimeViewMode('list');
     });
   });
 });

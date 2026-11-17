@@ -76,13 +76,17 @@ export class ConfigService {
     return this.get<number>('sync.autoSyncInterval') ?? 10;
   }
 
+  private static runtimeViewMode: 'list' | 'tree' | undefined;
+
   public get changesViewMode(): 'list' | 'tree' {
-    return this.get<'list' | 'tree'>('views.changesViewMode') ?? 'list';
+    // Runtime state wins over the declared setting so the toggle keeps working
+    // even when configuration writes are unavailable (e.g. stale installations).
+    return (
+      ConfigService.runtimeViewMode ?? this.get<'list' | 'tree'>('views.changesViewMode') ?? 'list'
+    );
   }
 
-  public async setChangesViewMode(mode: 'list' | 'tree'): Promise<void> {
-    await vscode.workspace
-      .getConfiguration('gitorbit')
-      .update('views.changesViewMode', mode, vscode.ConfigurationTarget.Global);
+  public setRuntimeViewMode(mode: 'list' | 'tree'): void {
+    ConfigService.runtimeViewMode = mode;
   }
 }

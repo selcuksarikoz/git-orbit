@@ -233,6 +233,24 @@ describe('Extension Activation', () => {
     );
   });
 
+  it('should persist view mode in globalState instead of User Settings', async () => {
+    activate(mockContext);
+    const handler = (vscode.commands.registerCommand as any).mock.calls.find(
+      (call: any[]) => call[0] === 'gitorbit.changes.viewAsTree'
+    )[1];
+
+    await handler();
+    expect(mockContext.globalState.update).toHaveBeenCalledWith(
+      'gitorbit.views.changesViewMode',
+      'tree'
+    );
+    expect(vscode.workspace.getConfiguration().update).not.toHaveBeenCalledWith(
+      'views.changesViewMode',
+      'tree',
+      expect.anything()
+    );
+  });
+
   it('should reject an empty API key without storing it', async () => {
     (vscode.window.showInputBox as any).mockResolvedValue('   ');
     activate(mockContext);

@@ -153,6 +153,10 @@ export function activate(context: vscode.ExtensionContext) {
   vscode.commands.executeCommand('setContext', 'gitorbit.graph.isFiltered', false);
   vscode.commands.executeCommand('setContext', 'gitorbit.commits.isFiltered', false);
   vscode.commands.executeCommand('setContext', 'gitorbit.fileHistory.isFiltered', false);
+  const storedViewMode = context.globalState.get<'list' | 'tree'>('gitorbit.views.changesViewMode');
+  if (storedViewMode === 'list' || storedViewMode === 'tree') {
+    ConfigService.getInstance().setRuntimeViewMode(storedViewMode);
+  }
   vscode.commands.executeCommand(
     'setContext',
     'gitorbit.changes.viewMode',
@@ -391,7 +395,10 @@ export function activate(context: vscode.ExtensionContext) {
 
   const applyChangesViewMode = async (mode: 'list' | 'tree') => {
     try {
-      await ConfigService.getInstance().setChangesViewMode(mode);
+      // Persist in extension state instead of User Settings: the toggle must not
+      // depend on a registered configuration key being present at runtime.
+      await context.globalState.update('gitorbit.views.changesViewMode', mode);
+      ConfigService.getInstance().setRuntimeViewMode(mode);
       await vscode.commands.executeCommand('setContext', 'gitorbit.changes.viewMode', mode);
       refreshAll();
       vscode.window.showInformationMessage(
